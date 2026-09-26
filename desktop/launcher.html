@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:" />
+<title>Isla Perdida · Lanzador</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@400;600;800&display=swap" />
+<style>
+  :root { --bg: #0b1418; --panel: rgba(18,28,32,.9); --line: rgba(255,255,255,.12); --text: #f1ece1; --muted: #a9b1ad; --accent: #f2b544; --good: #7fdc6f; --danger: #ff6a5f; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: 'Nunito', system-ui, sans-serif; color: var(--text); background: radial-gradient(ellipse at 50% 120%, rgba(27,111,138,.55), transparent 60%), linear-gradient(180deg, #0e2a3a 0%, #0b1418 100%); display: flex; flex-direction: column; user-select: none; }
+  header { display: flex; align-items: center; gap: 16px; padding: 22px 32px 12px; }
+  header img { width: 64px; height: 64px; border-radius: 50%; }
+  h1 { font-family: 'Cinzel', serif; font-weight: 900; font-size: 38px; margin: 0; background: linear-gradient(180deg, #ffe3a3, #e59a3a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { color: var(--muted); font-size: 14px; }
+  .spacer { flex: 1; }
+  .hbtn { font: 700 13.5px 'Nunito', sans-serif; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--text); cursor: pointer; }
+  .hbtn:hover { background: rgba(255,255,255,.12); }
+  main { flex: 1; display: grid; grid-template-columns: minmax(300px, 420px) 1fr; gap: 18px; padding: 8px 32px 18px; min-height: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; min-height: 0; display: flex; flex-direction: column; }
+  .panel h2 { font-family: 'Cinzel', serif; font-size: 18px; margin: 0 0 10px; }
+  #list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+  .ver { padding: 11px 13px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.03); cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; }
+  .ver:hover { background: rgba(255,255,255,.07); }
+  .ver.sel { border-color: var(--accent); background: rgba(242,181,68,.1); }
+  .ver b { font-size: 16px; }
+  .ver .nm { color: var(--muted); font-size: 13px; grid-column: 1; }
+  .tags { grid-row: 1 / span 2; grid-column: 2; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  .tag { font-size: 11.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+  .t-latest { background: var(--accent); color: #1d1406; }
+  .t-inst { background: rgba(127,220,111,.18); color: var(--good); }
+  .t-dl { background: rgba(255,255,255,.08); color: var(--muted); }
+  .t-bundled { background: rgba(80,160,230,.2); color: #9fd3ff; }
+  #detail h3 { font-family: 'Cinzel', serif; font-size: 26px; margin: 0; }
+  #detail .date { color: var(--muted); font-size: 13.5px; margin: 2px 0 12px; }
+  #notes { white-space: pre-wrap; line-height: 1.55; font-size: 14.5px; color: #ddd6c8; overflow-y: auto; flex: 1; padding-right: 6px; }
+  .actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+  .play { font: 900 22px 'Nunito', sans-serif; padding: 15px 44px; border-radius: 14px; border: none; cursor: pointer; background: linear-gradient(180deg, #7fdc6f, #3fa84a); color: #0e2410; box-shadow: 0 8px 24px rgba(63,168,74,.35); }
+  .play:disabled { background: rgba(255,255,255,.1); color: var(--muted); box-shadow: none; cursor: default; }
+  .btn2 { font: 800 15px 'Nunito', sans-serif; padding: 12px 20px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.07); color: var(--text); cursor: pointer; }
+  .btn2.accent { background: var(--accent); color: #1d1406; border-color: transparent; }
+  .btn2.danger { color: var(--danger); }
+  .btn2:disabled { opacity: .5; cursor: default; }
+  .bar { height: 10px; border-radius: 6px; background: rgba(255,255,255,.1); overflow: hidden; flex: 1; min-width: 160px; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #f2b544, #ffd88a); transition: width .2s; }
+  #msg { color: var(--muted); font-size: 13.5px; min-height: 18px; margin-top: 8px; }
+  footer { padding: 0 32px 16px; color: var(--muted); font-size: 12.5px; display: flex; gap: 12px; align-items: center; }
+  #appUpd { color: var(--good); }
+  #appUpd button { margin-left: 6px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <header>
+    <img src="icon.png" alt="" />
+    <div><h1>Isla Perdida</h1><div class="sub">Lanzador · elige con qué versión jugar</div></div>
+    <div class="spacer"></div>
+    <button class="hbtn" id="btnRefresh">🔄 Buscar versiones</button>
+    <button class="hbtn" id="btnFolder">📁 Carpeta de versiones</button>
+    <button class="hbtn" id="btnPage">🌐 Página de descargas</button>
+  </header>
+  <main>
+    <section class="panel">
+      <h2>Versiones</h2>
+      <div id="list"><div class="sub">Cargando…</div></div>
+    </section>
+    <section class="panel" id="detail">
+      <h3 id="dTitle">—</h3>
+      <div class="date" id="dDate"></div>
+      <div id="notes"></div>
+      <div class="actions">
+        <button class="play" id="btnPlay" disabled>▶ JUGAR</button>
+        <button class="btn2 accent" id="btnDl">⬇️ Descargar</button>
+        <button class="btn2 danger" id="btnDel">🗑️ Borrar</button>
+        <div class="bar" id="bar" style="display:none"><i id="barFill"></i></div>
+      </div>
+      <div id="msg"></div>
+    </section>
+  </main>
+  <footer><span id="appVer"></span><span id="appUpd"></span></footer>
+<script>
+  const D = window.islaDesktop, $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmt = (d) => (d ? new Date(d).toLocaleDateString('es', { year: 'numeric', month: 'long', day: 'numeric' }) : '');
+  let data = null, sel = null, busy = null;
+
+  async function load(force) {
+    data = await D.versions(force);
+    if (!sel || !data.versions.some((v) => v.version === sel)) sel = data.last && data.versions.some((v) => v.version === data.last) ? data.last : (data.versions.find((v) => v.installed) || data.versions[0] || {}).version;
+    render();
+    $('appVer').textContent = `Lanzador ${data.app}` + (data.offline ? ' · sin conexión (mostrando lo guardado)' : '');
+    showUpdate(data.update);
+  }
+  function render() {
+    const L = $('list');
+    if (!data.versions.length) { L.innerHTML = '<div class="sub">No hay versiones.</div>'; return; }
+    L.innerHTML = data.versions.map((v) => `<div class="ver ${v.version === sel ? 'sel' : ''}" data-v="${esc(v.version)}">
+      <b>${esc(v.version)}</b><span class="nm">${esc((v.name || '').replace(/^Isla Perdida\s*[\d.]*\s*·?\s*/, ''))}</span>
+      <div class="tags">${v.version === data.latest ? '<span class="tag t-latest">Última</span>' : ''}${v.installed ? `<span class="tag ${v.bundled ? 't-bundled' : 't-inst'}">${v.bundled ? 'Incluida' : 'Instalada'}</span>` : '<span class="tag t-dl">Descargable</span>'}</div></div>`).join('');
+    L.querySelectorAll('.ver').forEach((el) => (el.onclick = () => { if (!busy) { sel = el.dataset.v; render(); } }));
+    const v = data.versions.find((x) => x.version === sel) || {};
+    $('dTitle').textContent = 'Versión ' + (v.version || '—');
+    $('dDate').textContent = [v.name && v.name.replace(/^Isla Perdida\s*[\d.]*\s*·?\s*/, ''), fmt(v.date)].filter(Boolean).join(' · ');
+    $('notes').textContent = v.notes || (v.installed ? 'Versión instalada en este equipo.' : 'Sin notas.');
+    $('btnPlay').disabled = !v.installed || !!busy;
+    $('btnPlay').textContent = `▶ JUGAR ${v.version || ''}`;
+    $('btnDl').style.display = v.installed ? 'none' : '';
+    $('btnDl').disabled = !!busy || !v.zip;
+    $('btnDl').textContent = v.zip ? `⬇️ Descargar${v.size ? ' (' + (v.size / 1048576).toFixed(1) + ' MB)' : ''}` : 'Sin paquete para el lanzador';
+    $('btnDel').style.display = v.installed && !v.bundled ? '' : 'none';
+    $('btnDel').disabled = !!busy;
+  }
+  $('btnPlay').onclick = async () => { $("msg").textContent = "Abriendo el juego…"; if (!(await D.play(sel))) $("msg").textContent = "❌ No se pudo abrir esa versión."; };
+  $('btnDl').onclick = async () => {
+    busy = sel; render();
+    $('bar').style.display = ''; $('barFill').style.width = '0%';
+    $('msg').textContent = `Descargando la versión ${sel}…`;
+    const r = await D.download(sel);
+    busy = null;
+    $('bar').style.display = 'none';
+    $('msg').textContent = r.ok ? `✅ Versión ${sel} lista para jugar.` : `❌ No se pudo descargar: ${r.error}`;
+    await load(false);
+  };
+  $('btnDel').onclick = async () => {
+    if (!confirm(`¿Borrar la versión ${sel} de este equipo? (Podrás volver a descargarla.)`)) return;
+    await D.remove(sel);
+    $('msg').textContent = `Versión ${sel} borrada.`;
+    await load(false);
+  };
+  D.onProgress((p) => {
+    if (p.version !== busy) return;
+    $('barFill').style.width = (p.percent || 0) + '%';
+    if (p.extracting) $('msg').textContent = 'Descomprimiendo…';
+  });
+  $('btnRefresh').onclick = () => { $('msg').textContent = 'Buscando versiones…'; load(true).then(() => ($('msg').textContent = '')); };
+  $('btnFolder').onclick = () => D.openFolder();
+  $('btnPage').onclick = () => D.openPage();
+  function showUpdate(u) {
+    const el = $('appUpd');
+    if (!u || !u.state) return;
+    if (u.state === 'downloading') el.textContent = `· Descargando lanzador ${u.version}… ${u.percent || 0}%`;
+    else if (u.state === 'ready') { el.innerHTML = `· Nuevo lanzador ${esc(u.version)} listo <button class="hbtn" id="btnUpd">Reiniciar y actualizar</button>`; $('btnUpd').onclick = () => D.installUpdate(); }
+    else el.textContent = '';
+  }
+  D.onUpdate(showUpdate);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !$('btnPlay').disabled) $('btnPlay').click(); });
+  load(false);
+</script>
+</body>
+</html>

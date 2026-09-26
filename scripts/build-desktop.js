@@ -36,7 +36,9 @@ if (ver && ver[1] !== pkg.version) {
   process.exit(1);
 }
 const run = (cmd) => { console.log('> ' + cmd); execSync(cmd, { cwd: WORK, stdio: 'inherit', env: process.env }); };
-if (!fs.existsSync(path.join(WORK, 'node_modules', 'electron-builder'))) run('npm install --no-audit --no-fund');
+// Instala (o actualiza) las dependencias si cambió package.json
+const depsKey = JSON.stringify([pkg.dependencies, pkg.devDependencies]), stamp = path.join(WORK, 'node_modules', '.isla-deps');
+if (!fs.existsSync(stamp) || fs.readFileSync(stamp, 'utf8') !== depsKey) { run('npm install --no-audit --no-fund'); fs.writeFileSync(stamp, depsKey); }
 const publish = process.argv.includes('--publish');
 run(`npx electron-builder --win nsis --x64 --publish ${publish ? 'always' : 'never'}`);
 console.log(`\n✅ Instalador listo en: ${path.join(WORK, 'dist')}`);

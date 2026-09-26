@@ -120,7 +120,7 @@ async def ws_session(reader, writer):
                 continue
             msg['from'] = cid
             if msg.get('t') == 'hello':
-                c.info = {'name': str(msg.get('name', ''))[:16], 'color': str(msg.get('color', '#ccc'))[:9]}
+                c.info = {'name': str(msg.get('name', ''))[:16], 'color': str(msg.get('color', '#ccc'))[:9], 'ver': str(msg.get('ver', ''))[:12]}
                 print(f'    #{cid} se llama "{c.info["name"]}"')
             to = msg.get('to')
             if to is not None:

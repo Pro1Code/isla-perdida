@@ -9,10 +9,15 @@ conoce a la tribu Shandara, busca las Frutas del Abismo y sigue la ruta de
 CÓMO JUGAR
 ----------
 - Juego instalado (recomendado): ejecuta "Isla-Perdida-Setup-X.exe", instala
-  y abre "Isla Perdida" desde el escritorio. Se actualiza solo cuando
-  publicamos una versión nueva (te pregunta antes de reiniciar).
+  y abre "Isla Perdida" desde el escritorio. Se abre el LANZADOR:
+    · A la izquierda están todas las versiones: "Incluida" (la que trae la
+      app), "Instalada" (ya descargada) o "Descargable".
+    · Elige una y pulsa JUGAR, o "Descargar" si aún no la tienes. Puedes
+      tener varias versiones a la vez y borrar las que no uses.
+    · Dentro del juego, "Cambiar de versión (lanzador)" te devuelve aquí.
+    · La app (el lanzador) se actualiza sola cuando publicamos una versión.
 - En el navegador: abre la página de descargas y pulsa "Jugar en el
-  navegador" (no incluye LAN), o haz doble clic en index.html.
+  navegador" (siempre es la última versión; no incluye LAN).
 
 
 MULTIJUGADOR LAN (hasta 8 jugadores)
@@ -23,6 +28,8 @@ MULTIJUGADOR LAN (hasta 8 jugadores)
    esa IP en "IP del anfitrión", o abren http://IP-DEL-ANFITRIÓN:8080 en su
    navegador.
 3. Si Windows pregunta por el firewall, permite el acceso en "Redes privadas".
+4. Todos deben jugar la MISMA versión que el anfitrión (el lobby avisa con ⚠
+   si alguien tiene otra).
 Sin instalar nada: "Iniciar servidor LAN.bat" (necesita Python 3) hace lo mismo.
 
 Modos (los elige el anfitrión en el lobby):
@@ -117,7 +124,8 @@ PARA EL DESARROLLO (carpeta del proyecto)
 -----------------------------------------
 Publicar una versión nueva (el juego instalado se actualiza solo):
   1. Escribe las novedades en build/release-notes.md
-  2. node scripts/release.js 2.1.0      (cambia la versión, sube todo y publica)
+  2. node scripts/release.js 2.1.0 "Nombre"   (cambia la versión, sube todo y
+     publica el instalador y el paquete del juego para el lanzador)
 Otros:
   node scripts/build-desktop.js         Solo crea el instalador .exe
   node scripts/build-web.js             Solo crea docs/ (página de descargas + web)

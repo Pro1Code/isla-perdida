@@ -1,9 +1,7 @@
-🏝️ El Archipiélago
+🗂️ Lanzador de versiones
 
-- Archipiélago nuevo en cada partida: Isla Tahuri (tribu Shandara), Isla Escarcha, Isla Brasa, islotes, arrecife, naufragios y un submarino hundido.
-- Barcos: balsa, canoa, bote de vela, lancha de vapor y barco pirata construido por piezas. Se camina por la cubierta, hay piloto automático, cañones y red de pesca.
-- Cada isla tiene su propio día y noche.
-- LAN hasta 8 jugadores: modo amistoso (con guardado) y versus (bandera, tesoro y barco insignia).
-- Historia: Monoglifos, el Log de Mareas y el misterio del Rey de las Mareas.
-- Frutas del Abismo, ropa y armadura (4 ranuras) y animales nuevos.
-- El juego instalado incluye el servidor LAN y se actualiza solo.
+- La app de Windows ahora abre un lanzador (como Minecraft): puedes descargar varias versiones del juego, tenerlas instaladas a la vez y elegir con cuál jugar.
+- En el menú del juego, "Cambiar de versión (lanzador)" te devuelve al lanzador.
+- El navegador siempre juega la última versión.
+- Página de descargas renovada: arriba la última versión y abajo todas las anteriores.
+- LAN: el lobby avisa si algún jugador usa una versión distinta a la del anfitrión.

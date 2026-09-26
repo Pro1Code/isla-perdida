@@ -339,7 +339,12 @@
     const N = G.Net, M = G.Modes, c = N.lobbyCfg;
     const tm = (id) => (c.mode === 'versus' && c.assign[id] !== undefined ? ` <span class="team-dot" style="background:${M.teamColor(c.assign[id])}"></span>` : '');
     const rows = [`<li><i style="background:${N.esc(N.color)}"></i>${N.esc(N.name)} (tú)${N.isHost ? ' 👑' : ''}${tm(N.myId)}</li>`];
-    for (const [id, p] of N.lobby) rows.push(`<li><i style="background:${N.esc(p.color)}"></i>${N.esc(p.name)}${id === N.hostId ? ' 👑' : ''}${tm(id)}</li>`);
+    const verOf = (id) => (id === N.myId ? G.VERSION : ((N.lobby.get(id) || {}).ver || '2.0.0'));
+    const hostVer = verOf(N.hostId), odd = (id) => verOf(id) !== hostVer;
+    const vtag = (id) => (odd(id) ? ` <span class="warn-text" title="El anfitrión usa la ${N.esc(hostVer)}">⚠ v${N.esc(verOf(id))}</span>` : '');
+    rows[0] = rows[0].replace('</li>', vtag(N.myId) + '</li>');
+    for (const [id, p] of N.lobby) rows.push(`<li><i style="background:${N.esc(p.color)}"></i>${N.esc(p.name)}${id === N.hostId ? ' 👑' : ''}${tm(id)}${vtag(id)}</li>`);
+    if ([N.myId, ...N.lobby.keys()].some(odd)) rows.push(`<li class="warn-text">⚠ Hay jugadores con otra versión del juego. Para evitar fallos, todos deben jugar la ${N.esc(hostVer)} (la del anfitrión).</li>`);
     el.innerHTML = rows.join('');
     const vs = c.mode === 'versus';
     document.querySelectorAll('#mpModeTabs button').forEach((b) => { b.classList.toggle('on', b.dataset.m === c.mode); b.disabled = !N.isHost; });

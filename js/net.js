@@ -38,8 +38,8 @@
           if ((m.players || []).length >= Net.MAX) { reject(new Error('full')); try { ws.close(); } catch (e) { /* nada */ } return; }
           Net.active = true; Net.myId = m.id; Net.hostId = m.hostId; Net.isHost = m.host;
           Net.lobby.clear();
-          for (const p of m.players || []) if (p.name) Net.lobby.set(p.id, { name: p.name, color: p.color });
-          Net.send({ t: 'hello', name, color });
+          for (const p of m.players || []) if (p.name) Net.lobby.set(p.id, { name: p.name, color: p.color, ver: p.ver });
+          Net.send({ t: 'hello', name, color, ver: G.VERSION });
           resolve(m);
         } else Net.onMessage(m);
       };
@@ -73,7 +73,7 @@
     if (m.t && m.t.startsWith('vs')) { if (Net.inWorld) { if (m.t === 'vsDrop') G.Modes.onPeerNet(m, from); else G.Modes.onNet(m, from); } return; }
     switch (m.t) {
       case 'hello':
-        Net.lobby.set(from, { name: m.name, color: m.color });
+        Net.lobby.set(from, { name: m.name, color: m.color, ver: m.ver });
         if (Net.inWorld) G.UI.msg(`🟢 <b style="color:${esc(m.color)}">${esc(m.name)}</b> se ha conectado`, 'good');
         if (Net.isHost && !Net.inWorld) Net.sendLobby();
         G.Main.refreshLobby();

@@ -21,6 +21,7 @@ function lanIps() {
   return out;
 }
 
+// root: carpeta del juego que se sirve (se puede cambiar con setRoot al elegir otra versión)
 function start(root, port, log = console.log) {
   root = path.resolve(root);
   const clients = new Map();
@@ -63,7 +64,7 @@ function start(root, port, log = console.log) {
       try { msg = JSON.parse(data.toString()); } catch (e) { return; }
       if (!msg || typeof msg !== 'object') return;
       msg.from = c.id;
-      if (msg.t === 'hello') c.info = { name: String(msg.name || '').slice(0, 16), color: String(msg.color || '#ccc').slice(0, 9) };
+      if (msg.t === 'hello') c.info = { name: String(msg.name || '').slice(0, 16), color: String(msg.color || '#ccc').slice(0, 9), ver: String(msg.ver || '').slice(0, 12) };
       if (msg.to !== undefined && msg.to !== null) { const target = clients.get(msg.to); if (target) send(target, msg); }
       else broadcast(msg, c.id);
     });
@@ -85,7 +86,7 @@ function start(root, port, log = console.log) {
       server.once('error', (e) => {
         if (e.code === 'EADDRINUSE' && tries++ < 15) { p++; attempt(); } else reject(e);
       });
-      server.listen(p, '0.0.0.0', () => resolve({ port: p, ips: lanIps(), close: () => { wss.close(); server.close(); } }));
+      server.listen(p, '0.0.0.0', () => resolve({ port: p, ips: lanIps(), close: () => { wss.close(); server.close(); }, setRoot: (dir) => { root = path.resolve(dir); }, getRoot: () => root }));
     };
     attempt();
   });
