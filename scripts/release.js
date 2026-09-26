@@ -45,6 +45,10 @@ const helper = `credential.helper=!'${ghLocal.replace(/\\/g, '/').replace(/^([A-
 run('git add -A');
 run(`git commit -q -m "Versión ${ver}"` + (process.env.RELEASE_TRAILER ? ` -m "${process.env.RELEASE_TRAILER}"` : ''));
 run(`git -c credential.helper= -c "${fs.existsSync(ghLocal) ? helper : 'credential.helper=!gh auth git-credential'}" push`);
+// La versión se crea en GitHub antes de compilar: si no, electron-builder sube los archivos en paralelo
+// y cada subida intenta crearla a la vez (solo una lo consigue y faltan archivos)
+const head = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
+try { execFileSync(gh, ['release', 'create', 'v' + ver, '-R', repo, '--target', head, '--title', title, '--notes-file', path.join(ROOT, 'build', 'release-notes.md')], { stdio: 'inherit' }); } catch (e) { /* ya existía */ }
 run('node scripts/build-desktop.js --publish', { GH_TOKEN: token });
 try { execFileSync(gh, ['release', 'edit', 'v' + ver, '-R', repo, '--title', title, '--notes-file', path.join(ROOT, 'build', 'release-notes.md')], { stdio: 'inherit' }); } catch (e) { /* las notas ya las pone electron-builder */ }
 // Paquete del juego para el lanzador (solo lo necesario para jugar: index.html, js, css, lib)
