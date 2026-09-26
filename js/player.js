@@ -10,7 +10,10 @@
     cam: 'fp', swing: 0, cd: 0, hurtT: 99, stepAcc: 0, bob: 0, dead: false, sick: 0, sprinting: false, moving: false,
     cause: '', shake: 0, hs: 0, exhausted: false, swingCount: 0, ship: null, local: null, station: null, sinking: false, zoom: 0,
   });
-  let camera, vm, vmHolder, vmArm, vmId = '__', model, torchLight, lookKey = '';
+  let camera, vm, vmHand, vmHolder, vmArm, vmId = '__', model, torchLight, lookKey = '';
+  // Brazo en primera persona: el golpe gira alrededor del codo, que queda siempre fuera de la pantalla
+  // (así solo se ve del antebrazo a la mano). Posiciones en el espacio de la cámara.
+  const VM_ELBOW = new THREE.Vector3(0.229, -0.243, -0.197), VM_HAND = new THREE.Vector3(0.0187, 0.0373, -0.3716);
   const _v = new V3(), _d = new V3();
 
   P.init = function (scene, cam) {
@@ -20,9 +23,12 @@
     // Brazo y objeto en primera persona
     vm = new THREE.Group();
     camera.add(vm);
+    vmHand = new THREE.Group();
+    vmHand.position.copy(VM_HAND);
+    vm.add(vmHand);
     vmHolder = new THREE.Group();
     vmHolder.rotation.set(-0.35, 0, 0.25);
-    vm.add(vmHolder);
+    vmHand.add(vmHolder);
     vm.scale.setScalar(0.6);
     torchLight = new THREE.PointLight(0xffa04a, 0, 20, 1.6);
     scene.add(torchLight);
@@ -47,10 +53,10 @@
     G.scene.add(model.root);
     G.Equip.apply(model, P.visibleIds());
     curLayer = -1;
-    if (vmArm) { vm.remove(vmArm); vmArm.geometry.dispose(); vmArm.material.dispose(); }
+    if (vmArm) { vmHand.remove(vmArm); vmArm.geometry.dispose(); vmArm.material.dispose(); }
     vmArm = G.Character.fpArm(look.shirt, { skin: look.skin });
     vmArm.rotation.set(0.1, -0.05, 0);
-    vm.add(vmArm);
+    vmHand.add(vmArm);
     vmId = '__';
   };
 
@@ -290,21 +296,23 @@
       if (t) { t.traverse((o) => (o.castShadow = false)); vmHolder.add(t); }
       model.hand.clear();
       const t2 = G.makeItemMesh(id);
-      if (t2) { t2.rotation.x = Math.PI / 2; model.hand.add(t2); t2.traverse((o) => o.layers.set(Math.max(0, curLayer))); }
+      if (t2) { t2.rotation.set(Math.PI / 2, 2.12, 0); model.hand.add(t2); t2.traverse((o) => o.layers.set(Math.max(0, curLayer))); }
     }
     if (P.swing > 0) P.swing = Math.max(0, P.swing - dt / 0.32);
     const s = P.swing > 0 ? Math.sin((1 - P.swing) * Math.PI) : 0;
     const bobA = P.onGround ? Math.min(1, hs / 4) : 0;
-    // Balanceo del brazo en primera persona: anticipación hacia atrás y golpe hacia delante
+    // Balanceo del brazo en primera persona (girando desde el codo): levanta la herramienta
+    // hacia atrás, golpea hacia delante y hacia el centro, y vuelve a su sitio
     const p = 1 - P.swing;
-    const wind = P.swing > 0 ? (p < 0.38 ? U.smooth(0, 1, p / 0.38) : 1 - U.smooth(0, 1, (p - 0.38) / 0.62)) : 0;
-    const strike = P.swing > 0 && p >= 0.38 ? Math.sin(((p - 0.38) / 0.62) * Math.PI) : 0;
-    const sway = Math.sin(performance.now() / 900) * 0.006 * (1 - bobA);
-    vm.rotation.set(wind * 0.55 - strike * 1.0, s * 0.25, wind * 0.15);
+    const wind = P.swing > 0 ? (p < 0.35 ? U.smooth(0, 1, p / 0.35) : 1 - U.smooth(0, 1, (p - 0.35) / 0.3)) : 0;
+    const strike = P.swing > 0 && p >= 0.35 ? Math.sin(Math.min(1, (p - 0.35) / 0.65) * Math.PI) : 0;
+    const sway = Math.sin(performance.now() / 900) * 0.005 * (1 - bobA);
+    void s;
+    vm.rotation.set(wind * 0.5 - strike * 0.62, -wind * 0.1 + strike * 0.3, -wind * 0.12 + strike * 0.18);
     vm.position.set(
-      0.24 + wind * 0.04 - strike * 0.06 + Math.cos(P.bob) * 0.012 * bobA,
-      -0.22 + wind * 0.05 + Math.sin(P.bob * 2) * 0.012 * bobA - strike * 0.04 + sway,
-      -0.42 + wind * 0.05 - strike * 0.12);
+      VM_ELBOW.x + Math.cos(P.bob) * 0.01 * bobA,
+      VM_ELBOW.y + Math.sin(P.bob * 2) * 0.01 * bobA + sway,
+      VM_ELBOW.z);
 
     // Antorcha (y el brillo de la Fruta Llama-Llama)
     const torch = id === 'antorcha' || (G.Story && G.Story.fruitOf() === 'llama' && G.World.night > 0.5);

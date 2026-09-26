@@ -357,6 +357,32 @@
     const leaf = Md.xf(Md.fin([[0, 0], [0.04, 0.02], [0.08, 0], [0.04, -0.015]], 0.004, 0x4a8a2a), 0.01, 0.16, 0, 0, 0, 0.4);
     vpart(g, [body, stem, leaf], 0, 0.02, 0);
   }
+  // Mango de madera ligeramente curvo con veta (de y = −0.08 a len − 0.08)
+  function haftGeo(len, r0, r1, col, dark) {
+    const Md = D();
+    return Md.tube([[0, -0.08, 0], [0.004, len * 0.45 - 0.08, 0.003], [0, len - 0.08, 0]], [r0, r1], 8, (t, a) => (Math.sin(a * 3 + t * 46) > 0.78 ? dark : col), 16);
+  }
+  // Empuñadura: cuerda o cuero enrollado en espiral
+  function gripGeo(col, y0, y1) {
+    const Md = D(), pts = [], n = Math.round((y1 - y0) / 0.012);
+    for (let i = 0; i <= n; i++) { const a = i * 1.9; pts.push([Math.cos(a) * 0.027, y0 + (y1 - y0) * (i / n), Math.sin(a) * 0.027]); }
+    return Md.tube(pts, [0.0075, 0.0075], 5, col, n * 3);
+  }
+  // Hoja plana a partir de un contorno 2D (XY), más fina hacia el filo
+  // edge: x del filo (el más negativo), from: x donde empieza a afinarse · mode 'center': se afina hacia los bordes (punta de lanza)
+  function bladeGeo(pts, th, edge, from, colFn, mode) {
+    const Md = D(), g = Md.fin(pts, th, colFn), p = g.attributes.position;
+    let mx = 0, my = -1e9, lo = 1e9;
+    for (const q of pts) { mx = Math.max(mx, Math.abs(q[0])); my = Math.max(my, q[1]); lo = Math.min(lo, q[1]); }
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i);
+      const k = mode === 'center' ? U.clamp(1 - Math.abs(x) / (mx * 1.15), 0.15, 1) * U.clamp((my - y) / ((my - lo) * 0.5), 0.2, 1)
+        : U.clamp((x - edge) / (from - edge), 0.12, 1);
+      p.setZ(i, p.getZ(i) * k);
+    }
+    g.computeVertexNormals();
+    return g;
+  }
   // El mango apunta a +Y y el agarre queda en el origen
   G.makeItemMesh = function (id) {
     if (!id) return null;
@@ -371,32 +397,67 @@
     const glass = mat('glassI', 0x9ad8f0, { roughness: 0.05, transparent: true, opacity: 0.6 });
     switch (id) {
       case 'hacha': case 'hacha_hierro': {
-        handle();
-        const hm = id === 'hacha' ? stone : iron;
-        part(g, new THREE.BoxGeometry(0.2, 0.13, id === 'hacha' ? 0.05 : 0.03), hm, 0.09, 0.52, 0, 0, 0, 0.1);
-        part(g, new THREE.CylinderGeometry(0.036, 0.036, 0.1, 6), id === 'hacha' ? fiber : leather, 0, 0.52, 0);
+        const iron = id === 'hacha_hierro';
+        vpart(g, [haftGeo(0.62, 0.026, 0.021, 0x7a5634, 0x5e4026), gripGeo(iron ? 0x3e2616 : 0xb9a060, 0.0, 0.16)]);
+        // Cabeza: el filo apunta hacia dentro (−X) y un poco hacia delante (−Z)
+        const head = iron
+          ? bladeGeo([[0.035, 0.045], [0.035, -0.035], [-0.06, -0.045], [-0.12, -0.1], [-0.19, -0.145], [-0.222, -0.08], [-0.232, 0.0], [-0.222, 0.07], [-0.19, 0.105], [-0.12, 0.07], [-0.06, 0.05]], 0.042, -0.23, -0.1,
+            (x) => (x < -0.19 ? 0xe8ecf0 : x < -0.17 ? 0xb8bec4 : 0x7a8088))
+          : bladeGeo([[0.04, 0.042], [0.04, -0.042], [-0.06, -0.05], [-0.14, -0.085], [-0.2, -0.115], [-0.222, -0.06], [-0.228, 0.0], [-0.222, 0.06], [-0.2, 0.115], [-0.14, 0.085], [-0.06, 0.05]], 0.06, -0.225, -0.08,
+            (x, y) => (x < -0.2 ? 0xd2ccc0 : x < -0.17 ? 0xa8a296 : Math.sin(x * 70 + y * 40) > 0.5 ? 0x6e685e : 0x847e72));
+        const lash = iron ? [Md.xf(Md.paint(new THREE.CylinderGeometry(0.034, 0.034, 0.09, 8), 0x5a6068), 0, 0, 0), Md.ball(0.012, 0xc8ccd0, -0.012, 0, 0.03)]
+          : [0.3, -0.3, 0.9, -0.9].map((a, k) => Md.xf(Md.paint(new THREE.TorusGeometry(0.036, 0.008, 5, 12), k % 2 ? 0xa89050 : 0xc8b070), 0, (k - 1.5) * 0.018, 0, Math.PI / 2 + a * 0.25, 0, a * 0.3));
+        vpart(g, [head, ...lash], 0, 0.5, 0, 0, -0.55, 0);
         break;
       }
       case 'pico': case 'pico_hierro': {
-        handle();
-        const hm = id === 'pico' ? stone : iron;
-        part(g, new THREE.BoxGeometry(0.5, 0.06, 0.06), hm, 0, 0.55, 0);
-        part(g, new THREE.ConeGeometry(0.04, 0.12, 4), hm, 0.3, 0.55, 0, 0, 0, -Math.PI / 2);
-        part(g, new THREE.ConeGeometry(0.04, 0.12, 4), hm, -0.3, 0.55, 0, 0, 0, Math.PI / 2);
-        part(g, new THREE.CylinderGeometry(0.036, 0.036, 0.1, 6), id === 'pico' ? fiber : leather, 0, 0.55, 0);
+        const iron = id === 'pico_hierro';
+        vpart(g, [haftGeo(0.64, 0.026, 0.021, 0x7a5634, 0x5e4026), gripGeo(iron ? 0x3e2616 : 0xb9a060, 0.0, 0.14)]);
+        const col = (t) => (iron ? (t < 0.08 || t > 0.92 ? 0xe0e4e8 : 0x7a8088) : t < 0.1 || t > 0.9 ? 0xb4ada2 : 0x857f74);
+        const head = Md.tube([[-0.3, -0.07, 0], [-0.16, 0.0, 0], [0, 0.03, 0], [0.16, 0.0, 0], [0.3, -0.07, 0]], (t) => 0.006 + 0.03 * Math.pow(Math.sin(Math.PI * t), 0.7), 7, col, 22);
+        const bind = iron ? [Md.xf(Md.paint(new THREE.CylinderGeometry(0.036, 0.036, 0.08, 8), 0x5a6068), 0, 0.02, 0)]
+          : [0.4, -0.4, 1.1, -1.1].map((a, k) => Md.xf(Md.paint(new THREE.TorusGeometry(0.036, 0.008, 5, 12), k % 2 ? 0xa89050 : 0xc8b070), 0, 0.02 + (k - 1.5) * 0.012, 0, Math.PI / 2 + a * 0.2, 0, a * 0.3));
+        vpart(g, [head, ...bind], 0, 0.52, 0, 0, -0.55, 0);
         break;
       }
-      case 'lanza': case 'lanza_obsidiana':
-        part(g, new THREE.CylinderGeometry(0.02, 0.024, 1.7, 6), wood, 0, 0.45, 0);
-        part(g, new THREE.ConeGeometry(id === 'lanza' ? 0.05 : 0.06, id === 'lanza' ? 0.22 : 0.3, 4), id === 'lanza' ? flint : obs, 0, id === 'lanza' ? 1.4 : 1.44, 0);
-        part(g, new THREE.CylinderGeometry(0.03, 0.03, 0.1, 6), fiber, 0, 1.27, 0);
+      case 'lanza': case 'lanza_obsidiana': {
+        const obsP = id === 'lanza_obsidiana';
+        vpart(g, [haftGeo(1.62, 0.022, 0.019, 0x8a6440, 0x6a4a2c), gripGeo(0x6a4a2c, 0.0, 0.2)]);
+        const tip = bladeGeo([[0.0, -0.02], [0.04, 0.06], [0.03, 0.16], [0.0, 0.26], [-0.03, 0.16], [-0.04, 0.06]], 0.028, 0, 0, obsP ? (x, y) => (Math.sin(y * 90) > 0.2 ? 0x2a2436 : 0x14111c) : (x, y) => (Math.abs(x) > 0.028 ? 0x6a7890 : Math.sin(y * 80 + x * 50) > 0.3 ? 0x4a586e : 0x3e4b5e), 'center');
+        const bind = [0, 1, 2, 3].map((k) => Md.xf(Md.paint(new THREE.TorusGeometry(0.025, 0.007, 5, 10), k % 2 ? 0xa89050 : 0xc8b070), 0, k * 0.016, 0, Math.PI / 2 + (k % 2 ? 0.25 : -0.25)));
+        vpart(g, [tip, ...bind], 0, 1.5, 0, 0, -0.55, 0);
         break;
-      case 'arpon':
-        part(g, new THREE.CylinderGeometry(0.02, 0.024, 1.6, 6), wood, 0, 0.42, 0);
-        part(g, new THREE.ConeGeometry(0.045, 0.24, 6), iron, 0, 1.33, 0);
-        for (const s of [-1, 1]) part(g, new THREE.ConeGeometry(0.018, 0.1, 4), iron, s * 0.035, 1.2, 0, 0, 0, s * 2.6);
-        part(g, new THREE.TorusGeometry(0.05, 0.012, 6, 12), fiber, 0, 0.1, 0.04, Math.PI / 2);
+      }
+      case 'arpon': {
+        vpart(g, [haftGeo(1.55, 0.022, 0.02, 0x7a5634, 0x5e4026)]);
+        const I = 0x9aa0a6;
+        const parts = [Md.xf(Md.paint(new THREE.ConeGeometry(0.04, 0.26, 6), 0xc8ccd0), 0, 0.13, 0), Md.xf(Md.paint(new THREE.CylinderGeometry(0.026, 0.03, 0.12, 8), I), 0, -0.04, 0)];
+        for (const s of [-1, 1]) parts.push(Md.tube([[0, 0.02, 0], [s * 0.05, -0.02, 0], [s * 0.065, -0.07, 0]], [0.012, 0.004], 5, 0xb8bec4, 6));
+        vpart(g, parts, 0, 1.47, 0);
+        vpart(g, [Md.tube([[0.03, 0.1, 0.02], [0.08, 0.05, 0.06], [0.05, -0.05, 0.08], [0.0, -0.1, 0.05]], [0.008, 0.008], 5, 0xc8b070, 12)]);
         break;
+      }
+      case 'pala': {
+        vpart(g, [haftGeo(0.95, 0.022, 0.02, 0x8a6440, 0x6a4a2c)]);
+        // Mango en D abajo y hoja de pala (la cara mira hacia delante)
+        vpart(g, [Md.tube([[-0.06, -0.08, 0], [-0.07, -0.16, 0], [0, -0.2, 0], [0.07, -0.16, 0], [0.06, -0.08, 0]], [0.012, 0.012], 6, 0x6a4a2c, 12), Md.xf(Md.paint(new THREE.CylinderGeometry(0.014, 0.014, 0.13, 6), 0x6a4a2c), 0, -0.16, 0, 0, 0, Math.PI / 2)]);
+        const blade = Md.fin([[-0.1, 0.0], [0.1, 0.0], [0.105, 0.14], [0.06, 0.24], [0.0, 0.29], [-0.06, 0.24], [-0.105, 0.14]], 0.012, (x, y) => (y > 0.25 || Math.abs(x) > 0.095 ? 0xd0d4d8 : 0x8a9096));
+        const p = blade.attributes.position;
+        for (let i = 0; i < p.count; i++) p.setZ(i, p.getZ(i) - Math.pow(p.getX(i) / 0.1, 2) * 0.02);
+        blade.computeVertexNormals();
+        vpart(g, [blade, Md.xf(Md.paint(new THREE.CylinderGeometry(0.03, 0.024, 0.09, 8), 0x7a8088), 0, -0.03, 0)], 0, 0.9, 0);
+        break;
+      }
+      case 'cana': {
+        // Caña de bambú con nudos, carrete y anillas
+        vpart(g, [Md.tube([[0, -0.05, 0], [0.004, 0.5, 0.004], [0.012, 1.0, 0.01], [0.03, 1.38, 0.02]], (t) => U.lerp(0.02, 0.006, t) * (Math.abs(((t * 9) % 1) - 0.5) < 0.05 ? 1.25 : 1), 7, (t) => (Math.abs(((t * 9) % 1) - 0.5) < 0.05 ? 0x8a7a40 : 0xb8a860), 40)]);
+        vpart(g, [Md.xf(Md.paint(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 12), 0x5a3a22), 0.035, 0.12, 0, 0, 0, Math.PI / 2), Md.xf(Md.paint(new THREE.TorusGeometry(0.03, 0.006, 5, 12), 0xd8d0b8), 0.035, 0.12, 0, 0, Math.PI / 2, 0),
+          ...[0.45, 0.8, 1.15].map((y) => Md.xf(Md.paint(new THREE.TorusGeometry(0.012, 0.003, 4, 8), 0x9aa0a6), 0.012 + y * 0.012, y, 0.01, 0, Math.PI / 2, 0))]);
+        g.userData.tip = new THREE.Object3D();
+        g.userData.tip.position.set(0.03, 1.35, 0.02);
+        g.add(g.userData.tip);
+        break;
+      }
       case 'cerbatana':
         vpart(g, [Md.xf(Md.paint(new THREE.CylinderGeometry(0.02, 0.022, 1.1, 8), (x, y) => (Math.abs(((y + 0.55) % 0.28) - 0.14) < 0.012 ? 0x5e7424 : 0x9ab84a)), 0, 0.3, 0),
           Md.xf(Md.paint(new THREE.CylinderGeometry(0.026, 0.026, 0.06, 8), 0xa0302a), 0, 0.72, 0)]);
@@ -409,19 +470,6 @@
         vpart(g, [Md.xf(Md.paint(new THREE.CylinderGeometry(0.028, 0.03, 0.2, 12), 0x5a3a22), 0, 0.1, 0), Md.xf(Md.paint(new THREE.CylinderGeometry(0.032, 0.032, 0.03, 12), 0xc8a050), 0, 0.21, 0),
           Md.xf(Md.paint(new THREE.CylinderGeometry(0.024, 0.024, 0.16, 12), 0xc8a050), 0, 0.3, 0), Md.xf(Md.paint(new THREE.CylinderGeometry(0.019, 0.019, 0.12, 12), 0xd8b060), 0, 0.43, 0)]);
         break;
-      case 'pala':
-        part(g, new THREE.CylinderGeometry(0.02, 0.024, 0.9, 6), wood, 0, 0.3, 0);
-        part(g, new THREE.BoxGeometry(0.14, 0.02, 0.05), wood, 0, -0.15, 0);
-        vpart(g, [Md.lathe([[0.001, 0], [0.09, 0.02], [0.1, 0.18], [0.06, 0.24], [0.001, 0.25]], 6, 0x9aa0a6)], 0, 0.72, 0, 0, 0, 0).scale.set(1, 1, 0.2);
-        break;
-      case 'cana': {
-        part(g, new THREE.CylinderGeometry(0.01, 0.022, 1.6, 6), wood, 0, 0.55, 0);
-        part(g, new THREE.CylinderGeometry(0.03, 0.03, 0.05, 10), fiber, 0, 0.05, 0.03, Math.PI / 2);
-        g.userData.tip = new THREE.Object3D();
-        g.userData.tip.position.set(0, 1.35, 0);
-        g.add(g.userData.tip);
-        break;
-      }
       case 'pez_crudo': case 'pez_asado': {
         const fc = id === 'pez_crudo' ? 0x7f9fb0 : 0xb07a3a;
         vpart(g, [Md.loft({ z0: -0.14, z1: 0.14, n: 10, m: 10, prof: (t) => ({ rx: 0.035 * Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.05)), ry: 0.06 * Math.sin(Math.PI * Math.min(1, t * 1.1 + 0.05)), y: 0 }), color: (t, a, ca, sa) => (sa < -0.3 ? 0xe8e4d8 : fc) }),

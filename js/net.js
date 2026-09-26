@@ -304,7 +304,7 @@
       const hand = p.model.hand;
       hand.clear();
       const t = G.makeItemMesh(m.h);
-      if (t) { t.rotation.x = Math.PI / 2; hand.add(t); }
+      if (t) { t.rotation.set(Math.PI / 2, 2.12, 0); hand.add(t); }
     }
   }
   const _pv = new THREE.Vector3();
