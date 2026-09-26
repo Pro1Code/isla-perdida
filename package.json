@@ -1,7 +1,7 @@
 {
   "name": "isla-perdida",
   "productName": "Isla Perdida",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Supervivencia en un archipiélago con barcos, tribus y Frutas del Abismo. Juego LAN amistoso y versus.",
   "main": "desktop/main.js",
   "author": "Bruno Vílchez",
