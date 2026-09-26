@@ -3,7 +3,7 @@
   'use strict';
   const G = window.G, U = G.U;
   const A = (G.Audio = { ready: false });
-  let ctx, master, sfx, dest, noiseBuf, oceanGain, windGain, windFilter, crickGain;
+  let ctx, master, sfx, amb, dest, noiseBuf, oceanGain, windGain, windFilter, crickGain;
   let birdT = 3, crackleT = 0, time = 0;
 
   A.init = function () {
@@ -11,6 +11,7 @@
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
     master = ctx.createGain(); master.gain.value = 0.8; master.connect(ctx.destination);
     sfx = ctx.createGain(); sfx.gain.value = 1; sfx.connect(master);
+    amb = ctx.createGain(); amb.gain.value = 1; amb.connect(master);
     dest = sfx;
 
     const len = ctx.sampleRate * 2;
@@ -28,12 +29,12 @@
     const ocean = ctx.createBufferSource(); ocean.buffer = brown; ocean.loop = true;
     const oLP = ctx.createBiquadFilter(); oLP.type = 'lowpass'; oLP.frequency.value = 650;
     oceanGain = ctx.createGain(); oceanGain.gain.value = 0;
-    ocean.connect(oLP); oLP.connect(oceanGain); oceanGain.connect(master); ocean.start();
+    ocean.connect(oLP); oLP.connect(oceanGain); oceanGain.connect(amb); ocean.start();
 
     const wind = ctx.createBufferSource(); wind.buffer = noiseBuf; wind.loop = true;
     windFilter = ctx.createBiquadFilter(); windFilter.type = 'bandpass'; windFilter.frequency.value = 420; windFilter.Q.value = 0.6;
     windGain = ctx.createGain(); windGain.gain.value = 0;
-    wind.connect(windFilter); windFilter.connect(windGain); windGain.connect(master); wind.start();
+    wind.connect(windFilter); windFilter.connect(windGain); windGain.connect(amb); wind.start();
 
     // Grillos: tono agudo modulado en amplitud
     const cr = ctx.createOscillator(); cr.type = 'sine'; cr.frequency.value = 4300;
@@ -42,19 +43,26 @@
     const lfoG = ctx.createGain(); lfoG.gain.value = 0.5;
     lfo.connect(lfoG); lfoG.connect(crAM.gain);
     crickGain = ctx.createGain(); crickGain.gain.value = 0;
-    cr.connect(crAM); crAM.connect(crickGain); crickGain.connect(master);
+    cr.connect(crAM); crAM.connect(crickGain); crickGain.connect(amb);
     cr.start(); lfo.start();
     // Lluvia: ruido blanco filtrado en agudos
     const rs = ctx.createBufferSource(); rs.buffer = noiseBuf; rs.loop = true;
     const rf = ctx.createBiquadFilter(); rf.type = 'highpass'; rf.frequency.value = 1400;
     const rf2 = ctx.createBiquadFilter(); rf2.type = 'lowpass'; rf2.frequency.value = 7000;
     rainGain = ctx.createGain(); rainGain.gain.value = 0;
-    rs.connect(rf); rf.connect(rf2); rf2.connect(rainGain); rainGain.connect(master); rs.start();
+    rs.connect(rf); rf.connect(rf2); rf2.connect(rainGain); rainGain.connect(amb); rs.start();
     A.ready = true;
+    A.setVolumes();
   };
   let rainGain;
   A.setRain = (v) => { if (A.ready) rainGain.gain.setTargetAtTime(v * 0.16, ctx.currentTime, 0.5); };
 
+  // Volúmenes de Configuración → Sonido (0-100)
+  A.setVolumes = function () {
+    if (!A.ready) return;
+    const P = G.Profile;
+    master.gain.value = (P.set('vol') / 100) * 0.8; sfx.gain.value = P.set('sfx') / 100; amb.gain.value = P.set('amb') / 100;
+  };
   A.suspend = () => { if (A.ready && ctx.state === 'running') ctx.suspend(); };
   A.resume = () => { if (A.ready && ctx.state === 'suspended') ctx.resume(); };
 

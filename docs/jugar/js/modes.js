@@ -197,6 +197,8 @@
     if (Md.carrying()) req({ t: 'vsCap' });
   };
   // Petición al anfitrión (o se procesa directamente si lo somos)
+  // Logro para quien hizo la jugada (puede ser otro jugador: se le avisa por la red)
+  const credit = (who, k) => (who === G.Net.myId || !G.Net.active ? G.Ach.add(k) : G.Net.send({ t: 'ach', to: who, k }));
   function req(m) { if (G.Net.isHost || !G.Net.active) hostHandle(m, G.Net.myId); else G.Net.send(m); }
   const teamOf = (id) => (Md.st ? Md.st.assign[id] : null);
   function hostHandle(m, from) {
@@ -212,6 +214,7 @@
         if (st.flags[team].carrier || st.flags[team].drop) { G.Net.send({ t: 'vsMsg', to: from, text: 'Tu bandera no está en su mástil: recupérala para capturar.' }); if (from === G.Net.myId) G.UI.msg('Tu bandera no está en su mástil: recupérala para capturar.', 'warn'); return; }
         f.carrier = null; f.drop = null;
         st.teams[team].caps++;
+        credit(from, 'vs:cap');
         announce(`🏆 ¡${G.Net.nameOf(from)} capturó la bandera del equipo ${Md.teamName(f.team)}! (${st.teams[team].caps}/${Md.cfg.caps})`);
         if (Md.cfg.ctf && st.teams[team].caps >= Md.cfg.caps) finish(team, 'capturó ' + Md.cfg.caps + ' banderas');
         break;
@@ -223,7 +226,7 @@
         break;
       }
       case 'vsDig':
-        if (Md.cfg.treasure && st.teams[team].frags >= 4) finish(team, 'desenterró el tesoro de Rogan');
+        if (Md.cfg.treasure && st.teams[team].frags >= 4) { credit(from, 'vs:dig'); finish(team, 'desenterró el tesoro de Rogan'); }
         break;
     }
     sync();
@@ -338,5 +341,6 @@
       st.teams.map((t, i) => `${Md.teamName(i)}: 🏴 ${t.caps} · 🗺️ ${t.frags}/4 · ${t.sunk ? '💥 insignia hundida' : '⛵ insignia a flote'}`).join('<br>');
     G.Main.showScreen('win');
     G.Audio.play(mine ? 'win' : 'death');
+    if (mine) { G.Ach.add('vs:win'); G.Ach.earn('vsWin'); }
   };
 })();

@@ -143,10 +143,28 @@
         if (!b) continue;
         const m = new THREE.Mesh(U.merge(p.geos.flat()), p.metal ? model.eqMetal : model.eqMat);
         m.castShadow = true;
+        if (p.pos) m.position.set(p.pos[0], p.pos[1], p.pos[2]);
+        if (p.anim) { const f = ANIMS[p.anim], ph = Math.random() * 10; m.onBeforeRender = () => f(m, performance.now() / 1000 + ph); }
         b.add(m);
         model.eqMeshes.push(m);
       }
     }
   };
   Eq.has = (id) => !!DESIGNS[id];
+  // Cosméticos de la tienda (shop.js registra sus diseños aquí)
+  Eq.register = (id, fn) => { DESIGNS[id] = fn; };
+  // Pequeñas animaciones de las mascotas (mirar a los lados, ladear la cabeza…)
+  const ANIMS = {
+    look: (m, t) => { const k = Math.sin(t * 0.7) + Math.sin(t * 1.9) * 0.35; m.rotation.set(Math.sin(t * 1.3) * 0.08, Math.abs(k) > 0.9 ? Math.sign(k) * 0.9 : k, 0); },
+    tilt: (m, t) => { m.rotation.set(0, Math.sin(t * 0.5) * 0.6, Math.sin(t * 0.9) * 0.25); },
+    stalks: (m, t) => { m.rotation.set(Math.sin(t * 1.1) * 0.15, 0, Math.sin(t * 0.8) * 0.2); },
+  };
+  // Lo que se ve sobre el personaje: el equipo (cabeza, pecho, piernas, pies) y los cosméticos.
+  // Un sombrero cosmético tapa el casco (el casco sigue protegiendo igual).
+  Eq.visibleIds = function (eqIds, cos) {
+    const ids = (eqIds || []).slice();
+    const list = (cos || []).filter((id) => DESIGNS[id]);
+    if (list.some((id) => G.Shop && G.Shop.byId(id) && G.Shop.byId(id).slot === 'hat')) ids[0] = null;
+    return ids.concat(list);
+  };
 })();

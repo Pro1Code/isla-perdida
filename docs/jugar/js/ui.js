@@ -18,7 +18,7 @@
     ['Clic der. / <kbd>F</kbd>', 'Comer, beber, colocar, usar el catalejo'],
     ['<kbd>1</kbd>–<kbd>8</kbd> / rueda', 'Elegir objeto de la barra'],
     ['<kbd>Tab</kbd>', 'Inventario y fabricación'],
-    ['<kbd>R</kbd>', 'Girar al colocar · cambiar diseño de una pieza'],
+    ['<kbd>R</kbd>', 'Girar al colocar · cambiar diseño de una pieza · a bordo: poner tus diseños de la Tienda'],
     ['<kbd>X</kbd>', 'Desmontar construcción (recupera la mitad)'],
     ['<kbd>G</kbd>', 'Poder de la Fruta del Abismo'],
     ['<kbd>V</kbd>', 'Cambiar cámara 1ª / 3ª persona'],
@@ -26,6 +26,7 @@
     ['<kbd>J</kbd>', 'Bitácora (historia, islas, curiosidades)'],
     ['Al timón', '<kbd>W</kbd>/<kbd>S</kbd> velas o motor · <kbd>A</kbd>/<kbd>D</kbd> girar · <kbd>Espacio</kbd> ancla · <kbd>Q</kbd> piloto automático'],
     ['<kbd>T</kbd> / <kbd>Enter</kbd>', 'Chat (multijugador LAN)'],
+    ['<kbd>K</kbd>', 'Menú de trucos (solo en partidas con trucos)'],
     ['<kbd>Esc</kbd>', 'Pausa'],
   ];
 
@@ -283,6 +284,25 @@
     const life = text.length > 110 ? 7500 : 3800;
     setTimeout(() => d.classList.add('out'), life);
     setTimeout(() => d.remove(), life + 700);
+  };
+  // Logro desbloqueado (tarjeta arriba en el centro, también sobre los menús)
+  UI.achievement = function (a, T) {
+    const box = document.getElementById('toasts');
+    if (!box) return;
+    const d = document.createElement('div');
+    d.className = 'toast';
+    d.style.setProperty('--tc', T.color);
+    d.innerHTML = `<div class="t-ic">${a.i}</div><div class="t-tx"><small>🏆 Logro ${T.name.toLowerCase()} desbloqueado</small><b>${a.n}</b><span>${a.d}</span></div><div class="t-coins">+${T.coins} 🪙</div>`;
+    box.appendChild(d);
+    while (box.children.length > 3) box.firstChild.remove();
+    G.Audio.play(a.t === 'l' || a.t === 'p' ? 'win' : 'day');
+    setTimeout(() => d.classList.add('out'), 5500);
+    setTimeout(() => d.remove(), 6300);
+  };
+  // Doblones ganados jugando
+  UI.coin = function (n, reason) {
+    if (G.state.mode === 'menu') return;
+    UI.msg(`🪙 +${n} doblones${reason ? ' · ' + reason : ''}`, 'item', reason ? null : 'coin');
   };
   // ------------------------------------------------------------------ chat y jugadores (LAN)
   UI.chatMsg = function (name, color, text) {
