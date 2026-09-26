@@ -28,8 +28,10 @@
   });
   S.FIGUREHEADS = ['oveja', 'leon', 'dragon', 'calavera'];
   S.FH_NAMES = { oveja: 'Oveja', leon: 'León', dragon: 'Dragón', calavera: 'Calavera' };
+  const fhName = (k) => S.FH_NAMES[k] || (G.Shop && G.Shop.fhName[k]) || k;
   S.SAILS = [0xeee6d2, 0xc8322a, 0x2a2a2e, 0x2e5a9a, 0xe8b83c];
   const NAMES = { oveja: 'Oveja Alegre', leon: 'Sol de los Mil Mares', dragon: 'Dragón Errante', calavera: 'Calavera Negra' };
+  const shipName = (fh) => NAMES[fh] || (G.Shop && G.Shop.shipName[fh]) || 'Oveja Alegre';
 
   // ------------------------------------------------------------------ utilidades de forma
   function halfW(d, z) {
@@ -119,17 +121,19 @@
   function yard(x, y, z, w, r = 0.07) { return M.xf(M.paint(new THREE.CylinderGeometry(r * 0.7, r, w, 8), 0x7a5230), x, y, z, 0, 0, Math.PI / 2); }
   // Vela cuadrada (arriba en y = 0) con abolsado; se enrolla escalando en Y
   function squareSail(w, h, color, emblem) {
-    const g = new THREE.PlaneGeometry(w, h, 10, 8);
+    const fine = G.Shop && G.Shop.isSailDesign(color);
+    const g = new THREE.PlaneGeometry(w, h, fine ? 40 : 10, fine ? 34 : 8);
     g.translate(0, -h / 2, 0);
     const p = g.attributes.position;
     for (let i = 0; i < p.count; i++) { const u = p.getX(i) / w + 0.5, v = -p.getY(i) / h; p.setZ(i, Math.sin(Math.PI * u) * Math.sin(Math.PI * Math.min(1, v * 1.05)) * 0.55); }
     g.computeVertexNormals();
+    if (G.Shop && G.Shop.isSailDesign(color)) return M.paint(g, G.Shop.sailPaint(color, g, 'x'), 0.01);
     const c = new THREE.Color(color), e = new THREE.Color(0x1a1a1a);
     return M.paint(g, (x, y) => (emblem && Math.hypot(x, y + h * 0.5) < h * 0.22 && Math.hypot(x, y + h * 0.5) > h * 0.12 ? e : c), 0.01);
   }
   // Vela triangular entre tres puntos (en el plano YZ), abolsada hacia X
   function triSail(A, B, C, color, billow = 0.4) {
-    const n = 8, pos = [], idx = [], row = [];
+    const n = G.Shop && G.Shop.isSailDesign(color) ? 30 : 8, pos = [], idx = [], row = [];
     let k = 0;
     for (let i = 0; i <= n; i++) {
       row.push(k);
@@ -149,7 +153,7 @@
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setIndex(idx);
     g.computeVertexNormals();
-    return M.paint(g, color, 0.01);
+    return M.paint(g, G.Shop && G.Shop.isSailDesign(color) ? G.Shop.sailPaint(color, g, 'z') : color, 0.01);
   }
   function shrouds(mx, mz, top, d, zOff = 0) {
     const out = [];
@@ -208,8 +212,10 @@
   }
   // Mascarones de proa (Oveja, León, Dragón, Calavera)
   function figurehead(kind, x, y, z) {
-    const p = [];
-    if (kind === 'oveja') {
+    let p = [];
+    const extra = G.Shop && G.Shop.figurehead(kind);
+    if (extra) p = extra;
+    else if (kind === 'oveja') {
       p.push(M.ball(0.42, 0xf6f2ea, 0, 0, 0, [1, 0.95, 1.15], 16, 12), M.ball(0.26, 0xf6f2ea, 0, -0.06, 0.38, [1, 0.9, 1]));
       for (const s of [-1, 1]) {
         const pts = [];
@@ -238,12 +244,13 @@
   }
   // Bandera pirata (calavera con tibias cruzadas y un toque del color del equipo)
   const flagTexCache = {};
-  function flagTexture(color) {
-    const key = String(color);
+  function flagTexture(color, design) {
+    const key = String(color) + ':' + (design || '');
     if (flagTexCache[key]) return flagTexCache[key];
     const t = U.canvasTex(128, 80, (c, w, h) => {
       c.fillStyle = '#111'; c.fillRect(0, 0, w, h);
       c.fillStyle = color || '#ffffff'; c.fillRect(0, 0, w, 6); c.fillRect(0, h - 6, w, 6);
+      if (design && G.Shop && G.Shop.drawFlag(c, w, h, design)) return;
       c.strokeStyle = '#f2f2f2'; c.lineWidth = 7; c.lineCap = 'round';
       c.beginPath(); c.moveTo(40, 60); c.lineTo(88, 20); c.moveTo(40, 20); c.lineTo(88, 60); c.stroke();
       c.fillStyle = '#f2f2f2'; c.beginPath(); c.arc(64, 34, 17, 0, 7); c.fill(); c.fillRect(55, 44, 18, 12);
@@ -255,10 +262,10 @@
     flagTexCache[key] = t;
     return t;
   }
-  function makeFlag(color, w = 1.4, h = 0.9) {
+  function makeFlag(color, w = 1.4, h = 0.9, design) {
     const g = new THREE.PlaneGeometry(w, h, 10, 4);
     g.translate(w / 2, -h / 2, 0);
-    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: flagTexture(color), side: THREE.DoubleSide, roughness: 0.9 }));
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: flagTexture(color, design), side: THREE.DoubleSide, roughness: 0.9 }));
     m.userData.base = Float32Array.from(g.attributes.position.array);
     m.userData.w = w;
     return m;
@@ -383,7 +390,7 @@
       jib.userData.piece = 'vela2'; root.add(jib); parts.vela2.push(jib); sails.push({ m: jib, tri: true });
       box(-0.22, 0.22, m1 - 0.22, m1 + 0.22, dy, dy + H1); box(-0.18, 0.18, m2 - 0.18, m2 + 0.18, dy, dy + H2);
       // Bandera en lo alto del palo mayor
-      const flag = makeFlag(flagC, 1.8, 1.15);
+      const flag = makeFlag(flagC, 1.8, 1.15, o.flag);
       flag.position.set(0, dy + H1 + 1.2, m1);
       flag.userData.piece = 'bandera'; root.add(flag); parts.bandera = [flag];
       add('bandera', [M.xf(M.paint(new THREE.CylinderGeometry(0.03, 0.03, 1.4, 5), 0x7a5230), 0, dy + H1 + 0.6, m1)]);
@@ -425,15 +432,15 @@
   const ghostNext = new THREE.MeshBasicMaterial({ color: 0x7affc8, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide });
   S.create = function (data) {
     const d = DEF[data.type];
-    const o = { fh: data.fh || 'oveja', sail: data.sail ?? 0xeee6d2, flagColor: data.flagColor || null };
+    const o = { fh: data.fh || 'oveja', sail: data.sail ?? 0xeee6d2, flagColor: data.flagColor || null, flag: data.flag || null };
     const mdl = buildModel(data.type, o);
     const s = {
       id: data.id || (G.Net.myId || 0) + ':' + Date.now().toString(36) + ':' + S.nextId++,
       type: data.type, def: d, x: data.x, z: data.z, yaw: data.yaw || 0, y: 0, pitch: 0, roll: 0, speed: 0, vx: 0, vz: 0,
       hp: data.hp ?? d.hp, throttle: 0, rudder: 0, anchor: data.anchor ?? true, ap: false, apT: null, driver: data.driver ?? null,
       crate: (data.crate || new Array(d.crate).fill(null)).slice(0, d.crate), fuel: data.fuel || 0, net: !!data.net, netOn: false, netFish: data.netFish || 0, netT: 0,
-      building: !!data.building, placed: new Set(data.placed || []), fh: o.fh, sailColor: o.sail, flagColor: o.flagColor,
-      team: data.team ?? null, flagship: !!data.flagship, name: data.name || (data.type === 'barco' ? NAMES[o.fh] : d.name),
+      building: !!data.building, placed: new Set(data.placed || []), fh: o.fh, sailColor: o.sail, flagColor: o.flagColor, flag: o.flag,
+      team: data.team ?? null, flagship: !!data.flagship, name: data.name || (data.type === 'barco' ? shipName(o.fh) : d.name),
       mdl, root: mdl.root, sinking: 0, reload: {}, prevYaw: data.yaw || 0, nx: data.x, nz: data.z, nyaw: data.yaw || 0, lastNet: 0, spark: 0,
     };
     while (s.crate.length < d.crate) s.crate.push(null);
@@ -471,6 +478,7 @@
     if (s.building && S.complete(s)) {
       s.building = false;
       G.UI.banner('¡Barco terminado!', `${s.name} está listo para zarpar`);
+      if (G.Ach) { G.Ach.add('ship:' + s.type); G.Ach.earn('ship'); }
       G.Audio.play('win');
       for (const k in s.mdl.parts) for (const m of s.mdl.parts[k]) m.material = m.userData.realMat;
       if (!s.crate.some(Boolean)) s.crate[0] = { id: s.def.rep, n: 2 };
@@ -512,7 +520,7 @@
   // ------------------------------------------------------------------ autoridad y red
   S.isAuth = (s) => (!G.Net.active ? true : s.driver ? s.driver === G.Net.myId || !G.Net.peers.has(s.driver) && G.Net.isHost : G.Net.isHost);
   S.data = (s) => ({ id: s.id, type: s.type, x: +s.x.toFixed(2), z: +s.z.toFixed(2), yaw: +s.yaw.toFixed(3), hp: Math.round(s.hp), anchor: s.anchor, crate: s.crate, fuel: s.fuel, net: s.net, netFish: s.netFish,
-    building: s.building, placed: [...s.placed], fh: s.fh, sail: s.sailColor, flagColor: s.flagColor, team: s.team, flagship: s.flagship, name: s.name, driver: s.driver });
+    building: s.building, placed: [...s.placed], fh: s.fh, sail: s.sailColor, flagColor: s.flagColor, flag: s.flag, team: s.team, flagship: s.flagship, name: s.name, driver: s.driver });
   S.getState = () => S.list.filter((s) => !s.sinking).map(S.data);
   S.setState = function (arr) { S.clear(); for (const d of arr || []) if (DEF[d.type]) S.create(d); };
   function netState(s) {
@@ -531,7 +539,8 @@
       case 'shHp': if (s) { if (m.hp < s.hp) hitFx(s); s.hp = m.hp; } break;
       case 'shSink': if (s) startSink(s, m.by); break;
       case 'shCrate': if (s) { s.crate = m.items; if (G.UI.chest && G.UI.chest.ship === s) G.UI.refreshInv(); } break;
-      case 'shPiece': if (s) { s.placed.add(m.piece); if (m.fh) s.fh = m.fh; if (m.sail !== undefined) s.sailColor = m.sail; S.rebuild(s); } break;
+      case 'shPiece': if (s) { s.placed.add(m.piece); if (m.fh) s.fh = m.fh; if (m.sail !== undefined) s.sailColor = m.sail; if (m.flag !== undefined) s.flag = m.flag; S.rebuild(s); } break;
+      case 'shLook': if (s) { s.fh = m.fh; s.sailColor = m.sail; s.flag = m.flag; S.rebuild(s); } break;
       case 'shNetInst': if (s) s.net = true; break;
       case 'shDel': if (s) S.remove(s); break;
       case 'cannon': spawnBall(m, false); break;
@@ -541,13 +550,13 @@
   // Vuelve a construir el modelo (al cambiar el mascarón o el color de las velas)
   S.rebuild = function (s) {
     const aboard = G.Player.ship === s;
-    const o = { fh: s.fh, sail: s.sailColor, flagColor: s.flagColor };
+    const o = { fh: s.fh, sail: s.sailColor, flagColor: s.flagColor, flag: s.flag };
     G.scene.remove(s.root);
     s.root.traverse((m) => { if (m.isMesh) m.geometry.dispose(); });
     s.mdl = buildModel(s.type, o); s.root = s.mdl.root;
     s.root.traverse((m) => { if (m.isMesh) m.userData.ship = s; });
     for (const k in s.mdl.parts) for (const m of s.mdl.parts[k]) m.userData.realMat = m.material;
-    if (s.type === 'barco' && !s.name.startsWith('*')) s.name = NAMES[s.fh];
+    if (s.type === 'barco' && !s.name.startsWith('*')) s.name = shipName(s.fh);
     G.scene.add(s.root);
     S.refreshPieces(s);
     placeRoot(s);
@@ -578,6 +587,7 @@
     // La carga queda flotando en un barril
     if (G.Net.authority() && s.crate.some(Boolean)) G.Landmarks.dropBarrel(s.x, s.z, s.crate.filter(Boolean));
     if (G.Modes) G.Modes.onShipSunk(s, by);
+    if (G.Modes && G.Modes.active && by === G.Net.myId && s.team !== G.Net.team) G.Ach.add('vs:sink');
   }
   S.repair = function (s) {
     const it = G.Inv.held();
@@ -694,6 +704,8 @@
   S.board = function (s, seatIdx) {
     const P = G.Player, d = s.def;
     if (s.building && !s.placed.has('cubierta') && !d.rect && s.type !== 'canoa') { G.UI.msg('El barco aún no tiene cubierta.', 'warn'); return; }
+    G.Ach.add('board');
+    if (!s.building && ['sail', 'flag', 'fh'].some((k) => G.Profile.equipped(k))) G.UI.msg('🎨 Pulsa <kbd>R</kbd> a bordo para ponerle a este barco tus diseños de la Tienda.', 'info', 'shiplook');
     const l = S.toLocal(s, P.pos.x, P.pos.y, P.pos.z, new V3());
     l.z = U.clamp(l.z, -d.L / 2 + 0.8, d.L / 2 - 1.2);
     const hw = halfW(d, l.z) - 0.5;
@@ -889,7 +901,8 @@
       const need = Object.entries(p[2]).map(([id, n]) => `${G.ITEMS[id].i}${Math.min(G.Inv.count(id), n)}/${n}`).join(' ');
       const can = canPlace(s, p);
       let extra = '';
-      if (tg.piece === 'mascaron') extra = ` · <kbd>R</kbd> Diseño: ${S.FH_NAMES[s.fh]}`;
+      if (tg.piece === 'mascaron') extra = ` · <kbd>R</kbd> Diseño: ${fhName(s.fh)}`;
+      if (tg.piece === 'bandera') extra = ` · <kbd>R</kbd> Diseño: ${G.Shop.flagName[s.flag || 'clasica']}`;
       if (tg.piece === 'vela' || tg.piece === 'vela2') extra = ' · <kbd>R</kbd> Color de las velas';
       return `🏗️ <b>${p[1]}</b> ${need} · ` + (can === true ? '<kbd>E</kbd> Colocar pieza' : `<span class="warn">${can}</span>`) + extra;
     }
@@ -926,7 +939,7 @@
       if (ok !== true) { G.UI.msg(ok, 'warn', 'piece'); G.Audio.play('error'); return; }
       for (const [id, n] of Object.entries(p[2])) G.Inv.remove(id, n);
       s.placed.add(p[0]);
-      send({ t: 'shPiece', id: s.id, piece: p[0], fh: s.fh, sail: s.sailColor });
+      send({ t: 'shPiece', id: s.id, piece: p[0], fh: s.fh, sail: s.sailColor, flag: s.flag });
       G.Audio.play('hammer');
       G.UI.msg(`🔨 Colocaste: ${p[1]}`, 'good');
       S.refreshPieces(s);
@@ -976,9 +989,23 @@
   };
   S.rotatePiece = function (tg) {
     const s = tg.s;
-    if (tg.piece === 'mascaron') { s.fh = S.FIGUREHEADS[(S.FIGUREHEADS.indexOf(s.fh) + 1) % S.FIGUREHEADS.length]; S.rebuild(s); G.UI.msg(`Mascarón: ${S.FH_NAMES[s.fh]}`, 'info', 'fh'); return true; }
-    if (tg.piece === 'vela' || tg.piece === 'vela2') { s.sailColor = S.SAILS[(S.SAILS.indexOf(s.sailColor) + 1) % S.SAILS.length]; S.rebuild(s); return true; }
+    const next = (list, cur) => list[(list.indexOf(cur) + 1) % list.length];
+    if (tg.piece === 'mascaron') { s.fh = next(S.FIGUREHEADS.concat(G.Shop.ownedOf('fh')), s.fh); S.rebuild(s); G.UI.msg(`Mascarón: ${fhName(s.fh)}`, 'info', 'fh'); return true; }
+    if (tg.piece === 'vela' || tg.piece === 'vela2') { s.sailColor = next(S.SAILS.concat(G.Shop.ownedOf('sail')), s.sailColor); S.rebuild(s); if (typeof s.sailColor === 'string') G.UI.msg(`Velas: ${G.Shop.sailName[s.sailColor]}`, 'info', 'sail'); return true; }
+    if (tg.piece === 'bandera') { s.flag = next(['clasica'].concat(G.Shop.ownedOf('flag')), s.flag || 'clasica'); if (s.flag === 'clasica') s.flag = null; S.rebuild(s); G.UI.msg(`Bandera: ${G.Shop.flagName[s.flag || 'clasica']}`, 'info', 'flag'); return true; }
     return false;
+  };
+  // A bordo, R pone al barco los diseños que llevas equipados en la Tienda
+  S.applyLook = function (s) {
+    const sail = G.Profile.equipped('sail'), flag = G.Profile.equipped('flag'), fh = G.Profile.equipped('fh');
+    if (!sail && !flag && !fh) { G.UI.msg('Compra y equipa velas, banderas o mascarones en la Tienda para decorar tus barcos.', 'info', 'shiplook'); return false; }
+    if (sail) s.sailColor = sail.replace('sail_', '');
+    if (flag) s.flag = flag.replace('flag_', '');
+    if (fh && s.type === 'barco') s.fh = fh.replace('fh_', '');
+    S.rebuild(s);
+    send({ t: 'shLook', id: s.id, fh: s.fh, sail: s.sailColor, flag: s.flag });
+    G.UI.msg(`🎨 ${s.name} luce tus diseños.`, 'good', 'shiplook');
+    return true;
   };
 
   // ------------------------------------------------------------------ cañones y proyectiles
@@ -1002,6 +1029,7 @@
     const useFrom = (id) => { if (G.Inv.count(id) > 0) { G.Inv.remove(id, 1); return true; } const i = s.crate.findIndex((c) => c && c.id === id); if (i >= 0) { s.crate[i].n--; if (s.crate[i].n <= 0) s.crate[i] = null; send({ t: 'shCrate', id: s.id, items: s.crate }); return true; } return false; };
     const hasP = G.Inv.count('polvora') > 0 || s.crate.some((c) => c && c.id === 'polvora'), hasB = G.Inv.count('bala_canon') > 0 || s.crate.some((c) => c && c.id === 'bala_canon');
     if (!hasP || !hasB) { G.UI.msg('Necesitas pólvora y balas de cañón (en tu inventario o en la caja del barco).', 'warn', 'ammo'); G.Audio.play('error'); return; }
+    G.Ach.add('cannon');
     useFrom('polvora'); useFrom('bala_canon');
     s.reload[st.idx] = now + 3.5;
     const { o, dir } = cannonWorld(s, st, G.Player.station && G.Player.station.st === st ? G.Player : null);
@@ -1035,10 +1063,10 @@
         if (s.id === p.ship || s.sinking) continue;
         if (Math.abs(s.x - pos.x) > s.def.L || Math.abs(s.z - pos.z) > s.def.L) continue;
         const l = S.toLocal(s, pos.x, pos.y, pos.z, _l2);
-        if (Math.abs(l.z) < s.def.L / 2 && Math.abs(l.x) < halfW(s.def, l.z) + 0.2 && l.y > -s.def.draft && l.y < s.def.deckY + s.def.rail + 2.5) { hit = 'ship'; if (p.mine) S.hurt(s, 45, `¡Impacto de cañón en ${s.name}!`, p.from); break; }
+        if (Math.abs(l.z) < s.def.L / 2 && Math.abs(l.x) < halfW(s.def, l.z) + 0.2 && l.y > -s.def.draft && l.y < s.def.deckY + s.def.rail + 2.5) { hit = 'ship'; if (p.mine) { S.hurt(s, 45, `¡Impacto de cañón en ${s.name}!`, p.from); G.Ach.add('cannonHit'); } break; }
       }
       if (!hit && p.mine) {
-        for (const c of G.Creatures.list) if (!c.dead && Math.hypot(c.x - pos.x, c.z - pos.z) < c.d.hitR + 0.8 && Math.abs(pos.y - (c.y + c.d.bodyY)) < 2.5) { hit = 'creature'; G.Creatures.hurt(c, 70); break; }
+        for (const c of G.Creatures.list) if (!c.dead && Math.hypot(c.x - pos.x, c.z - pos.z) < c.d.hitR + 0.8 && Math.abs(pos.y - (c.y + c.d.bodyY)) < 2.5) { hit = 'creature'; G.Creatures.hurt(c, 70); G.Ach.add('cannonHit'); break; }
         if (!hit) for (const pr of G.Net.peers.values()) {
           if (pr.dead || Math.hypot(pr.x - pos.x, pr.z - pos.z) > 1.3 || Math.abs(pos.y - pr.y - 1) > 1.4) continue;
           if (G.Modes && !G.Modes.canHurtPlayer(pr.team)) continue;
@@ -1133,6 +1161,10 @@
     if (!pl.ok) { G.UI.msg(pl.reason, 'warn', 'place'); G.Audio.play('error'); return; }
     const d = DEF[type];
     const data = { type, x: pl.x, z: pl.z, yaw: pl.yaw, building: !!it.plano, anchor: true, team: G.Net.team ?? null, flagColor: G.Modes && G.Modes.active ? G.Modes.teamColor(G.Net.team) : null };
+    const eqS = G.Profile.equipped('sail'), eqF = G.Profile.equipped('flag'), eqH = G.Profile.equipped('fh');
+    if (eqS) data.sail = eqS.replace('sail_', '');
+    if (eqF) data.flag = eqF.replace('flag_', '');
+    if (eqH && type === 'barco') data.fh = eqH.replace('fh_', '');
     if (!it.plano) data.crate = [{ id: d.rep, n: 2 }];
     const s = S.create(data);
     send({ t: 'shNew', d: S.data(s) });
@@ -1169,6 +1201,7 @@
       waterHeave(s);
       placeRoot(s);
       animate(s, dt);
+      if (G.Player.ship === s && Math.abs(s.speed) > 0.3) G.Ach.sailed(Math.abs(s.speed) * dt);
       // Red de pesca
       if (s.netOn && S.isAuth(s)) {
         const sp = Math.abs(s.speed);

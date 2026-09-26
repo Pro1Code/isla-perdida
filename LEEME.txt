@@ -1,4 +1,4 @@
-ISLA PERDIDA · EL ARCHIPIÉLAGO  (versión 2.0.1)
+ISLA PERDIDA · LEYENDAS DEL MAR  (versión 2.0.1)
 ==============================================
 
 Naufragaste en un archipiélago desconocido. Sobrevive, construye tu barco,
@@ -20,13 +20,50 @@ CÓMO JUGAR
   navegador" (siempre es la última versión; no incluye LAN).
 
 
+MENÚ PRINCIPAL
+--------------
+- UN JUGADOR: tus partidas guardadas (como los mundos de Minecraft). Pulsa
+  "Nueva partida" para crear otra: nombre, dificultad, qué pasa al morir,
+  semilla (opcional: la misma semilla da el mismo archipiélago) y trucos.
+  Cada partida se puede renombrar (✏️) o borrar (🗑️). Desde aquí ves los
+  🏆 LOGROS.
+- MULTIJUGADOR: crea un mundo para jugar con amigos (tú eres el anfitrión y
+  se guarda en tu equipo), una partida versus, o únete con la IP.
+- CONFIGURACIÓN: tu personaje (nombre, piel, ropa y cosméticos), controles
+  (sensibilidad del ratón, campo de visión, invertir ratón), gráficos,
+  sonido y versiones del juego.
+- TIENDA: cosméticos que se compran con doblones 🪙. Solo son estéticos.
+
+LOGROS Y DOBLONES
+-----------------
+100 logros: 40 comunes, 20 especiales, 20 raros, 15 épicos y 5 legendarios.
+Valen para todas tus partidas y cada uno da doblones (10, 25, 60, 150 o 400).
+También ganas doblones jugando: días superados, cofres y barriles, cacerías,
+Monoglifos, barcos terminados y victorias en versus.
+
+TRUCOS (opcionales)
+-------------------
+Se activan al crear la partida. En el juego pulsa K (o "Trucos" en la pausa):
+invencible, volar, sin hambre ni sed, fabricar gratis, súper velocidad, dar
+objetos, cambiar la hora y el clima, teletransporte, aprender recetas y
+descubrir el mapa. En una partida con trucos NO se consiguen logros ni doblones.
+
+TIENDA
+------
+Sombreros (tricornio, sombrero de copa, corona…), rostro (parche, gafas,
+máscara shandara…), espalda (capa, abrigo de almirante, katana…), mascotas
+al hombro (loro, mono, gaviota, caracolófono) y, para tus barcos, velas,
+banderas y mascarones. Los barcos nuevos llevan tus diseños puestos; en uno
+que ya tengas, súbete y pulsa R. En multijugador los demás ven tus cosméticos.
+
 MULTIJUGADOR LAN (hasta 8 jugadores)
 ------------------------------------
-1. El anfitrión abre el juego instalado → "Multijugador (LAN)" → Conectar
-   (deja vacía la IP). El lobby muestra la IP de la partida.
-2. Los amigos (misma red wifi o cable) abren el juego instalado y escriben
-   esa IP en "IP del anfitrión", o abren http://IP-DEL-ANFITRIÓN:8080 en su
-   navegador.
+1. El anfitrión abre el juego instalado → "Multijugador" → elige uno de sus
+   mundos (Hospedar), crea uno nuevo o crea una partida versus. El lobby
+   muestra la IP de la partida.
+2. Los amigos (misma red wifi o cable) abren el juego instalado → Multijugador
+   → escriben esa IP en "Unirse a una partida", o abren
+   http://IP-DEL-ANFITRIÓN:8080 en su navegador.
 3. Si Windows pregunta por el firewall, permite el acceso en "Redes privadas".
 4. Todos deben jugar la MISMA versión que el anfitrión (el lobby avisa con ⚠
    si alguien tiene otra).
@@ -111,12 +148,13 @@ C o Ctrl bucear · E recoger/interactuar/hablar/subir a un barco
 Clic izq. golpear/atacar/disparar · Clic der. o F comer/colocar/usar catalejo
 1-8 o rueda: barra rápida · Tab inventario y fabricación · R girar al colocar
 X desmontar · G poder de la fruta · V cámara · M mapa · J bitácora
-T chat (LAN) · Esc pausa · F11 pantalla completa (juego instalado)
+T chat (LAN) · K trucos · Esc pausa · F11 pantalla completa (juego instalado)
 
 
 RENDIMIENTO
 -----------
-Si va lento: Esc → "Calidad gráfica" (Alta / Media / Baja).
+Si va lento: Esc → "Calidad gráfica" (Alta / Media / Baja), o en
+Configuración → Gráficos.
 Los FPS aparecen bajo el minimapa.
 
 
