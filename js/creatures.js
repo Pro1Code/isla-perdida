@@ -5,7 +5,7 @@
   'use strict';
   const G = window.G, U = G.U;
   const C = (G.Creatures = { list: [], timer: 0, nextId: 0 });
-  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager'];
+  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss'];
   const DEF = (C.DEF = {
     crab: { name: 'Cangrejo', hp: 12, speed: 1.1, run: 3.2, bodyY: 0.2, hitR: 0.5, drops: [['carne_cruda', 1]] },
     boar: { name: 'Jabalí', hp: 45, speed: 1.6, run: 5.4, bodyY: 0.7, hitR: 0.8, dmg: 10, drops: [['carne_cruda', 3], ['cuero', 1]] },
@@ -27,6 +27,12 @@
     jelly: { name: 'Medusa', hp: 8, speed: 0.35, run: 0.6, bodyY: -0.3, hitR: 0.6, dmg: 8, poison: 10, sea: true, drops: [] },
     serpent: { name: 'Serpiente marina', hp: 200, speed: 3.5, run: 8.5, bodyY: 0.6, hitR: 1.8, dmg: 30, shipDmg: 26, sea: true, drops: [['cuero', 4], ['pez_crudo', 6]] },
     villager: { name: 'Aldeano shandara', hp: 70, speed: 1.3, run: 5.2, bodyY: 1.0, hitR: 0.55, dmg: 11, npc: true, drops: [] },
+    // Prólogo de la Isla Perdida (prologue.js): tripulación, muñecos de entrenamiento y piratas
+    npc: { name: 'Náufrago', hp: 1000, speed: 1.2, run: 3.4, bodyY: 1.0, hitR: 0.55, npc: true, friendly: true, drops: [] },
+    dummy: { name: 'Muñeco de entrenamiento', hp: 9999, speed: 0, run: 0, bodyY: 1.1, hitR: 0.55, dummy: true, drops: [] },
+    pirate: { name: 'Pirata de la Hiena', hp: 60, speed: 1.4, run: 5.0, bodyY: 1.0, hitR: 0.55, dmg: 9, human: true, drops: [['doblon', 1], ['cuero', 1]] },
+    pirate_gun: { name: 'Pirata tirador', hp: 45, speed: 1.3, run: 4.4, bodyY: 1.0, hitR: 0.55, dmg: 11, human: true, drops: [['polvora', 1], ['bala', 4]] },
+    pirate_boss: { name: 'Capitana Hiena', hp: 300, speed: 1.6, run: 5.4, bodyY: 1.0, hitR: 0.6, dmg: 15, human: true, drops: [['pista_3', 1], ['sable', 1], ['doblon', 6]] },
   });
 
   // Fauna de cada isla: [tipo, máximo, zona, probabilidad de aparición por intento]
@@ -124,6 +130,8 @@
       bear: () => A.bear(mat), snowwolf: () => A.wolf(mat, 0xdfe4ea, 0xf6f8fb, 0xc4ccd6), seal: () => A.seal(mat), monkey: () => A.monkey(mat), caiman: () => A.caiman(mat), frog: () => A.frog(mat),
       salamander: () => A.salamander(mat), lavacrab: () => A.crab(mat, 0x3a2a24, 0x241814, true), whale: () => A.whale(mat), dolphin: () => A.dolphin(mat),
       jelly: () => A.jelly(), serpent: () => A.serpent(mat), villager: () => villager(extra || 0),
+      npc: () => G.Prologue.human('npc', extra || 0), pirate: () => G.Prologue.human('pirate', extra || 0), pirate_gun: () => G.Prologue.human('pirate_gun', extra || 0),
+      pirate_boss: () => G.Prologue.human('pirate_boss', extra || 0), dummy: () => G.Prologue.dummy(extra || 0),
     };
     const m = build[type]();
     const d = DEF[type];
@@ -142,6 +150,7 @@
       G.UI.banner('¡Jabalí gigante!', 'Una bestia enorme ronda las praderas. Prepárate bien antes de enfrentarla.');
       G.Audio.play('roar');
     }
+    if (type === 'pirate_boss' && G.state.mode !== 'menu') G.UI.msg('☠️ Se oyen risas en el campamento pirata… la capitana Hiena está ahí.', 'warn', 'hiena');
     if (type === 'serpent' && G.state.mode !== 'menu') {
       G.UI.banner('¡Serpiente marina!', 'Algo enorme se mueve bajo el barco…');
       G.Audio.play('roar');
@@ -200,7 +209,7 @@
     // Retira criaturas lejos de todos los jugadores (islas vacías)
     for (let i = C.list.length - 1; i >= 0; i--) {
       const c = C.list[i];
-      if (c.type === 'boss' || c.dead) continue;
+      if (c.type === 'boss' || c.dead || c.type === 'pirate_boss') continue;
       if (tg.every((t) => Math.hypot(t.x - c.x, t.z - c.z) > (c.d.sea ? 240 : 280))) removeAt(i);
     }
     const count = (islId, type) => C.list.reduce((a, c) => a + (!c.dead && c.type === type && c.isl === islId ? 1 : 0), 0);
@@ -216,6 +225,7 @@
         const p = randomPoint(TESTS[zone], who.x, who.z, 35, 0, I);
         if (farFromAll(p, 28)) C.spawn(type, p.x, p.z);
       }
+      if (I.type === 'perdida' && G.Prologue) G.Prologue.manage(tg, C.spawn);
       if (I.type === 'perdida') {
         // El jabalí gigante aparece a partir del día 5 hasta que alguien lo derrote
         const wd = G.state.world;
@@ -271,7 +281,7 @@
     for (let i = 0; i < 8; i++) {
       const a = Math.random() * Math.PI * 2, d = 2 + Math.random() * rad;
       let x = c.x + Math.cos(a) * d, z = c.z + Math.sin(a) * d;
-      if (c.type === 'villager') { x = c.hx + Math.cos(a) * d * 0.9; z = c.hz + Math.sin(a) * d * 0.9; }
+      if (c.type === 'villager' || c.homeR) { x = c.hx + Math.cos(a) * d * 0.9; z = c.hz + Math.sin(a) * d * 0.9; }
       if (validPos(c.type, x, z)) { c.tx = x; c.tz = z; c.t = 4 + Math.random() * 8; return; }
     }
     c.tx = c.x; c.tz = c.z; c.t = 2;
@@ -281,9 +291,10 @@
     wolf: 'Te devoraron los lobos', boar: 'Un jabalí te embistió', snake: 'Te mordió una serpiente', jaguar: 'Un jaguar te atacó por sorpresa', shark: 'Un tiburón te arrastró al fondo',
     boss: 'El jabalí gigante te aplastó', bear: 'Un oso blanco te despedazó', snowwolf: 'La manada de las nieves te cazó', caiman: 'Un caimán te arrastró al agua',
     salamander: 'Una salamandra de fuego te quemó', lavacrab: 'Un cangrejo de lava te atrapó', jelly: 'Las medusas te picaron', serpent: 'La serpiente marina te devoró', villager: 'Los guerreros shandara te derrotaron',
+    pirate: 'Los piratas de la Hiena te derrotaron', pirate_gun: 'Un pirata te disparó', pirate_boss: 'La capitana Hiena te derrotó',
   };
-  const SOUND = { wolf: 'bite', snowwolf: 'bite', boar: 'grunt', snake: 'hiss', jaguar: 'roar', shark: 'bite', boss: 'roar', bear: 'roar', caiman: 'bite', salamander: 'hiss', lavacrab: 'bite', jelly: 'hiss', serpent: 'roar', villager: 'hit' };
-  const CD = { wolf: 1.2, snowwolf: 1.2, snake: 2.2, jaguar: 1.4, shark: 1.8, boss: 1.6, bear: 1.8, caiman: 2.0, salamander: 1.4, lavacrab: 1.6, jelly: 1.5, serpent: 2.5, villager: 1.3 };
+  const SOUND = { pirate: 'hit', pirate_boss: 'hit', wolf: 'bite', snowwolf: 'bite', boar: 'grunt', snake: 'hiss', jaguar: 'roar', shark: 'bite', boss: 'roar', bear: 'roar', caiman: 'bite', salamander: 'hiss', lavacrab: 'bite', jelly: 'hiss', serpent: 'roar', villager: 'hit' };
+  const CD = { pirate: 1.3, pirate_boss: 1.05, wolf: 1.2, snowwolf: 1.2, snake: 2.2, jaguar: 1.4, shark: 1.8, boss: 1.6, bear: 1.8, caiman: 2.0, salamander: 1.4, lavacrab: 1.6, jelly: 1.5, serpent: 2.5, villager: 1.3 };
   function attack(c, t, reach = 1.9) {
     c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
     if (c.cd > 0 || Math.hypot(t.x - c.x, t.z - c.z) > reach) return false;
@@ -296,6 +307,20 @@
     G.Audio.playAt(SOUND[c.type] || 'grunt', c.x, c.z);
     return true;
   }
+  function shootAt(c, t) {
+    c.cd = 2.6; c.lunge = 0.3;
+    c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
+    const V = THREE.Vector3, from = new V(c.x + Math.sin(c.yaw) * 0.7, c.y + 1.35, c.z + Math.cos(c.yaw) * 0.7);
+    const hit = Math.random() < 0.6;
+    const to = new V(t.x + (hit ? 0 : (Math.random() - 0.5) * 4), (t.y || 0) + 1.1, t.z + (hit ? 0 : (Math.random() - 0.5) * 4));
+    if (G.Styles.tracer) G.Styles.tracer(from, to);
+    G.Ships.puff(from.x, from.y, from.z, 0xd8d0c0, 0.5, 0.4, 2);
+    G.Audio.playAt('cannon', c.x, c.z, 60);
+    if (!hit) return;
+    const amt = c.d.dmg * G.Game.diff().dmg;
+    if (t.local) G.Player.damage(amt, c, CAUSE[c.type]);
+    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause: CAUSE[c.type], sx: c.x, sz: c.z });
+  }
   function poisonLocal(secs) {
     const P = G.Player;
     if (P.poison <= 0) G.UI.msg('☠️ ¡Estás envenenado! Usa una infusión o una cataplasma de hierbas.', 'bad');
@@ -305,20 +330,22 @@
 
   // ------------------------------------------------------------------ daño
   C.hurt = function (c, dmg, attackerId, extra) {
-    if (c.dead) return;
+    if (c.dead || c.d.friendly) return;
     c.flash = 0.15;
     G.Audio.playAt('hit', c.x, c.z);
     if (!G.Net.authority()) { G.Net.send({ t: 'hurtC', id: c.id, dmg, poison: extra && extra.poison }); return; }
     const fromPeer = attackerId !== undefined && attackerId !== G.Net.myId;
     const src = fromPeer ? G.Net.peers.get(attackerId) : G.Player.pos;
     c.hp -= dmg;
+    if (c.d.dummy) { c.hp = c.d.hp; c.wobble = 0.5; return; }
     if (extra && extra.poison) c.poisoned = Math.max(c.poisoned || 0, extra.poison);
-    if (src && c.type !== 'boss' && c.type !== 'whale' && c.type !== 'serpent') {
+    if (src && c.type !== 'boss' && c.type !== 'whale' && c.type !== 'serpent' && c.type !== 'pirate_boss') {
       const dx = c.x - src.x, dz = c.z - src.z, d = Math.hypot(dx, dz) || 1;
       const nx = c.x + dx / d * 0.5, nz = c.z + dz / d * 0.5;
       if (validPos(c.type, nx, nz)) { c.x = nx; c.z = nz; }
     }
     c.aggroId = fromPeer ? attackerId : G.Net.myId;
+    if (c.d.human) { c.aggro = 25; G.Audio.playAt('grunt', c.x, c.z); }
     if (['boar', 'boss', 'bear', 'caiman', 'lavacrab', 'salamander', 'villager'].includes(c.type)) { c.aggro = 20; G.Audio.playAt(c.type === 'boss' || c.type === 'bear' ? 'roar' : 'grunt', c.x, c.z); }
     if (['wolf', 'snowwolf', 'jaguar', 'snake', 'shark', 'serpent'].includes(c.type)) c.aggro = 20;
     if (c.type === 'villager') G.Story && G.Story.tribeHurt(c, fromPeer ? attackerId : G.Net.myId);
@@ -332,6 +359,7 @@
       G.UI.banner('¡Victoria!', 'El jabalí gigante ha caído');
     }
     if (c.type === 'villager') G.Story && G.Story.tribeKilled(c);
+    if (c.type === 'pirate_boss') { G.UI.banner('¡Capitana Hiena derrotada!', 'Los piratas huyen… y dejan caer un pergamino'); if (G.Prologue) G.Prologue.onBossKilled(); }
     if (!c.d.drops.length) return;
     if (peerId !== null && peerId !== undefined) G.Net.send({ t: 'give', to: peerId, items: c.d.drops, kill: c.d.name.toLowerCase(), kt: c.type, boss: c.type === 'boss' });
     else {
@@ -385,10 +413,11 @@
     if (c.model) {
       c.swing = Math.max(0, (c.swing || 0) - dt / 0.32);
       if (c.lunge > 0.29) c.swing = 1;
-      c.model.update(dt, { pos: _vp.set(c.x, y, c.z), yaw: c.yaw + Math.PI, pitch: 0, speed: c.speedNow, onGround: true, swimming: false, swing: c.swing, holding: c.role === 'guard' });
+      c.model.update(dt, { pos: _vp.set(c.x, y, c.z), yaw: c.yaw + Math.PI, pitch: 0, speed: c.speedNow, onGround: true, swimming: false, swing: c.swing, holding: c.role === 'guard' || !!c.hold });
     } else {
       c.g.position.set(c.x, y, c.z);
       c.g.rotation.y = c.yaw + (T === 'crab' || T === 'lavacrab' ? Math.PI / 2 : 0);
+      if (c.wobble > 0) { c.wobble = Math.max(0, c.wobble - dt); c.g.rotation.z = Math.sin(c.wobble * 30) * c.wobble * 0.25; }
       if (c.flash > 0) c.flash -= dt;
       if (c.mat.emissive) {
         if (c.flash > 0) c.mat.emissive.setRGB(0.6, 0, 0);
@@ -480,6 +509,38 @@
           if (c.role === 'chief') { moving = false; if (tgt && dist < 8) faceT = tgt; break; }
           if (tgt && dist < 3.5 && !hostile) { moving = false; faceT = tgt; break; }
           wander(G.Arch.byId(c.isl)?.feat.village?.r * 0.7 || 10);
+          break;
+        }
+        case 'npc': {
+          // Tripulación y ermitaño: vuelven a su sitio, se giran para hablar contigo y pasean un poco
+          const hd = Math.hypot(c.hx - c.x, c.hz - c.z);
+          if (hd > 7) { tx = c.hx; tz = c.hz; speed = c.d.speed * 1.5; break; }
+          if (tgt && dist < 4.5) { moving = false; faceT = tgt; break; }
+          wander(c.homeR || 3); speed = c.d.speed * 0.6;
+          if (Math.random() < dt * 0.3) { c.t = 3 + Math.random() * 4; c.tx = c.x; c.tz = c.z; }
+          break;
+        }
+        case 'dummy':
+          moving = false; c.hp = c.d.hp;
+          break;
+        case 'pirate': case 'pirate_boss': {
+          const boss = c.type === 'pirate_boss';
+          if (!chase(boss ? 17 : 14, boss ? 30 : 32, boss ? 2.3 : 2.0)) { wander(c.homeR || 10); speed = c.d.speed; }
+          // La capitana, herida, se enfurece: corre más
+          if (boss && c.hp < c.d.hp * 0.5) speed *= 1.25;
+          break;
+        }
+        case 'pirate_gun': {
+          let at = c.aggro > 0 ? tg.find((t) => t.id === c.aggroId && !t.dead) : null;
+          if (!at && tgt && dist < 22 && !tgt.ship) { at = tgt; c.aggro = 8; c.aggroId = tgt.id; }
+          if (at) {
+            const d = Math.hypot(at.x - c.x, at.z - c.z);
+            faceT = at;
+            if (d < 6) fleeFrom(at, d, c.d.run * 0.8);
+            else if (d > 17) { tx = at.x; tz = at.z; speed = c.d.run; }
+            else { moving = false; if (c.cd <= 0) shootAt(c, at); }
+            if (d > 36) c.aggro = 0;
+          } else wander(c.homeR || 10);
           break;
         }
         case 'snake':
@@ -598,7 +659,7 @@
   C.snapshot = () => C.list.map((c) => {
     const a = [c.id, TYPES.indexOf(c.type), Math.round(c.x * 10) / 10, Math.round(c.z * 10) / 10,
       Math.round(c.yaw * 100) / 100, Math.ceil(c.hp), (c.dead ? 1 : 0) | (c.lunge > 0.25 ? 2 : 0) | (c.fear ? 4 : 0) | (c.aggro > 0 ? 8 : 0) | (c.pounce > 0 ? 16 : 0)];
-    if (c.type === 'villager') a.push(c.extra);
+    if (c.type === 'villager' || c.type === 'npc' || c.type === 'dummy' || c.d.human) a.push(c.extra);
     return a;
   });
 
@@ -635,6 +696,6 @@
   // Jefe cercano para la barra de vida
   C.nearBoss = function () {
     const P0 = G.Player.pos;
-    return C.list.find((c) => (c.type === 'boss' || c.type === 'serpent') && !c.dead && Math.hypot(c.x - P0.x, c.z - P0.z) < 40);
+    return C.list.find((c) => (c.type === 'boss' || c.type === 'serpent' || c.type === 'pirate_boss') && !c.dead && Math.hypot(c.x - P0.x, c.z - P0.z) < 40);
   };
 })();

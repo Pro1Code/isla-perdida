@@ -432,6 +432,8 @@
         else if (e.code === 'KeyJ') G.Game.openJournal();
         else if (e.code === 'KeyX') G.Game.demolish();
         else if (e.code === 'KeyK') G.Cheats.open();
+        else if (e.code === 'KeyQ') G.Styles.tech(0);
+        else if (e.code === 'KeyZ') G.Styles.tech(1);
         else if (e.code === 'KeyR') {
           const tg = G.Game.target;
           if (tg && tg.kind === 'piece' && G.Ships.rotatePiece(tg)) G.Audio.play('select');

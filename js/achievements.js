@@ -29,6 +29,7 @@
   const ISLES = ['perdida', 'tahuri', 'escarcha', 'brasa', 'islote', 'arrecife'];
   const FRUITS = ['llama', 'hielo', 'muelle', 'humo', 'roca'];
   const SHIPS = ['balsa', 'canoa', 'velero', 'lancha', 'barco'];
+  const STYLES = ['sword', 'gun', 'fist', 'magic'];
 
   // t: rango · i: icono · n: nombre · d: descripción · c/n: contador y meta · f: comprobación
   const A = [
@@ -51,7 +52,7 @@
     ['antorcha', 'c', '🔦', 'Luz en la noche', 'Fabrica una antorcha.', 'craft:antorcha', 1],
     ['coco', 'c', '🥥', 'Coco loco', 'Consigue un coco.', 'get:coco', 1],
     ['bayas', 'c', '🫐', 'Bayas silvestres', 'Come bayas.', 'eat:baya', 1],
-    ['venda', 'c', '🩹', 'Primeros auxilios', 'Fabrica una venda.', 'craft:venda', 1],
+    ['pirata1', 'c', '🏴‍☠️', 'Primer abordaje', 'Derrota a un pirata.', 'kill:pirate', 1],
     ['cofre1', 'c', '📦', 'Cazatesoros', 'Abre tu primer cofre, barril o bolsa del mundo.', 'loot', 1],
     ['botella', 'c', '🍾', 'Mensaje en una botella', 'Encuentra y lee una botella a la deriva.', 'loot:bottle', 1],
     ['banco', 'c', '🪚', 'Carpintero', 'Coloca un banco de carpintero.', 'place:banco', 1],
@@ -71,7 +72,7 @@
     ['comer25', 'c', '🍽️', 'Buen provecho', 'Come o bebe 25 veces.', 'eat', 25],
     ['recolector', 'c', '🧺', 'Recolector', 'Consigue 200 objetos en total.', 'get', 200],
     ['artesano', 'c', '🛠️', 'Artesano', 'Fabrica 30 objetos.', 'craft', 30],
-    ['lluvia', 'c', '🌧️', 'Lluvia bendita', 'Recoge agua de lluvia con un cuenco.', 'rain', 1],
+    ['estilo1', 'c', '🥋', 'Aprendiz', 'Aprende tu primer estilo de combate.', null, 0, () => STYLES.some((k) => cnt('style:' + k) > 0)],
     ['catalejo', 'c', '🔭', 'Mirada lejana', 'Mira por un catalejo (clic derecho).', 'spy', 1],
     // ================================================================= ESPECIALES (20)
     ['aldea', 'e', '🛖', 'La aldea escondida', 'Encuentra la aldea de la tribu Shandara.', null, 0, () => sflag('village')],
@@ -88,8 +89,8 @@
     ['canoa', 'e', '🛶', 'Remo a remo', 'Fabrica una canoa.', 'ship:canoa', 1],
     ['velero', 'e', '⛵', 'Con viento a favor', 'Termina un bote de vela.', 'ship:velero', 1],
     ['canon1', 'e', '💣', 'Artillero', 'Dispara un cañón.', 'cannon', 1],
-    ['buzo', 'e', '🥽', 'Buzo profesional', 'Ponte el casco de buceo.', 'equip:casco_buceo', 1],
-    ['polar', 'e', '🧥', 'Abrigado', 'Ponte el abrigo polar.', 'equip:abrigo_grueso', 1],
+    ['tecnicas25', 'e', '💥', 'Técnica secreta', 'Usa 25 técnicas de combate (Q o Z).', 'tech', 25],
+    ['tesoro_rogan', 'e', '🗝️', 'El tesoro de Rogan', 'Desentierra el cofre escondido de la Isla Perdida.', 'rogan', 1],
     ['lava', 'e', '🥾', 'Pies de fuego', 'Camina sobre la lava con botas de obsidiana.', 'lavaWalk', 1],
     ['termal', 'e', '♨️', 'Aguas termales', 'Báñate en una fuente termal.', 'spring', 1],
     ['dia7', 'e', '🗓️', 'Una semana en el mar', 'Llega al día 7 en una partida.', null, 0, () => day() >= 7],
@@ -109,8 +110,8 @@
     ['pesca50', 'r', '🐠', 'Pescador experto', 'Pesca 50 peces.', 'get:pez_crudo', 50],
     ['dia30', 'r', '🌕', 'Un mes de supervivencia', 'Llega al día 30 en una partida.', null, 0, () => day() >= 30],
     ['perlas', 'r', '🦪', 'Perlas del arrecife', 'Consigue 5 perlas.', 'get:perla', 5],
-    ['oro', 'r', '💰', 'Oro pirata', 'Consigue 10 monedas de oro antiguas.', 'get:doblon', 10],
-    ['dardos', 'r', '🪃', 'Silencioso y letal', 'Acierta 5 dardos con la cerbatana.', 'dart', 5],
+    ['hiena', 'r', '🦴', 'Cazapiratas', 'Derrota a la capitana Hiena, jefa de los piratas de la Isla Perdida.', 'kill:pirate_boss', 1],
+    ['estilo5', 'r', '🎖️', 'Veterano', 'Llega al nivel 5 en un estilo de combate.', null, 0, () => STYLES.some((k) => cnt('stylelv:' + k) >= 5)],
     ['tiburon', 'r', '🦈', 'Mandíbulas', 'Caza un tiburón.', 'kill:shark', 1],
     ['tripulacion', 'r', '👥', 'Tripulación completa', 'Juega una partida LAN con 4 jugadores o más.', 'crew4', 1],
     ['rescate', 'r', '🛟', 'Hombre al agua', 'Rescata a un compañero que se hunde.', 'rescue', 1],
@@ -126,7 +127,7 @@
     ['tesoro', 'p', '🗺️', 'X marca el lugar', 'Desentierra el tesoro en versus.', 'vs:dig', 1],
     ['dia100', 'p', '💯', 'Cien días', 'Llega al día 100 en una partida.', null, 0, () => day() >= 100],
     ['caza500', 'p', '☠️', 'Depredador', 'Caza 500 animales.', 'kill', 500],
-    ['craft1000', 'p', '⚒️', 'Gran artesano', 'Fabrica 1000 objetos.', 'craft', 1000],
+    ['cuatro_artes', 'p', '🌀', 'Maestro de las cuatro artes', 'Aprende los 4 estilos: espadachín, tirador, luchador y brujo.', null, 0, () => STYLES.every((k) => cnt('style:' + k) > 0)],
     ['navega50k', 'p', '🌐', 'Navegante incansable', 'Navega 50 kilómetros.', 'sail', 50000],
     ['sin_morir', 'p', '💪', 'Piel de hierro', 'Llega al día 25 sin morir en una partida.', null, 0, () => day() >= 25 && deaths() === 0],
     ['archipielago', 'p', '🗾', 'Cartógrafo', 'Pisa todos los tipos de isla: Perdida, Tahuri, Escarcha, Brasa, islote y arrecife.', null, 0, () => distinct('visit:', ISLES) >= ISLES.length],

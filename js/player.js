@@ -292,6 +292,8 @@
     if (id !== vmId) {
       vmId = id;
       vmHolder.clear();
+      const fp = id && G.ITEMS[id] && G.ITEMS[id].fp;
+      if (fp) vmHolder.rotation.set(fp[0], fp[1], fp[2]); else vmHolder.rotation.set(-0.35, 0, 0.25);
       const t = G.makeItemMesh(id);
       if (t) { t.traverse((o) => (o.castShadow = false)); vmHolder.add(t); }
       model.hand.clear();

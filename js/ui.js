@@ -26,6 +26,7 @@
     ['<kbd>J</kbd>', 'Bitácora (historia, islas, curiosidades)'],
     ['Al timón', '<kbd>W</kbd>/<kbd>S</kbd> velas o motor · <kbd>A</kbd>/<kbd>D</kbd> girar · <kbd>Espacio</kbd> ancla · <kbd>Q</kbd> piloto automático'],
     ['<kbd>T</kbd> / <kbd>Enter</kbd>', 'Chat (multijugador LAN)'],
+    ['<kbd>Q</kbd> / <kbd>Z</kbd>', 'Técnicas de tu estilo de combate (espadachín, tirador, luchador o brujo)'],
     ['<kbd>K</kbd>', 'Menú de trucos (solo en partidas con trucos)'],
     ['<kbd>Esc</kbd>', 'Pausa'],
   ];
@@ -266,7 +267,7 @@
       const reqs = Object.entries(r.req).map(([id, n]) => {
         const have = G.Inv.count(id);
         return `<span class="req ${have >= n ? 'ok' : 'no'}">${G.ITEMS[id].i} ${Math.min(have, 999)}/${n}</span>`;
-      }).join('') + (r.station ? `<span class="req ${near ? 'ok' : 'no'}">${G.STATION_NAMES[r.station]}</span>` : '') + (!learned ? '<span class="req no">🔒 receta shandara</span>' : '');
+      }).join('') + (r.station ? `<span class="req ${near ? 'ok' : 'no'}">${G.STATION_NAMES[r.station]}</span>` : '') + (!learned ? `<span class="req no">🔒 ${r.learn.startsWith('style_') ? 'estilo ' + G.Styles.DEF[r.learn.slice(6)].name : 'receta shandara'}</span>` : '');
       const eqLine = it.eq ? `<div class="ds eq-line">${G.Inv.SLOT_NAMES[it.eq.slot]}: ${eqDesc(it.eq)}</div>` : '';
       return `<div class="recipe ${can ? 'ok' : ''}"><div class="ic">${it.i}</div><div><div class="nm">${it.n}${r.n > 1 ? ' ×' + r.n : ''}</div><div class="ds">${it.d || ''}</div>${eqLine}${reqs}</div><button data-r="${idx}" ${can ? '' : 'disabled'}>Fabricar</button></div>`;
     }).join('');
@@ -429,7 +430,7 @@
     el.dayIcon.textContent = fk === 'snow' ? '❄️' : wx === 'storm' ? '⛈️' : wx === 'rain' ? (fk === 'ash' ? '🌋' : '🌧️') : night ? '🌙' : G.Game.hour() > 17.5 || G.Game.hour() < 7 ? '🌅' : '☀️';
     const boss = G.Creatures.nearBoss();
     el.bossBar.classList.toggle('hidden', !boss);
-    if (boss) { el.bossFill.style.width = U.clamp(boss.hp / boss.d.hp, 0, 1) * 100 + '%'; el.bossName.textContent = (boss.type === 'serpent' ? '🐉 ' : '🐗 ') + boss.d.name; }
+    if (boss) { el.bossFill.style.width = U.clamp(boss.hp / boss.d.hp, 0, 1) * 100 + '%'; el.bossName.textContent = (boss.type === 'serpent' ? '🐉 ' : boss.type === 'pirate_boss' ? '🏴‍☠️ ' : '🐗 ') + boss.d.name; }
 
     const uw = G.World.underwater && !G.state.spectate;
     if (uw !== UI._uw) { UI._uw = uw; document.getElementById('underwater').classList.toggle('hidden', !uw); }
@@ -464,7 +465,8 @@
   // Brújula del Log de Mareas: apunta al siguiente destino de la historia (o al destino marcado)
   function updateCompass() {
     const has = G.Inv.has('log_mareas') || G.Modes.active;
-    const tg = has ? G.Story.target() || (UI.waypoint ? { x: UI.waypoint.x, z: UI.waypoint.z, name: 'Destino marcado' } : null) : null;
+    const t0 = G.Story.target();
+    const tg = (t0 && t0.free) || has ? t0 || (UI.waypoint ? { x: UI.waypoint.x, z: UI.waypoint.z, name: 'Destino marcado' } : null) : null;
     el.compass.classList.toggle('hidden', !tg);
     if (!tg) return;
     const P = G.Player.pos, dx = tg.x - P.x, dz = tg.z - P.z;
@@ -544,6 +546,7 @@
       ctx.font = `${full ? 14 : 11}px sans-serif`; ctx.textAlign = 'center';
       ctx.fillText(c.kind === 'mono' ? '🗿' : c.kind === 'bottle' ? '🍾' : c.kind === 'barrel' ? '🛢️' : '📦', x, y + 4);
     }
+    if (G.Prologue) G.Prologue.drawMap(ctx, toPx, full);
     if (G.Modes.active) for (const sd of G.Modes.stands) {
       const [x, y] = toPx(sd.x, sd.z);
       ctx.font = `${full ? 16 : 12}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🏴', x, y);
@@ -558,10 +561,10 @@
       if (full) { ctx.fillStyle = '#fff'; ctx.font = '700 12px Nunito, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(p.name, x, y - 10); }
     }
     for (const c of G.Creatures.list) {
-      if (c.dead || c.type === 'crab' || c.d.npc) continue;
+      if (c.dead || c.type === 'crab' || c.d.npc || c.d.dummy) continue;
       if (Math.hypot(c.x - P.x, c.z - P.z) > (full ? 60 : 70)) continue;
       const [x, y] = toPx(c.x, c.z);
-      ctx.fillStyle = ['wolf', 'snowwolf', 'jaguar', 'bear', 'caiman', 'serpent', 'shark', 'boss'].includes(c.type) ? '#ff4d4d' : '#c89a6a';
+      ctx.fillStyle = ['wolf', 'snowwolf', 'jaguar', 'bear', 'caiman', 'serpent', 'shark', 'boss', 'pirate', 'pirate_gun', 'pirate_boss'].includes(c.type) ? '#ff4d4d' : '#c89a6a';
       ctx.beginPath(); ctx.arc(x, y, c.type === 'serpent' || c.type === 'whale' ? 5 : 3, 0, 7); ctx.fill();
     }
     if (UI.waypoint) {

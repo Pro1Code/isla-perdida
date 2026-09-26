@@ -64,6 +64,15 @@
     arpon:       { n: 'Arpón', i: '🪝', tool: true, dur: 150, dmg: 30, reach: 4.8, harpoon: true, d: 'Pesca peces grandes y hiere a las bestias del mar.' },
     catalejo:    { n: 'Catalejo', i: '🔭', tool: true, dur: 9999, dmg: 1, spyglass: true, d: 'Clic derecho: mirar a lo lejos (zoom).' },
     pala:        { n: 'Pala', i: '⚒️', tool: true, dur: 200, dmg: 8, shovel: true, d: 'Para desenterrar tesoros marcados con una X.' },
+    katana:      { n: 'Katana', i: '🗡️', tool: true, dur: 420, dmg: 17, style: 'sword', d: 'Espada de filo curvo. Estilo Espadachín: <kbd>Q</kbd> Corte volador, <kbd>Z</kbd> Torbellino.' },
+    sable:       { n: 'Sable de abordaje', i: '⚔️', tool: true, dur: 260, dmg: 14, style: 'sword', d: 'El sable corto de los piratas. Arma de espadachín.' },
+    pistola:     { n: 'Pistola de chispa', i: '🔫', tool: true, dur: 260, dmg: 5, style: 'gun', gun: { dmg: 24, range: 42, reload: 1.1 }, fp: [0.02, 0.06, 0.02], d: 'Arma del tirador. Cada disparo gasta una bala.' },
+    mosquete:    { n: 'Mosquete', i: '🎯', tool: true, dur: 320, dmg: 8, style: 'gun', gun: { dmg: 46, range: 75, reload: 2.2 }, fp: [0.02, 0.06, 0.02], d: 'Largo alcance y mucho daño, pero recarga despacio.' },
+    bala:        { n: 'Balas de plomo', i: '⚫', stack: 60, d: 'Munición para pistolas y mosquetes.' },
+    baston:      { n: 'Bastón rúnico', i: '🪄', tool: true, dur: 520, dmg: 6, style: 'magic', d: 'Canaliza la magia de las mareas. Estilo Brujo: clic Chispa arcana, <kbd>Q</kbd> Rayo, <kbd>Z</kbd> Marea curativa.' },
+    pista_1:     { n: 'Pista de Rogan (1/3)', i: '📜', stack: 1, read: 'pista_1', d: 'Un pergamino con la letra de Rogan D. Aldor. Clic derecho: leer.' },
+    pista_2:     { n: 'Pista de Rogan (2/3)', i: '📜', stack: 1, read: 'pista_2', d: 'Un pergamino con la letra de Rogan D. Aldor. Clic derecho: leer.' },
+    pista_3:     { n: 'Pista de Rogan (3/3)', i: '📜', stack: 1, read: 'pista_3', d: 'El último pergamino de Rogan, robado por los piratas. Clic derecho: leer.' },
     log_mareas:  { n: 'Log de Mareas', i: '🧭', stack: 1, compass: true, d: 'Brújula de pulsera. Su aguja señala tu siguiente destino.' },
     diario:      { n: 'Diario del capitán', i: '📔', stack: 1, read: 'diario', d: 'Páginas mojadas de un viejo diario. Clic derecho: leer.' },
     fragmento_mapa: { n: 'Fragmento de mapa', i: '🗺️', stack: 4, d: 'Un trozo del mapa del tesoro. Llévalo a la bandera de tu equipo.' },
@@ -154,6 +163,12 @@
     { id: 'dardo', cat: 'herr', req: { palo: 1, veneno: 1 }, n: 4, learn: 'cerbatana' },
     { id: 'arpon', cat: 'herr', req: { lingote: 1, palo: 2, cuerda: 1 } },
     { id: 'pala', cat: 'herr', req: { lingote: 1, palo: 2 } },
+    { id: 'sable', cat: 'herr', req: { lingote: 2, cuero: 1, palo: 1 }, station: 'horno', learn: 'style_sword' },
+    { id: 'katana', cat: 'herr', req: { lingote: 3, cuero: 1, obsidiana: 1 }, station: 'horno', learn: 'style_sword' },
+    { id: 'pistola', cat: 'herr', req: { lingote: 2, tabla: 1, cuero: 1 }, station: 'banco', learn: 'style_gun' },
+    { id: 'mosquete', cat: 'herr', req: { lingote: 3, tabla: 2, cuero: 1 }, station: 'banco', learn: 'style_gun' },
+    { id: 'bala', cat: 'herr', req: { lingote: 1, polvora: 1 }, n: 10, station: 'horno', learn: 'style_gun' },
+    { id: 'baston', cat: 'herr', req: { madera: 3, perla: 1, fibra: 2 }, station: 'banco', learn: 'style_magic' },
     { id: 'catalejo', cat: 'herr', req: { lingote: 1, mineral_plata: 2, cristal_hielo: 1 }, station: 'banco' },
 
     { id: 'fogata', cat: 'cons', req: { piedra: 5, madera: 3 } },
@@ -458,6 +473,62 @@
         g.add(g.userData.tip);
         break;
       }
+      case 'katana': case 'sable': {
+        const kat = id === 'katana';
+        // Empuñadura con cordón en rombos (katana) o de madera (sable), guarda y hoja curva
+        vpart(g, [Md.xf(Md.paint(new THREE.CylinderGeometry(0.021, 0.023, kat ? 0.24 : 0.16, 8), kat ? (x, y, z) => (Math.abs(Math.sin(y * 75 + Math.atan2(z, x) * 2)) > 0.5 ? 0x1a1a22 : 0xe8e0cc) : 0x6a4428), 0, 0.0, 0),
+          Md.ball(0.022, kat ? 0x2a2a30 : 0xc8a050, 0, kat ? -0.125 : -0.085, 0, [1, 0.7, 1])]);
+        if (kat) vpart(g, [Md.xf(Md.paint(new THREE.CylinderGeometry(0.055, 0.055, 0.012, 16), (x, y, z) => (Math.hypot(x, z) > 0.048 ? 0xc8a050 : 0x2a2a30)), 0, 0.125, 0), Md.xf(Md.paint(new THREE.CylinderGeometry(0.018, 0.022, 0.03, 8), 0xd8b050), 0, 0.145, 0)]);
+        else vpart(g, [Md.tube([[0, 0.1, 0], [-0.06, 0.07, 0], [-0.075, -0.02, 0], [-0.03, -0.09, 0]], [0.008, 0.008], 6, 0xc8a050, 12), Md.xf(Md.paint(new THREE.CylinderGeometry(0.05, 0.05, 0.012, 14), 0xc8a050), 0, 0.1, 0, 0, 0, 0, [1, 1, 0.6])]);
+        const L = kat ? 0.82 : 0.66, W = kat ? 0.032 : 0.045, curve = kat ? 0.05 : 0.09, y0 = kat ? 0.155 : 0.11;
+        const pts = [], sp = (t) => -Math.pow(t, 2) * curve;
+        for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push([sp(t), y0 + t * L]); }
+        pts.push([sp(1) - W * 0.8, y0 + L + 0.035]);
+        for (let i = 12; i >= 0; i--) { const t = i / 12; pts.push([sp(t) - W * (1 - t * 0.15), y0 + t * L]); }
+        const blade = bladeGeo(pts, kat ? 0.012 : 0.014, -W - curve, -W * 0.35 - curve * 0.3, (x, y) => {
+          const s = sp(Math.max(0, (y - y0) / L)), rel = (s - x) / W;
+          return rel > 0.72 ? 0xf4f6f8 : kat && rel > 0.55 + Math.sin(y * 60) * 0.06 ? 0xd8dde2 : 0x9aa2aa;
+        });
+        vpart(g, [blade], 0, 0, 0, 0, -0.2, 0);
+        break;
+      }
+      case 'pistola': case 'mosquete': {
+        const long = id === 'mosquete', bl = long ? 0.95 : 0.3;
+        const wood = 0x6a4428, brassC = 0xc8a050, steel = 0x5a6068;
+        const parts = [
+          Md.xf(Md.paint(new THREE.CylinderGeometry(0.014, 0.017, bl, 10), steel), 0, 0.085, -0.05 - bl / 2, Math.PI / 2),
+          Md.xf(Md.paint(new THREE.CylinderGeometry(0.02, 0.02, 0.025, 10), brassC), 0, 0.085, -0.05 - bl, Math.PI / 2),
+          Md.xf(Md.paint(new THREE.BoxGeometry(0.018, 0.035, 0.07), brassC), 0.022, 0.085, 0.0),
+          Md.xf(Md.paint(new THREE.ConeGeometry(0.012, 0.04, 5), 0x2a2a30), 0.02, 0.115, 0.03, -0.6, 0, 0),
+          Md.xf(Md.paint(new THREE.TorusGeometry(0.022, 0.004, 5, 12, Math.PI), brassC), 0, 0.04, -0.01, 0, Math.PI / 2, Math.PI),
+        ];
+        if (long) parts.push(
+          Md.tube([[0, 0.06, -0.55], [0, 0.065, -0.1], [0, 0.04, 0.12], [0, -0.02, 0.36]], (t) => (t < 0.55 ? 0.022 : U.lerp(0.024, 0.042, (t - 0.55) / 0.45)), 8, wood, 16),
+          Md.xf(Md.paint(new THREE.BoxGeometry(0.03, 0.09, 0.02), 0x3a2a1a), 0, -0.035, 0.37));
+        else parts.push(Md.tube([[0, 0.075, -0.1], [0, 0.07, 0.0], [0, 0.0, 0.035], [0, -0.07, 0.07]], [0.02, 0.028], 8, wood, 14), Md.ball(0.03, brassC, 0, -0.075, 0.075, [1, 0.7, 1.1]));
+        vpart(g, parts);
+        break;
+      }
+      case 'baston': {
+        // Bastón rúnico del brujo: madera retorcida, anillos dorados y un cristal que brilla
+        vpart(g, [Md.tube([[0, -0.45, 0], [0.015, 0.0, 0.01], [-0.01, 0.5, 0], [0.01, 1.02, 0.01]], [0.028, 0.022], 7, (t, a) => (Math.sin(a * 2 + t * 30) > 0.6 ? 0x3e2a1a : 0x5a3e26), 30),
+          ...[0.55, 0.9, -0.1].map((y) => Md.xf(Md.paint(new THREE.TorusGeometry(0.03, 0.007, 5, 12), 0xd8b050), 0, y, 0, Math.PI / 2)),
+          ...[0, 2.1, 4.2].map((a) => Md.tube([[Math.cos(a) * 0.02, 1.0, Math.sin(a) * 0.02], [Math.cos(a) * 0.06, 1.08, Math.sin(a) * 0.06], [Math.cos(a) * 0.035, 1.18, Math.sin(a) * 0.035]], [0.009, 0.004], 5, 0x3e2a1a, 8)),
+          Md.xf(Md.paint(new THREE.OctahedronGeometry(0.05), (x, y) => (y > 0.02 ? 0xf0e0ff : 0xb890ff)), 0, 1.12, 0, 0, 0, 0, [1, 1.7, 1])]);
+        if (G.Build && G.Build.smokeTex) {
+          const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: G.Build.smokeTex, color: 0xb88aff, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+          glow.position.set(0, 1.12, 0); glow.scale.setScalar(0.3); glow.raycast = () => {};
+          g.add(glow);
+        }
+        break;
+      }
+      case 'bala':
+        vpart(g, [0, 1, 2, 3, 4].map((k) => Md.ball(0.018, 0x3a3a40, (k % 3 - 1) * 0.03, 0.02 + Math.floor(k / 3) * 0.03, (k % 2) * 0.02)).concat([Md.lathe([[0.001, 0], [0.06, 0.005], [0.062, 0.05], [0.04, 0.07], [0.001, 0.075]], 10, 0x7a5a36)].map((q) => Md.xf(q, 0.1, 0, 0))));
+        break;
+      case 'pista_1': case 'pista_2': case 'pista_3':
+        vpart(g, [Md.xf(Md.paint(new THREE.CylinderGeometry(0.03, 0.03, 0.22, 12), (x, y) => (Math.abs(y) < 0.012 ? 0xa01e1e : 0xe8dcb8)), 0, 0.04, 0, 0, 0, Math.PI / 2),
+          Md.xf(Md.paint(new THREE.CylinderGeometry(0.034, 0.034, 0.02, 12), 0xc8b890), 0.12, 0.04, 0, 0, 0, Math.PI / 2), Md.xf(Md.paint(new THREE.CylinderGeometry(0.034, 0.034, 0.02, 12), 0xc8b890), -0.12, 0.04, 0, 0, 0, Math.PI / 2)]);
+        break;
       case 'cerbatana':
         vpart(g, [Md.xf(Md.paint(new THREE.CylinderGeometry(0.02, 0.022, 1.1, 8), (x, y) => (Math.abs(((y + 0.55) % 0.28) - 0.14) < 0.012 ? 0x5e7424 : 0x9ab84a)), 0, 0.3, 0),
           Md.xf(Md.paint(new THREE.CylinderGeometry(0.026, 0.026, 0.06, 8), 0xa0302a), 0, 0.72, 0)]);

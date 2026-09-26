@@ -30,6 +30,7 @@
     const added = G.Inv.add(id, n);
     if (added > 0) G.UI.msg(`+${added} ${G.ITEMS[id].i} ${G.ITEMS[id].n}`, 'item');
     if (added > 0 && G.Ach) G.Ach.add('get:' + id, added, true);
+    if (added > 0 && id.startsWith('pista_') && G.Prologue) G.Prologue.onItem(id);
     if (added < n) G.UI.msg('¡Inventario lleno!', 'bad', 'full');
     return added;
   };
@@ -71,6 +72,7 @@
     }
     for (const c of G.Landmarks.loot) {
       if (c.opened && (c.kind === 'barrel' || c.kind === 'bottle' || c.kind === 'bag')) continue;
+      if (c.kind === 'clue' && !G.Prologue.visible(c)) continue;
       const t = raySphere(o, d, c.x, c.y + 0.35, c.z, c.hitR || 0.65);
       if (t >= 0 && t < bt && t < reach + (c.kind === 'mono' ? 0.8 : 0)) { bt = t; best = { kind: 'loot', c, t }; }
     }
@@ -115,6 +117,7 @@
     if (tg.kind === 'creature') {
       const c = tg.c;
       if (c.d.npc) return `<b>${c.name}</b>${c.role === 'chief' ? ' (jefe)' : c.role === 'trader' ? ' (comerciante)' : ''} · <kbd>E</kbd> Hablar`;
+      if (c.d.dummy) { const D = G.Prologue.DUMMIES[c.extra % G.Prologue.DUMMIES.length], S = G.Styles.DEF[D.style]; return `<b>${c.name}</b> · <kbd>Clic</kbd> Entrenar <span class="muted">(${S.icon} ${S.name})</span>`; }
       return `<b>${c.d.name}</b> · <kbd>Clic</kbd> Atacar ${hpBar(c.hp, c.d.hp)}`;
     }
     if (tg.kind === 'peer') {
@@ -140,6 +143,7 @@
     }
     if (tg.kind === 'loot') {
       const c = tg.c;
+      if (c.kind === 'clue') return c.prompt ? c.prompt() : '';
       if (c.kind === 'mono') return `🗿 <b>${c.name}</b> · <kbd>E</kbd> Examinar`;
       if (c.kind === 'bottle') return '🍾 <b>Botella con mensaje</b> · <kbd>E</kbd> Leer';
       if (c.kind === 'barrel') return `🛢️ <b>${c.name}</b> · <kbd>E</kbd> Abrir`;
@@ -248,11 +252,13 @@
     if (it && it.fishing) { P.cd = 0.35; G.Fishing.click(); return; }
     if (it && it.blowgun) { P.cd = 0.9; shootDart(); return; }
     if (it && it.spyglass) return;
+    if (G.Styles.attack(it, tg)) return;
     P.cd = 0.5;
     P.swing = 1;
     P.swingCount++;
     G.Audio.play('swing');
     const mul = G.Story.meleeMul();
+    if (tg && tg.kind === 'creature' && tg.c.d.friendly) { G.UI.msg('No vas a atacar a tu propia gente.', 'warn', 'npcatk'); return; }
     if (tg && tg.kind === 'creature') {
       if (tg.c.d.npc && !G.Story.tribeHostile() && !G.Input.keys.ShiftLeft) { G.UI.msg('Mantén <kbd>Shift</kbd> para atacar a un aldeano (¡la tribu se enfadará!).', 'warn', 'npcatk'); return; }
       G.Creatures.hurt(tg.c, (it && it.dmg ? it.dmg : 5) * mul);
@@ -358,7 +364,7 @@
     G.UI.msg(`Desmontaste: ${G.ITEMS[s.type].n}`, 'info');
   };
 
-  Game.learned = (rec) => !rec.learn || (G.Cheats && G.Cheats.flag('free')) || (G.state.world && G.state.world.story && G.state.world.story.learned && G.state.world.story.learned[rec.learn]);
+  Game.learned = (rec) => !rec.learn || (G.Cheats && G.Cheats.flag('free')) || (rec.learn.startsWith('style_') ? G.Styles.learned(rec.learn.slice(6)) : false) || (G.state.world && G.state.world.story && G.state.world.story.learned && G.state.world.story.learned[rec.learn]);
   Game.craft = function (rec) {
     if (!rec || !G.Inv.canCraft(rec)) return;
     if (!Game.learned(rec)) { G.UI.msg('Aún no conoces esta receta. Quizá la tribu Shandara pueda enseñártela.', 'warn'); return; }
@@ -385,6 +391,7 @@
 
   // ------------------------------------------------------------------ cofres, barriles, botellas y Monoglifos
   Game.openLoot = function (c) {
+    if (c.kind === 'clue') { G.Prologue.interact(c); return; }
     if (c.kind === 'mono') { G.Story.readMono(c); return; }
     if (c.kind === 'bottle') {
       if (c.opened) return;
@@ -558,6 +565,8 @@
     G.Clock.updateLocal(dt);
     G.Cheats.update(dt);
     G.Ach.tick(dt);
+    G.Styles.update(dt);
+    G.Prologue.update(dt);
     P.cd = Math.max(0, P.cd - dt);
     if (!st.spectate) { P.update(dt, inputOn); P.updateStats(dt); }
     G.Net.update(dt);
@@ -663,6 +672,7 @@
     G.Fishing.stop();
     G.Modes.stop();
     G.Story.close();
+    G.Styles.clear();
     G.UI.waypoint = null;
   };
   // Genera el archipiélago (con pantalla de carga porque tarda un momento)
@@ -747,6 +757,7 @@
       mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 300, spawn: (pdata && pdata.spawn) || null,
       flags: (pdata && pdata.flags) || {}, stats: fixStats(pdata && pdata.stats), obj: (pdata && pdata.obj) || 0,
       world: st.world || Game.newWorldState(), seed: st.seed, gm: st.gm || 'coop', cfg: st.cfg, fruit: (pdata && pdata.fruit) || null,
+      styles: (pdata && pdata.seed === st.seed && pdata.styles) || {}, train: (pdata && pdata.seed === st.seed && pdata.train) || {},
     };
     if (Array.isArray(G.state.world.loot)) G.state.world.loot = Object.assign({}, G.state.world.loot);
     G.Clock.init(st.seed, st.t);
@@ -785,7 +796,7 @@
     await buildWorld(seed, 'coop', 0);
     G.state = {
       mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 300, spawn: st.spawn, flags: st.flags || {}, stats: fixStats(st.stats), obj: st.obj || 0,
-      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null,
+      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null, styles: st.styles || {}, train: st.train || {},
     };
     // Partidas antiguas: el botín era una lista y la balsa era una construcción
     if (Array.isArray(G.state.world.loot)) { const o = {}; G.state.world.loot.forEach((v, i) => { if (v) o[i] = 1; }); G.state.world.loot = o; }

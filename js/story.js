@@ -73,7 +73,10 @@
   const W = () => (G.state.world.story = G.state.world.story || { step: 0, monos: {}, bottles: {}, rep: 0, learned: {}, fruits: {}, disc: { 0: 1 }, facts: {}, seen: {} });
   St.init = function () {
     const w = W();
+    const fresh = !Object.keys(w.fruits).length;
     for (const id in FRUITS) if (!w.fruits[id]) w.fruits[id] = { at: FRUIT_SPOTS[id] };
+    // En las partidas nuevas una de las cinco frutas está en el cofre escondido de Rogan (Isla Perdida)
+    if (fresh && St.coop()) { const ks = Object.keys(FRUITS); w.fruits[ks[Math.floor(Math.random() * ks.length)]] = { at: 'rogan' }; }
     G.state.fruit = G.state.fruit || null;
   };
   St.coop = () => !(G.Modes && G.Modes.active);
@@ -81,51 +84,60 @@
   const myKey = () => (G.Net.active ? G.Net.name : 'solo');
 
   // ------------------------------------------------------------------ objetivos
-  // Prólogo (supervivencia en la Isla Perdida) y actos de la historia
+  // Prólogo (la Fruta de Rogan en la Isla Perdida) y actos de la historia.
+  // Las partidas antiguas que ya habían salido de la isla se saltan el prólogo.
+  const legacy = (w, f) => !!(f.raft || (w.disc && Object.keys(w.disc).length > 1));
+  const PRO = () => !!(G.Prologue && G.Prologue.active());
   const OBJ = [
-    { t: 'Recoge palos, piedras y fibra del suelo (<kbd>E</kbd>)', done: (I, f) => (I.count('palo') >= 2 && I.count('piedra') >= 2 && I.count('fibra') >= 3) || f.axe },
-    { t: 'Abre el inventario (<kbd>Tab</kbd>) y fabrica un <b>hacha de piedra</b>', done: (I, f) => f.axe || I.count('hacha') > 0 },
-    { t: 'Tala árboles para conseguir <b>8 de madera</b>', done: (I, f) => I.count('madera') >= 8 || f.fire },
-    { t: 'Fabrica una <b>fogata</b> y colócala (clic derecho)', done: (I, f) => f.fire },
-    { t: 'Encuentra el <b>lago de agua dulce</b> (mira el mapa, <kbd>M</kbd>) y bebe', done: (I, f) => f.lake || f.boiled },
-    { t: 'Construye un refugio: <b>piso, paredes, techo y cama</b>', done: (I, f) => f.bed && f.roof },
-    { t: 'Explora el <b>barco naufragado</b> de la costa este y lee lo que encuentres', done: (I, f, w) => w.flags && w.flags.diary },
-    { t: 'Caza jabalíes o lobos hasta tener <b>4 de cuero</b>', done: (I, f) => I.count('cuero') >= 4 || f.raft },
-    { t: 'Fabrica una <b>balsa</b> (pestaña ⚓ Barcos) y colócala en la orilla', done: (I, f) => f.raft },
-    { t: 'Súbete a la balsa y zarpa. Sigue la aguja del <b>Log de Mareas</b> 🧭 hacia otra isla', done: (I, f, w) => w.disc && Object.keys(w.disc).length > 1 },
-    { t: 'Busca la <b>aldea de la tribu Shandara</b> en la Isla Tahuri', done: (I, f, w) => w.flags && w.flags.village },
-    { t: 'Habla con el <b>Anciano Kalgor</b>, jefe de los Shandara', done: (I, f, w) => w.flags && w.flags.metChief },
-    { t: 'Lleva una ofrenda a Kalgor: <b>4 pescados asados</b> y <b>2 mazorcas de cacao</b>', done: (I, f, w) => w.flags && w.flags.script },
-    { t: 'Lee el <b>Monoglifo del templo</b> de Tahuri', done: (I, f, w) => w.monos['m:tahuri'] },
-    { t: 'Lee los Monoglifos de la <b>Isla Perdida</b> (cueva), <b>Escarcha</b> y <b>Brasa</b>', done: (I, f, w) => w.monos['m:perdida'] && w.monos['m:escarcha'] && w.monos['m:brasa'] },
-    { t: 'Vuelve con el <b>Anciano Kalgor</b> y cuéntale lo que dicen las piedras', done: (I, f, w) => w.flags && w.flags.twist },
-    { t: '', done: () => false },
+    { id: 'hermit', t: 'Habla con <b>Silvano</b>, el viejo que te encontró en la playa (<kbd>E</kbd>)', done: (I, f, w) => !PRO() || w.flags.metHermit || legacy(w, f) },
+    { id: 'gather', t: 'Recoge palos, piedras y fibra del suelo (<kbd>E</kbd>)', done: (I, f) => (I.count('palo') >= 2 && I.count('piedra') >= 2 && I.count('fibra') >= 3) || f.axe },
+    { id: 'axe', t: 'Abre el inventario (<kbd>Tab</kbd>) y fabrica un <b>hacha de piedra</b>', done: (I, f) => f.axe || I.count('hacha') > 0 },
+    { id: 'wood', t: 'Tala árboles para conseguir <b>8 de madera</b>', done: (I, f) => I.count('madera') >= 8 || f.fire },
+    { id: 'fire', t: 'Fabrica una <b>fogata</b> y colócala (clic derecho)', done: (I, f) => f.fire },
+    { id: 'crew', t: 'Reúnete con tu <b>tripulación</b> en la costa este, junto al viejo barco naufragado', done: (I, f, w) => !PRO() || w.flags.metCrew || legacy(w, f) },
+    { id: 'style', t: 'Aprende un <b>estilo de combate</b>: Kaito ⚔️, Crane 🔫 o Bastián 👊 (en el campamento) o Silvano 🔮 (junto al lago)', done: (I, f, w) => !PRO() || G.Styles.any() || legacy(w, f) },
+    { id: 'clues', t: 'Encuentra las <b>3 pistas de Rogan</b>: el ancla del naufragio, la piedra del lago… y la capitana Hiena', done: (I, f, w) => !PRO() || G.Prologue.clues() >= 3 || w.flags.treasure || legacy(w, f) },
+    { id: 'dig', t: 'Desentierra el <b>cofre de Rogan</b> en la ✖ de tu mapa (<kbd>M</kbd>)', done: (I, f, w) => !PRO() || w.flags.treasure || legacy(w, f) },
+    { id: 'shelter', t: 'Construye un refugio: <b>piso, paredes, techo y cama</b>', done: (I, f) => (f.bed && f.roof) || f.raft },
+    { id: 'leather', t: 'Caza jabalíes o lobos hasta tener <b>4 de cuero</b>', done: (I, f) => I.count('cuero') >= 4 || f.raft },
+    { id: 'raft', t: 'Fabrica una <b>balsa</b> (pestaña ⚓ Barcos) y colócala en la orilla', done: (I, f) => f.raft },
+    { id: 'sail', t: 'Súbete a la balsa y zarpa. Sigue la aguja del <b>Log de Mareas</b> 🧭 hacia otra isla', done: (I, f, w) => w.disc && Object.keys(w.disc).length > 1 },
+    { id: 'village', t: 'Busca la <b>aldea de la tribu Shandara</b> en la Isla Tahuri', done: (I, f, w) => w.flags && w.flags.village },
+    { id: 'chief', t: 'Habla con el <b>Anciano Kalgor</b>, jefe de los Shandara', done: (I, f, w) => w.flags && w.flags.metChief },
+    { id: 'offer', t: 'Lleva una ofrenda a Kalgor: <b>4 pescados asados</b> y <b>2 mazorcas de cacao</b>', done: (I, f, w) => w.flags && w.flags.script },
+    { id: 'temple', t: 'Lee el <b>Monoglifo del templo</b> de Tahuri', done: (I, f, w) => w.monos['m:tahuri'] },
+    { id: 'monos', t: 'Lee los Monoglifos de la <b>Isla Perdida</b> (cueva), <b>Escarcha</b> y <b>Brasa</b>', done: (I, f, w) => w.monos['m:perdida'] && w.monos['m:escarcha'] && w.monos['m:brasa'] },
+    { id: 'twist', t: 'Vuelve con el <b>Anciano Kalgor</b> y cuéntale lo que dicen las piedras', done: (I, f, w) => w.flags && w.flags.twist },
+    { id: 'end', t: '', done: () => false },
   ];
+  St.objectiveId = () => { const w = W(); return (OBJ[w.step || 0] || OBJ[0]).id; };
   St.objective = function () {
     const w = W(), st = G.state;
     w.flags = w.flags || {};
-    let i = w.step || 0;
+    let i = Math.min(w.step || 0, OBJ.length - 1);
     while (i < OBJ.length - 1 && OBJ[i].done(G.Inv, st.flags, w)) i++;
     const changed = i !== w.step;
     w.step = i;
     let text = OBJ[i].t;
-    if (i === 14) text += ` <span class="muted">(${['m:perdida', 'm:escarcha', 'm:brasa'].filter((k) => w.monos[k]).length}/3)</span>`;
-    if (i === OBJ.length - 1) {
+    const id = OBJ[i].id;
+    if (id === 'monos') text += ` <span class="muted">(${['m:perdida', 'm:escarcha', 'm:brasa'].filter((k) => w.monos[k]).length}/3)</span>`;
+    if (id === 'clues') text += ` <span class="muted">(${G.Prologue.clues()}/3)</span>`;
+    if (id === 'end') {
       const fr = Object.keys(FRUITS).filter((k) => w.fruits[k] && w.fruits[k].holder).length;
       text = 'Explora el archipiélago con tu tripulación: construye el <b>barco pirata</b>, busca las <b>Frutas del Abismo</b> ' + `(${fr}/5 encontradas)` + ' y los tesoros hundidos.<br><span class="muted">La ruta de Rogan sigue más allá de la Franja de Calma… (continuará)</span>';
     }
     if (changed && i > 0 && G.Net.authority()) G.Net.send({ t: 'story', w });
     return { text, changed };
   };
-  // Destino al que apunta el Log de Mareas
+  // Destino al que apunta el Log de Mareas (en el prólogo apunta aunque aún no lo tengas)
   St.target = function () {
-    const w = W(), A = G.Arch, step = w.step || 0;
+    const w = W(), A = G.Arch, id = St.objectiveId();
     const find = (type) => A.islands.find((s) => s.type === type);
     if (!St.coop()) return G.Modes ? G.Modes.target() : null;
-    if (step <= 8) return null;
-    if (step <= 12) { const t = find('tahuri'); if (!t) return null; const v = t.feat.village; return v ? { x: v.wx, z: v.wz, name: 'Aldea Shandara' } : { x: t.x, z: t.z, name: t.name }; }
-    if (step === 13) { const t = find('tahuri'); return t && t.feat.temple ? { x: t.feat.temple.wx, z: t.feat.temple.wz, name: 'Templo de Tahuri' } : null; }
-    if (step === 14) {
+    if (['hermit', 'crew', 'style', 'clues', 'dig'].includes(id)) return G.Prologue.target(id);
+    if (['sail', 'village', 'chief', 'offer'].includes(id)) { const t = find('tahuri'); if (!t) return null; const v = t.feat.village; return v ? { x: v.wx, z: v.wz, name: 'Aldea Shandara' } : { x: t.x, z: t.z, name: t.name }; }
+    if (id === 'temple') { const t = find('tahuri'); return t && t.feat.temple ? { x: t.feat.temple.wx, z: t.feat.temple.wz, name: 'Templo de Tahuri' } : null; }
+    if (id === 'monos') {
       for (const [k, type] of [['m:perdida', 'perdida'], ['m:escarcha', 'escarcha'], ['m:brasa', 'brasa']]) {
         if (w.monos[k]) continue;
         const L = G.Landmarks.byId(k);
@@ -133,7 +145,8 @@
         const s = find(type); if (s) return { x: s.x, z: s.z, name: s.name };
       }
     }
-    if (step === 15) { const t = find('tahuri'); const v = t && t.feat.village; return v ? { x: v.wx, z: v.wz, name: 'Anciano Kalgor' } : null; }
+    if (id === 'twist') { const t = find('tahuri'); const v = t && t.feat.village; return v ? { x: v.wx, z: v.wz, name: 'Anciano Kalgor' } : null; }
+    if (['gather', 'axe', 'wood', 'fire', 'shelter', 'leather', 'raft'].includes(id)) return null;
     return G.UI.waypoint ? { x: G.UI.waypoint.x, z: G.UI.waypoint.z, name: 'Destino marcado' } : null;
   };
 
@@ -209,6 +222,7 @@
     G.Audio.play('pickup');
   };
   St.readItem = function (id) {
+    if (id && id.startsWith('pista_')) { G.Prologue.readClue(id); return true; }
     if (id !== 'diario') return false;
     const w = W();
     w.flags = w.flags || {};
@@ -262,12 +276,14 @@
     villager: ['Aisha: «Las ranas azules son pequeñas, pero su veneno tumba a un jaguar.»', 'Laka: «Con cacao y agua caliente se hace algo delicioso. Pregúntale a Kalgor.»', 'Brahan: «Dicen que en la isla del volcán la tierra sangra fuego.»', 'Aisha: «El mar se lleva a quien come las frutas malditas. Nunca lo olvides.»'],
   };
   St.talk = function (c) {
+    if (c.type === 'npc') return G.Prologue.talk(c);
     const w = W();
     w.flags = w.flags || {};
     G.Audio.play('talk');
     // Con el tocado shandara puesto, la tribu te perdona y te trata como a uno de los suyos
     if (G.Inv.eqStat('tribe') && w.rep < 0) { w.rep = 0; G.Net.send({ t: 'story', w }); G.UI.msg('🪶 Los shandara reconocen tu tocado y te perdonan.', 'good'); }
     if (St.tribeHostile()) { St.show({ who: c.name, text: '«¡Fuera de nuestra aldea, traidor!»', options: [['Ofrecer 5 doblones de paz', () => peace()], ['Irse', null]] }); return; }
+    if (c.type === 'npc') return G.Prologue.talk(c);
     if (c.role === 'chief') return chief(c, w);
     if (c.role === 'trader') return trader(c);
     const pool = LINES[c.role] || LINES.villager;

@@ -141,6 +141,8 @@
         if (m.loot) { G.Ach.add('loot:' + (m.lk || 'chest'), 1, true); G.Ach.earn('loot'); }
         if (m.loot && m.items.length) { G.Audio.play('loot'); G.UI.msg('📦 ¡Encontraste un botín!', 'good'); }
         break;
+      case 'heal': G.Styles.onNet(m); break;
+      case 'prDig': case 'prTreasure': G.Prologue.onNet(m, from); break;
       case 'ach':
         if (m.to === Net.myId && typeof m.k === 'string') { G.Ach.add(m.k); if (m.k === 'vs:win') G.Ach.earn('vsWin'); }
         break;
