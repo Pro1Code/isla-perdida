@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Isla Perdida · Descargar</title>
+<meta name="description" content="Juego de supervivencia en un archipiélago: barcos, tribus, Frutas del Abismo y multijugador LAN." />
+<link rel="icon" href="icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@400;600;800&display=swap" />
+<style>
+  :root { --bg: #0b1418; --panel: rgba(18,28,32,.86); --line: rgba(255,255,255,.12); --text: #f1ece1; --muted: #a9b1ad; --accent: #f2b544; --sea: #1b6f8a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Nunito', system-ui, sans-serif; color: var(--text); background: var(--bg); line-height: 1.55; }
+  a { color: var(--accent); }
+  .hero {
+    min-height: 88vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 48px 16px;
+    background: radial-gradient(ellipse at 50% 120%, rgba(27,111,138,.55), transparent 60%), linear-gradient(180deg, #0e2a3a 0%, #0b1418 100%);
+  }
+  .hero-inner { max-width: 760px; }
+  .logo { width: 116px; height: 116px; border-radius: 50%; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+  h1 { font-family: 'Cinzel', serif; font-weight: 900; font-size: clamp(40px, 8vw, 72px); margin: 14px 0 4px; letter-spacing: 2px;
+    background: linear-gradient(180deg, #ffe3a3, #e59a3a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .tag { color: var(--muted); font-size: 18px; margin: 0 0 30px; }
+  .btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; font: 800 18px 'Nunito', sans-serif; padding: 15px 28px; border-radius: 14px; cursor: pointer; text-decoration: none; border: 1px solid var(--line); color: var(--text); background: rgba(255,255,255,.06); }
+  .btn.primary { background: linear-gradient(180deg, #f2b544, #d98f22); color: #1d1406; border-color: transparent; }
+  .btn:hover { filter: brightness(1.08); }
+  .small { font-size: 13px; color: var(--muted); margin-top: 14px; }
+  section { max-width: 980px; margin: 0 auto; padding: 40px 16px; }
+  h2 { font-family: 'Cinzel', serif; font-size: 28px; margin: 0 0 18px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .card { padding: 18px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
+  .card b { display: block; font-size: 17px; margin-bottom: 4px; }
+  .card span { color: var(--muted); font-size: 14.5px; }
+  #versions { display: none; }
+  #versions.open { display: block; }
+  .ver { padding: 16px 18px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); margin-bottom: 12px; }
+  .ver.latest { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(242,181,68,.4); }
+  .ver-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .ver-title { font-weight: 800; font-size: 18px; }
+  .badge { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 999px; background: var(--accent); color: #1d1406; margin-left: 8px; }
+  .ver-date { color: var(--muted); font-size: 13px; }
+  .notes { color: var(--muted); font-size: 14px; white-space: pre-wrap; margin-top: 8px; }
+  .dl { font: 800 15px 'Nunito', sans-serif; padding: 9px 16px; border-radius: 10px; background: var(--accent); color: #1d1406; text-decoration: none; }
+  .steps { padding-left: 20px; }
+  .steps li { margin-bottom: 6px; }
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 30px 16px 50px; }
+  @media (max-width: 600px) { .btn { width: 100%; justify-content: center; } }
+</style>
+</head>
+<body>
+  <div class="hero">
+    <div class="hero-inner">
+      <img class="logo" src="icon.png" alt="" />
+      <h1>Isla Perdida</h1>
+      <p class="tag">Naufragaste en un archipiélago desconocido. Construye tu barco, conoce a la tribu Shandara, busca las Frutas del Abismo y sigue la ruta de <b>La Última Pieza</b>. Solo o con tus amigos en LAN.</p>
+      <div class="btns">
+        <button class="btn primary" id="btnDownload">⬇️ Descargar</button>
+        <a class="btn" href="jugar/">🌐 Jugar en el navegador</a>
+      </div>
+      <p class="small">Windows 10/11 · El juego instalado se actualiza solo cuando sale una versión nueva.</p>
+    </div>
+  </div>
+
+  <section id="versions">
+    <h2>Versiones</h2>
+    <div id="verList"><p class="small">Cargando versiones…</p></div>
+  </section>
+
+  <section>
+    <h2>Qué hay en el juego</h2>
+    <div class="grid">
+      <div class="card"><b>🏝️ Archipiélago nuevo cada partida</b><span>Selva de Tahuri, Isla Escarcha, volcán de Brasa, islotes, arrecife, naufragios y un submarino hundido.</span></div>
+      <div class="card"><b>⛵ Barcos por piezas</b><span>Balsa, canoa, velero, lancha de vapor y barco pirata. Camina por la cubierta, usa el piloto automático y los cañones.</span></div>
+      <div class="card"><b>🍇 Frutas del Abismo</b><span>Cinco poderes escondidos. Quien come una ya no puede nadar, y al morir la pierde.</span></div>
+      <div class="card"><b>🗿 Historia</b><span>Monoglifos, la tribu Shandara y el misterio del Rey de las Mareas, con curiosidades de One Piece.</span></div>
+      <div class="card"><b>⚔️ LAN amistoso y versus</b><span>Hasta 8 jugadores. Amistoso con partida guardada o versus de 60–90 minutos con banderas, tesoro y barcos insignia.</span></div>
+      <div class="card"><b>🛡️ Ropa y armadura</b><span>Cuatro ranuras de equipo: botas de nieve, botas de obsidiana, casco de buceo, corazas…</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Jugar con amigos (LAN)</h2>
+    <ol class="steps">
+      <li>El anfitrión instala el juego y lo abre: el servidor LAN va incluido.</li>
+      <li>En <b>Multijugador (LAN)</b> pulsa <b>Conectar</b> dejando vacía la IP. El lobby muestra la IP que deben usar tus amigos.</li>
+      <li>Tus amigos (en la misma red wifi o cable) escriben esa IP en el juego instalado, o abren <b>http://IP-DEL-ANFITRIÓN:8080</b> en su navegador.</li>
+      <li>Si Windows pregunta por el firewall, permite el acceso en <b>Redes privadas</b>.</li>
+    </ol>
+  </section>
+
+  <footer>Isla Perdida · Juego de fans inspirado en el mundo de One Piece. Todos los nombres del juego son inventados.</footer>
+
+<script>
+  // Configurado al publicar (scripts/build-web.js)
+  const REPO = 'Pro1Code/isla-perdida';
+  const list = document.getElementById('verList');
+  const fmt = (d) => new Date(d).toLocaleDateString('es', { year: 'numeric', month: 'long', day: 'numeric' });
+  const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  let loaded = false;
+  async function loadVersions() {
+    if (loaded) return;
+    loaded = true;
+    try {
+      const r = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=50`);
+      if (!r.ok) throw new Error(r.status);
+      const rel = (await r.json()).filter((x) => !x.draft);
+      if (!rel.length) { list.innerHTML = '<p class="small">Todavía no hay versiones publicadas.</p>'; return; }
+      list.innerHTML = rel.map((x, i) => {
+        const exe = (x.assets || []).find((a) => /\.exe$/i.test(a.name) && !/blockmap/i.test(a.name));
+        return `<div class="ver ${i === 0 ? 'latest' : ''}">
+          <div class="ver-head"><div><span class="ver-title">${esc(x.name || x.tag_name)}</span>${i === 0 ? '<span class="badge">Última versión</span>' : ''}<div class="ver-date">${fmt(x.published_at)}${exe ? ' · ' + (exe.size / 1048576).toFixed(0) + ' MB' : ''}</div></div>
+          ${exe ? `<a class="dl" href="${exe.browser_download_url}">⬇️ Descargar ${esc(x.tag_name)}</a>` : ''}</div>
+          ${x.body ? `<div class="notes">${esc(x.body)}</div>` : ''}</div>`;
+      }).join('');
+    } catch (e) {
+      list.innerHTML = `<p class="small">No se pudo cargar la lista de versiones. Míralas directamente en <a href="https://github.com/${REPO}/releases">GitHub</a>.</p>`;
+    }
+  }
+  document.getElementById('btnDownload').onclick = () => {
+    const v = document.getElementById('versions');
+    v.classList.add('open');
+    loadVersions();
+    v.scrollIntoView({ behavior: 'smooth' });
+  };
+</script>
+</body>
+</html>

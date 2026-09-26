@@ -1,0 +1,121 @@
+ISLA PERDIDA · EL ARCHIPIÉLAGO  (versión 2.0.0)
+==============================================
+
+Naufragaste en un archipiélago desconocido. Sobrevive, construye tu barco,
+conoce a la tribu Shandara, busca las Frutas del Abismo y sigue la ruta de
+"La Última Pieza". Cada partida genera un archipiélago distinto.
+
+
+CÓMO JUGAR
+----------
+- Juego instalado (recomendado): ejecuta "Isla-Perdida-Setup-X.exe", instala
+  y abre "Isla Perdida" desde el escritorio. Se actualiza solo cuando
+  publicamos una versión nueva (te pregunta antes de reiniciar).
+- En el navegador: abre la página de descargas y pulsa "Jugar en el
+  navegador" (no incluye LAN), o haz doble clic en index.html.
+
+
+MULTIJUGADOR LAN (hasta 8 jugadores)
+------------------------------------
+1. El anfitrión abre el juego instalado → "Multijugador (LAN)" → Conectar
+   (deja vacía la IP). El lobby muestra la IP de la partida.
+2. Los amigos (misma red wifi o cable) abren el juego instalado y escriben
+   esa IP en "IP del anfitrión", o abren http://IP-DEL-ANFITRIÓN:8080 en su
+   navegador.
+3. Si Windows pregunta por el firewall, permite el acceso en "Redes privadas".
+Sin instalar nada: "Iniciar servidor LAN.bat" (necesita Python 3) hace lo mismo.
+
+Modos (los elige el anfitrión en el lobby):
+- AMISTOSO: todos aparecen en la Isla Perdida y siguen la historia juntos.
+  La partida se guarda para continuar otro día.
+- VERSUS: 1v1, 2v2, 3v3, 4v4, 1v1v1, 1v1v1v1, 2v2v2 o 2v2v2v2. Cada equipo
+  aparece en su propia isla con un barco insignia. Hay tregua inicial (una
+  tormenta rodea cada isla) y la partida dura 60, 75 o 90 minutos.
+  Condiciones de victoria a elegir:
+    · Carrera por el tesoro: junta los 4 fragmentos del mapa (ruinas,
+      naufragio, submarino y arrecife), llévalos a tu bandera y cava en la ✖.
+    · Capturar la bandera enemiga (1, 2 o 3 capturas).
+    · Hundir el barco insignia enemigo.
+  También se configura: qué pasa al morir, si se pueden destruir
+  construcciones y barcos, y el fuego amigo.
+
+
+EL ARCHIPIÉLAGO
+---------------
+- Isla Perdida: donde naufragaste (lago, cueva, naufragio).
+- Isla Tahuri: selva de bambú, ceibas y cacao. Aldea de la tribu Shandara.
+  Monos, caimanes y ranas venenosas.
+- Isla Escarcha: nieve eterna, osos blancos, focas, lobos de las nieves,
+  plata, cristales de hielo y aguas termales que curan y calientan.
+- Isla Brasa: volcán con lava, azufre, carbón y obsidiana. Cangrejos de lava
+  y salamandras de fuego.
+- En versus: la Isla de las Ruinas, restos del Reino de Aurea.
+- En el mar: islotes, arrecife de perlas, naufragios hundidos, un submarino,
+  barriles y botellas a la deriva, un remolino, bancos de peces, delfines,
+  ballenas, medusas y la serpiente marina.
+
+Cada isla tiene su propio día y noche. Al acercarte a una isla con otra hora,
+una niebla marina oculta el cambio. Para pasar la noche en una isla deben
+dormir todos los jugadores que están en ella (o toda la tripulación a bordo
+si duermes en la litera de un barco).
+
+
+BARCOS
+------
+- Balsa y canoa: se fabrican (pestaña ⚓ Barcos) y se colocan en la orilla.
+- Bote de vela, lancha de vapor y barco pirata: fabrica el PLANO, colócalo en
+  el agua y aparecerá el barco como holograma. Fabrica cada pieza en el banco
+  de carpintero o el horno y colócala donde brilla (E).
+- Al timón: W/S velas o motor · A/D girar · Espacio ancla · Q piloto
+  automático (marca un destino en el mapa con clic) · E soltar el timón.
+- Se camina por la cubierta mientras el barco navega. Salta por la borda para
+  bajarte.
+- Cañones (E en el cañón): ratón para apuntar, clic para disparar
+  (necesitan pólvora y balas en tu inventario o en la caja del barco).
+- Caja de repuestos: cada barco lleva la suya. Con un repuesto de ese barco en
+  la mano, clic sobre el barco para repararlo.
+- Red de pesca: instálala en la popa y échala para pescar mientras navegas
+  (mejor donde vuelan las gaviotas).
+- La lancha quema carbón (ponlo en su caja).
+
+
+ROPA Y ARMADURA
+---------------
+Cuatro ranuras de equipo (cabeza, pecho, piernas y pies). Clic derecho sobre
+una prenda para ponértela. Cuanto más protege, mejores materiales pide:
+fibra → cuero → pieles → hierro → obsidiana. También aparecen en cofres de
+naufragios, barriles, la aldea shandara y el campamento de Escarcha.
+Destacan: botas de nieve, botas de obsidiana (lava), casco de buceo (aire ×3),
+aletas (nado rápido), abrigo polar y coraza de obsidiana.
+
+
+FRUTAS DEL ABISMO
+-----------------
+Cinco frutas escondidas en cofres: Llama-Llama, Hielo-Hielo, Muelle-Muelle,
+Humo-Humo y Roca-Roca. Cada una da un poder (tecla G), pero quien la come ya
+no puede nadar: si caes al mar te hundes y un compañero debe rescatarte (E).
+Al morir pierdes el poder y la fruta renace en otro cofre.
+
+
+CONTROLES
+---------
+WASD mover · Ratón mirar · Shift correr · Espacio saltar/subir nadando
+C o Ctrl bucear · E recoger/interactuar/hablar/subir a un barco
+Clic izq. golpear/atacar/disparar · Clic der. o F comer/colocar/usar catalejo
+1-8 o rueda: barra rápida · Tab inventario y fabricación · R girar al colocar
+X desmontar · G poder de la fruta · V cámara · M mapa · J bitácora
+T chat (LAN) · Esc pausa · F11 pantalla completa (juego instalado)
+
+
+RENDIMIENTO
+-----------
+Si va lento: Esc → "Calidad gráfica" (Alta / Media / Baja).
+Los FPS aparecen bajo el minimapa.
+
+
+PARA EL DESARROLLO (carpeta del proyecto)
+-----------------------------------------
+node scripts/build-desktop.js            Crea el instalador .exe
+node scripts/build-desktop.js --publish  Lo publica en GitHub (GH_TOKEN)
+node scripts/build-web.js                Crea docs/ (página de descargas + web)
+La versión se cambia en package.json y en js/version.js (deben coincidir).

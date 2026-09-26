@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Isla Perdida · El Archipiélago</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@400;600;800&display=swap" />
+<link rel="stylesheet" href="css/style.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "./lib/three.module.min.js",
+    "three/addons/": "./lib/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="game"></div>
+
+<!-- ============ CARGA ============ -->
+<div id="loading" class="screen">
+  <div class="load-box">
+    <div class="spinner"></div>
+    <p id="loadText">Preparando la isla…</p>
+  </div>
+</div>
+
+<!-- ============ MENÚ PRINCIPAL ============ -->
+<div id="menu" class="screen hidden">
+  <div class="menu-card">
+    <h1>Isla Perdida</h1>
+    <p class="tagline">Naufragaste en un archipiélago desconocido.<br />Sobrevive, construye tu barco y sigue la ruta de <b>La Última Pieza</b>.</p>
+
+    <div id="menuMain" class="menu-buttons">
+      <button id="btnContinue" class="btn primary hidden">Continuar partida</button>
+      <button id="btnNew" class="btn">Nueva partida (un jugador)</button>
+      <button id="btnMP" class="btn">🌐 Multijugador (LAN)</button>
+      <button id="btnControls" class="btn">Controles</button>
+      <button id="btnQuality" class="btn small">Calidad gráfica: Alta</button>
+      <a id="btnDownloads" class="btn small" target="_blank" rel="noopener">⬇️ Descargar el juego / ver versiones</a>
+      <p id="updateNote" class="update-note hidden"></p>
+      <p class="version muted" id="versionLabel"></p>
+    </div>
+
+    <div id="menuDiff" class="hidden">
+      <h3>Elige la dificultad</h3>
+      <div class="diff-cards">
+        <button class="diff" data-d="0"><b>Fácil</b><span>Hambre y sed lentas.<br />Animales menos peligrosos.</span></button>
+        <button class="diff" data-d="1"><b>Normal</b><span>La experiencia equilibrada.</span></button>
+        <button class="diff" data-d="2"><b>Difícil</b><span>Todo se agota rápido.<br />El mar no perdona.</span></button>
+      </div>
+      <label class="opt-row">Al morir <select id="spDeath"></select></label>
+      <p id="overwriteWarn" class="warn-text hidden">⚠ Empezar una nueva partida sobrescribirá la partida guardada.</p>
+      <button class="btn small back">Volver</button>
+    </div>
+
+    <div id="menuControls" class="hidden">
+      <div class="controls-list"></div>
+      <button class="btn small back">Volver</button>
+    </div>
+
+    <div id="menuMP" class="hidden">
+      <h3>🌐 Multijugador en red local</h3>
+      <div id="mpFile" class="mp-info hidden">
+        <p>Desde aquí no se puede jugar en LAN. Opciones:</p>
+        <ol>
+          <li><b>Anfitrión:</b> abre el juego <b>instalado</b> (Isla Perdida) y entra en Multijugador. Ahí verás la IP de tu partida.</li>
+          <li><b>Invitados:</b> abren el juego instalado y escriben esa IP, o abren <b>http://IP-DEL-ANFITRIÓN:8080</b> en el navegador.</li>
+          <li>Sin instalar nada: el anfitrión hace doble clic en <b>Iniciar servidor LAN.bat</b> (necesita Python) y todos abren la dirección que aparece en la ventana negra.</li>
+        </ol>
+        <p class="muted">Todos deben estar conectados a la misma red wifi o cable.</p>
+      </div>
+      <div id="mpForm" class="hidden">
+        <label class="mp-label">Tu nombre<input id="mpName" class="mp-input" maxlength="14" autocomplete="off" /></label>
+        <div class="mp-label">Color de tu ropa</div>
+        <div id="mpColors"></div>
+        <label class="mp-label">IP del anfitrión <span class="muted">(déjalo vacío si tú creas la partida)</span><input id="mpAddr" class="mp-input" maxlength="40" placeholder="ej. 192.168.1.35" autocomplete="off" /></label>
+        <button id="mpConnect" class="btn primary">Conectar</button>
+        <p id="mpStatus" class="muted"></p>
+      </div>
+      <div id="mpLobby" class="hidden">
+        <p id="mpLobbyText"></p>
+        <p id="mpIps" class="mp-ips hidden"></p>
+        <ul id="mpPlayers"></ul>
+        <div id="mpModeTabs">
+          <button data-m="coop">🤝 Amistoso</button>
+          <button data-m="versus">⚔️ Versus</button>
+        </div>
+        <div id="mpCoopGuest" class="muted hidden">Modo amistoso: todos aparecen juntos en la Isla Perdida. Esperando al anfitrión…</div>
+        <div id="mpCoop" class="hidden">
+          <p class="muted small-text">Todos aparecen en la Isla Perdida y siguen la historia juntos. La partida se guarda para continuarla otro día.</p>
+          <button id="mpContinue" class="btn primary hidden">Continuar partida LAN guardada</button>
+          <label class="opt-row">Al morir <select id="coopDeath"></select></label>
+          <div class="diff-cards">
+            <button class="diff" data-d="0"><b>Fácil</b><span>Nuevo archipiélago</span></button>
+            <button class="diff" data-d="1"><b>Normal</b><span>Nuevo archipiélago</span></button>
+            <button class="diff" data-d="2"><b>Difícil</b><span>Nuevo archipiélago</span></button>
+          </div>
+        </div>
+        <div id="mpVs" class="hidden">
+          <div class="vs-grid">
+            <label>Formato <select id="vsFormat"></select></label>
+            <label>Duración <select id="vsMinutes"><option value="60">60 min</option><option value="75">75 min</option><option value="90">90 min</option></select></label>
+            <label>Tregua inicial <select id="vsTruce"><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option></select></label>
+            <label>Fauna <select id="vsDiff"><option value="0">Fácil</option><option value="1">Normal</option><option value="2">Difícil</option></select></label>
+            <label class="wide">Al morir <select id="vsDeath"></select></label>
+          </div>
+          <div class="vs-checks">
+            <b>Condiciones de victoria</b>
+            <label><input type="checkbox" id="vsTreasure" /> 🗺️ Carrera por el tesoro (4 fragmentos del mapa)</label>
+            <label><input type="checkbox" id="vsCtf" /> 🏴 Capturar la bandera enemiga</label>
+            <label id="vsCapsRow" class="sub">Capturas para ganar <select id="vsCaps"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
+            <label><input type="checkbox" id="vsSink" /> 💥 Hundir el barco insignia enemigo</label>
+            <b>Reglas</b>
+            <label><input type="checkbox" id="vsStructs" /> Se pueden destruir las construcciones enemigas</label>
+            <label><input type="checkbox" id="vsShips" /> Se pueden dañar todos los barcos enemigos</label>
+            <label><input type="checkbox" id="vsFF" /> Fuego amigo</label>
+          </div>
+          <div class="mp-label">Equipos (haz clic para unirte)</div>
+          <div id="mpTeams"></div>
+          <button id="vsBalance" class="btn small">⚖️ Equilibrar equipos</button>
+          <p id="vsWarn" class="warn-text"></p>
+          <button id="vsStart" class="btn primary">⚔️ Iniciar versus</button>
+        </div>
+      </div>
+      <button class="btn small back">Volver</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ HUD ============ -->
+<div id="hud" class="hidden">
+  <div id="clock"><span id="dayIcon">☀️</span><span id="dayLabel">Día 1</span><span id="timeLabel">07:00</span><span id="islandLabel"></span></div>
+  <div id="compass" class="hidden"><div id="compassArrow">➤</div><span id="compassText"></span></div>
+  <div id="vsHud" class="hidden"></div>
+  <div id="objective"><small>OBJETIVO</small><span id="objText"></span></div>
+  <div id="minimapWrap"><canvas id="minimap" width="180" height="180"></canvas><span class="n">N</span></div>
+  <div id="fps"></div>
+  <div id="playerList"></div>
+  <input id="chatInput" class="hidden" maxlength="140" placeholder="Escribe un mensaje y pulsa Enter…" autocomplete="off" />
+
+  <div id="stats">
+    <div class="stat" title="Salud"><span>❤️</span><div class="bar"><i id="barHealth" class="health"></i></div></div>
+    <div class="stat" title="Hambre"><span>🍖</span><div class="bar"><i id="barHunger" class="hunger"></i></div></div>
+    <div class="stat" title="Sed"><span>💧</span><div class="bar"><i id="barThirst" class="thirst"></i></div></div>
+    <div class="stat" title="Energía"><span>⚡</span><div class="bar"><i id="barStamina" class="stamina"></i></div></div>
+    <div class="stat" title="Temperatura corporal"><span>🌡️</span><div class="bar temp-bar"><i id="barTemp"></i><b></b></div></div>
+    <div class="stat hidden" id="oxyStat" title="Aire"><span>🫧</span><div class="bar"><i id="barOxy" class="oxy"></i></div></div>
+    <div id="statusIcons"></div>
+  </div>
+
+  <div id="shipHud" class="hidden"></div>
+  <div id="powerHud" class="hidden"></div>
+  <div id="bossBar" class="hidden"><div id="bossName">🐗 Jabalí gigante</div><div class="bar"><i id="bossFill"></i></div></div>
+  <div id="heldName"></div>
+  <div id="hotbar"></div>
+  <div id="crosshair"></div>
+  <div id="prompt"></div>
+  <div id="messages"></div>
+  <div id="banner"></div>
+  <div id="vignette"></div>
+  <div id="keyhint"><kbd>Tab</kbd> Inventario <kbd>M</kbd> Mapa <kbd>J</kbd> Bitácora <kbd>V</kbd> Cámara <kbd>Esc</kbd> Pausa</div>
+</div>
+
+<!-- ============ DIÁLOGO ============ -->
+<div id="dialog" class="hidden">
+  <div class="dlg-who" id="dialogWho"></div>
+  <div class="dlg-text" id="dialogText"></div>
+  <div class="dlg-opts" id="dialogOpts"></div>
+</div>
+
+<!-- ============ INVENTARIO ============ -->
+<div id="inventory" class="hidden">
+  <div class="inv-wrap">
+    <button id="invClose" class="close" title="Cerrar (Tab)">✕</button>
+    <section class="inv-col">
+      <h2>Inventario</h2>
+      <p class="hint" id="invHint">Clic: mover/intercambiar · Clic derecho: usar/comer</p>
+      <div id="chestSec" class="hidden">
+        <div class="inv-label" id="chestTitle">📦 Cofre</div>
+        <div id="invChest" class="inv-grid chest-grid"></div>
+      </div>
+      <div class="inv-label">Equipo <span class="muted" id="eqStats"></span></div>
+      <div id="invEquip" class="inv-grid equip-grid"></div>
+      <div class="inv-label">Barra rápida (1-8)</div>
+      <div id="invHot" class="inv-grid"></div>
+      <div class="inv-label">Mochila</div>
+      <div id="invBag" class="inv-grid"></div>
+      <div id="itemInfo"><span class="muted">Pasa el ratón sobre un objeto para ver detalles.</span></div>
+    </section>
+    <section class="craft-col">
+      <h2>Fabricación</h2>
+      <div id="craftTabs"></div>
+      <div id="recipes"></div>
+    </section>
+  </div>
+</div>
+
+<!-- ============ MAPA GRANDE ============ -->
+<div id="bigmap" class="hidden">
+  <div class="map-card">
+    <canvas id="bigmapCanvas" width="640" height="640"></canvas>
+    <div class="legend">
+      <span><i style="background:#fff"></i>Tú</span>
+      <span><i style="background:#ffe066"></i>Barco</span>
+      <span><i style="background:#ff9a3c"></i>Fogata</span>
+      <span><i style="background:#9fd3ff"></i>Cama</span>
+      <span><i style="background:#ff4d4d"></i>Peligro</span>
+      <span>🗿 Monoglifo · 📦 Cofre · 🍾 Botella</span>
+      <span class="muted">M o Esc para cerrar</span>
+    </div>
+    <p id="mapInfo" class="muted map-info"></p>
+  </div>
+</div>
+
+<!-- ============ BITÁCORA ============ -->
+<div id="journal" class="hidden">
+  <div class="journal-card">
+    <button id="journalClose" class="close" title="Cerrar (J)">✕</button>
+    <h2>📔 Bitácora</h2>
+    <div id="journalBody"></div>
+  </div>
+</div>
+
+<!-- ============ PAUSA ============ -->
+<div id="pause" class="screen hidden">
+  <div class="menu-card small-card">
+    <h2>Pausa</h2>
+    <p id="pauseNet" class="muted hidden"></p>
+    <div class="menu-buttons">
+      <button id="btnResume" class="btn primary">Reanudar</button>
+      <button id="btnSave" class="btn">Guardar partida</button>
+      <button id="btnPauseControls" class="btn">Controles</button>
+      <button id="btnPauseQuality" class="btn small">Calidad gráfica: Alta</button>
+      <button id="btnQuit" class="btn small">Guardar y salir al menú</button>
+    </div>
+    <div id="pauseControls" class="hidden"><div class="controls-list"></div></div>
+  </div>
+</div>
+
+<!-- ============ MUERTE ============ -->
+<div id="dead" class="screen hidden">
+  <div class="menu-card small-card dead-card">
+    <h2>Has muerto</h2>
+    <p id="deadCause"></p>
+    <p class="muted" id="deadRule">Reaparecerás en tu cama (o en la playa) y perderás la mitad de tus recursos.</p>
+    <div class="menu-buttons">
+      <button id="btnRespawn" class="btn primary">Reaparecer</button>
+      <button id="btnDeadMenu" class="btn small">Menú principal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FIN DE PARTIDA ============ -->
+<div id="win" class="screen hidden">
+  <div class="menu-card small-card win-card">
+    <h2>¡Victoria!</h2>
+    <p id="winStats"></p>
+    <div class="menu-buttons">
+      <button id="btnWinMenu" class="btn primary">Menú principal</button>
+    </div>
+  </div>
+</div>
+
+<div id="underwater" class="hidden"></div>
+<div id="clickToPlay" class="hidden"><div>🖱️ Haz clic para seguir jugando</div></div>
+<div id="fade"></div>
+
+<script>
+  // Si algo falla al arrancar, mostrarlo en la pantalla de carga
+  window.addEventListener('error', function (e) {
+    var t = document.getElementById('loadText');
+    if (t && !window.__gameStarted) t.innerHTML = '⚠ Error: ' + (e.message || e) + '<br><small>Revisa la consola (F12).</small>';
+  });
+  setTimeout(function () {
+    if (!window.THREE) {
+      var t = document.getElementById('loadText');
+      if (t) t.innerHTML = '⚠ No se pudo cargar el motor 3D (carpeta lib).<br><small>Vuelve a descargar el juego completo.</small>';
+    }
+  }, 15000);
+</script>
+<script type="module">
+  import * as THREE from 'three';
+  import { Sky } from 'three/addons/objects/Sky.js';
+  import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+  window.THREE = THREE;
+  window.Sky = Sky;
+  window.mergeGeometries = mergeGeometries;
+  window.mergeVertices = mergeVertices;
+
+  const files = [
+    'js/version.js', 'js/util.js', 'js/models.js', 'js/audio.js', 'js/net.js', 'js/items.js', 'js/islands.js', 'js/world.js', 'js/resources.js',
+    'js/building.js', 'js/landmarks.js', 'js/weather.js', 'js/fishing.js', 'js/animals.js', 'js/creatures.js', 'js/character.js', 'js/equipment.js', 'js/player.js',
+    'js/clock.js', 'js/ships.js', 'js/story.js', 'js/modes.js', 'js/ui.js', 'js/game.js', 'js/save.js', 'js/main.js'
+  ];
+  for (const f of files) {
+    await new Promise((ok, fail) => {
+      const s = document.createElement('script');
+      s.src = f;
+      s.onload = ok;
+      s.onerror = () => fail(new Error('No se pudo cargar ' + f));
+      document.body.appendChild(s);
+    });
+  }
+  G.boot();
+</script>
+</body>
+</html>

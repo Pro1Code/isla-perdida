@@ -1,0 +1,555 @@
+// Arranque, bucle principal, entrada (teclado/ratón), pantallas, multijugador (menú y lobby) y calidad gráfica
+(function () {
+  'use strict';
+  const G = window.G, U = G.U;
+  const Main = (G.Main = {});
+  const Input = (G.Input = { keys: {}, mouseL: false, locked: false });
+  const $ = (id) => document.getElementById(id);
+  let renderer, scene, camera, clock, canvas, menuAng = 0, suppressPause = false, lastFrame = 0;
+  let fpsFrames = 0, fpsTime = 0, fpsLow = 0, fpsWarned = false;
+  const focus = new THREE.Vector3();
+  G.chatOpen = false;
+
+  // ------------------------------------------------------------------ calidad
+  const Q_ORDER = ['high', 'med', 'low'];
+  function getQuality() {
+    try { const q = localStorage.getItem('isla_quality2'); if (Q_ORDER.includes(q)) return q; } catch (e) { /* nada */ }
+    return 'med';
+  }
+  function applyPixelRatio() {
+    // Alta: resolución nativa (máx. 1.5x) · Media: 1x · Baja: 0.75x
+    const dpr = window.devicePixelRatio || 1;
+    const ratio = Main.quality === 'high' ? Math.min(dpr, 1.5) : Math.min(dpr, 1) * G.World.QUALITY[Main.quality].ratio;
+    renderer.setPixelRatio(ratio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+  function setQuality(q) {
+    try { localStorage.setItem('isla_quality2', q); } catch (e) { /* sin almacenamiento */ }
+    const prevSoft = Main.quality && G.World.QUALITY[Main.quality].soft;
+    Main.quality = q;
+    const Q = G.World.QUALITY[q];
+    applyPixelRatio();
+    G.World.setQuality(q);
+    renderer.shadowMap.type = Q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    if (prevSoft !== undefined && prevSoft !== Q.soft) scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => (m.needsUpdate = true)); });
+    const label = 'Calidad gráfica: ' + Q.name;
+    $('btnQuality').textContent = label;
+    $('btnPauseQuality').textContent = label;
+  }
+  const cycleQuality = () => setQuality(Q_ORDER[(Q_ORDER.indexOf(Main.quality) + 1) % Q_ORDER.length]);
+
+  // Cede el control para que se pinte el texto de carga (sin depender de requestAnimationFrame,
+  // que se pausa si la pestaña está en segundo plano)
+  const nextFrame = () => new Promise((r) => setTimeout(r, 40));
+  const setLoad = (t) => ($('loadText').textContent = t);
+  // Pantalla de carga durante la partida (generar el archipiélago tarda un momento)
+  Main.loading = async function (text) {
+    if (!text) { $('loading').classList.add('hidden'); return; }
+    setLoad(text);
+    $('loading').classList.remove('hidden');
+    await nextFrame(); await nextFrame();
+  };
+
+  G.boot = async function () {
+    window.__gameStarted = true;
+    const q0 = getQuality();
+    renderer = new THREE.WebGLRenderer({ antialias: q0 !== 'low', powerPreference: 'high-performance' });
+    renderer.shadowMap.enabled = true;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.5;
+    G.renderer = renderer;
+    canvas = renderer.domElement;
+    $('game').appendChild(canvas);
+    scene = G.scene = new THREE.Scene();
+    camera = G.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 5000);
+    scene.add(camera);
+
+    setLoad('Esculpiendo la Isla Perdida…'); await nextFrame();
+    G.World.build(scene);
+    setLoad('Plantando árboles…'); await nextFrame();
+    G.Res.generate(scene);
+    setLoad('Preparando el campamento…'); await nextFrame();
+    G.Build.init(scene);
+    G.Landmarks.build(scene);
+    G.Weather.build(scene);
+    G.Fishing.build(scene);
+    G.Player.init(scene, camera);
+    G.UI.init();
+    G.Player.pos.set(G.World.spawn.x, G.height(G.World.spawn.x, G.World.spawn.z), G.World.spawn.z);
+    setQuality(q0);
+    bindInput();
+    bindMenus();
+    setLoad('Compilando sombreadores…'); await nextFrame();
+    G.state.t = 0.3;
+    G.World.update(0.016, G.state.t, camera, focus);
+    renderer.compile(scene, camera);
+    clock = new THREE.Clock();
+    $('loading').classList.add('hidden');
+    Main.showScreen('menu');
+    requestAnimationFrame(loop);
+    // Si la pestaña queda en segundo plano, el anfitrión sigue simulando el mundo
+    setInterval(() => { if (performance.now() - lastFrame > 400 && G.Net.active && G.Net.inWorld) tick(0.25, false); }, 250);
+    if (window.islaDesktop && window.islaDesktop.onReady) window.islaDesktop.onReady();
+  };
+
+  // ------------------------------------------------------------------ pantallas
+  const SCREENS = ['menu', 'pause', 'dead', 'win'];
+  Main.showScreen = function (name) {
+    for (const s of SCREENS) $(s).classList.toggle('hidden', s !== name);
+    $('hud').classList.toggle('hidden', !(name === null || name === 'pause' || name === 'dead'));
+    if (name === 'menu') {
+      G.Save.setMode('sp');
+      $('btnContinue').classList.toggle('hidden', !G.Save.has());
+      showMenuPanel('menuMain');
+      G.state.mode = 'menu';
+      G.World.mist = 0;
+      G.Weather.set('clear', 150);
+      G.Audio.setRain(0);
+      G.Player.setHidden(true);
+      G.Build.updateGhost(null);
+      G.Ships.updateGhost(null);
+      G.UI.el.inventory.classList.add('hidden');
+      G.UI.el.bigmap.classList.add('hidden');
+      G.UI.closeJournal();
+      G.Story.close();
+      G.UI.closeChat();
+      G.Player.zoom = 0;
+    }
+    $('pauseControls').classList.add('hidden');
+    $('clickToPlay').classList.add('hidden');
+    $('pauseNet').classList.toggle('hidden', !G.Net.active);
+  };
+  function showMenuPanel(id) {
+    for (const p of ['menuMain', 'menuDiff', 'menuControls', 'menuMP']) $(p).classList.toggle('hidden', p !== id);
+  }
+  Main.lockPointer = function () {
+    if (G.Story && G.Story.dialog) return;
+    try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* ignorar */ }
+  };
+  Main.releasePointer = function () {
+    if (document.pointerLockElement) { suppressPause = true; document.exitPointerLock(); }
+  };
+  function startPlaying() {
+    G.Player.setShirt(G.Net.active ? G.Net.color : 0xe6dfcc);
+    Main.showScreen(null);
+    G.state.mode = 'playing';
+    G.Audio.init();
+    G.Audio.resume();
+    Main.lockPointer();
+    fpsLow = 0; fpsWarned = false;
+  }
+  Main.pause = function () {
+    if (G.state.mode !== 'playing') return;
+    G.state.mode = 'paused';
+    Input.keys = {}; Input.mouseL = false;
+    Main.showScreen('pause');
+    if (G.Net.active) $('pauseNet').textContent = '🌐 Partida LAN: el mundo sigue en marcha mientras estás en pausa.';
+    $('btnSave').classList.toggle('hidden', G.state.gm === 'versus');
+  };
+  function resume() {
+    Main.showScreen(null);
+    G.state.mode = 'playing';
+    Main.lockPointer();
+  }
+  function quitToMenu() {
+    G.Save.save();
+    G.Net.disconnect();
+    G.Modes.stop();
+    Main.showScreen('menu');
+  }
+
+  // ------------------------------------------------------------------ menús
+  function bindMenus() {
+    $('btnNew').onclick = () => {
+      showMenuPanel('menuDiff');
+      $('overwriteWarn').classList.toggle('hidden', !G.Save.has());
+    };
+    $('btnContinue').onclick = async () => {
+      const d = G.Save.load();
+      if (!d) { $('btnContinue').classList.add('hidden'); return; }
+      await G.Game.loadGame(d);
+      startPlaying();
+    };
+    $('btnControls').onclick = () => showMenuPanel('menuControls');
+    document.querySelectorAll('#menu .back').forEach((b) => (b.onclick = () => { G.Net.disconnect(); showMenuPanel('menuMain'); }));
+    document.querySelectorAll('#menuDiff .diff').forEach((b) => (b.onclick = async () => {
+      const d = +b.dataset.d;
+      await G.Game.newGame(d, { mode: 'coop', cfg: { diff: d, death: $('spDeath').value } });
+      startPlaying();
+    }));
+    $('btnQuality').onclick = cycleQuality;
+    $('btnPauseQuality').onclick = cycleQuality;
+    $('versionLabel').textContent = `Versión ${G.VERSION} · ${G.VERSION_NAME}`;
+    $('btnDownloads').href = G.DOWNLOAD_URL;
+    // App de escritorio: aviso de actualizaciones
+    if (window.islaDesktop) {
+      $('btnDownloads').classList.add('hidden');
+      const note = $('updateNote');
+      window.islaDesktop.onUpdate((u) => {
+        note.classList.toggle('hidden', !['downloading', 'ready'].includes(u.state));
+        if (u.state === 'downloading') note.textContent = `⬇️ Descargando la versión ${u.version}… ${u.percent || 0}%`;
+        if (u.state === 'ready') { note.innerHTML = `✅ Versión ${u.version} lista. <button class="btn small" id="btnUpd">Reiniciar y actualizar</button>`; $('btnUpd').onclick = () => window.islaDesktop.installUpdate(); }
+      });
+    }
+    $('btnResume').onclick = resume;
+    $('btnSave').onclick = () => { G.UI.msg(G.Save.save() ? '💾 Partida guardada' : 'No se pudo guardar', 'info'); resume(); };
+    $('btnPauseControls').onclick = () => $('pauseControls').classList.toggle('hidden');
+    $('btnQuit').onclick = quitToMenu;
+    $('btnRespawn').onclick = () => { G.Game.respawn(); resume(); };
+    $('btnDeadMenu').onclick = () => { if (G.Modes.deathRule() !== 'out') G.Game.respawn(); quitToMenu(); };
+    $('btnWinMenu').onclick = () => { G.Net.disconnect(); G.Modes.stop(); Main.showScreen('menu'); };
+    $('clickToPlay').onclick = () => { $('clickToPlay').classList.add('hidden'); Main.lockPointer(); };
+    bindMultiplayerMenu();
+  }
+
+  // ------------------------------------------------------------------ menú multijugador y lobby
+  function bindMultiplayerMenu() {
+    let color = G.Net.COLORS[0];
+    try {
+      $('mpName').value = localStorage.getItem('isla_mp_name') || 'Náufrago' + Math.floor(Math.random() * 90 + 10);
+      color = localStorage.getItem('isla_mp_color') || color;
+      $('mpAddr').value = localStorage.getItem('isla_mp_addr') || '';
+    } catch (e) { /* nada */ }
+    const sw = $('mpColors');
+    sw.innerHTML = G.Net.COLORS.map((c) => `<button class="swatch" data-c="${c}" style="background:${c}"></button>`).join('');
+    const mark = () => sw.querySelectorAll('.swatch').forEach((b) => b.classList.toggle('on', b.dataset.c === color));
+    sw.onclick = (e) => { const b = e.target.closest('.swatch'); if (b) { color = b.dataset.c; mark(); } };
+    mark();
+    // Opciones del versus
+    $('vsFormat').innerHTML = Object.keys(G.Modes.FORMATS).map((f) => `<option value="${f}">${f.replace(/v/g, ' vs ')}</option>`).join('');
+    $('vsDeath').innerHTML = Object.entries(G.Modes.DEATH).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+    $('coopDeath').innerHTML = Object.entries(G.Modes.DEATH).filter(([k]) => k !== 'out').map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+    $('spDeath').innerHTML = $('coopDeath').innerHTML;
+    $('spDeath').value = 'half'; $('coopDeath').value = 'half';
+
+    $('btnMP').onclick = () => {
+      showMenuPanel('menuMP');
+      const ok = G.Net.available();
+      $('mpFile').classList.toggle('hidden', ok);
+      $('mpForm').classList.toggle('hidden', !ok);
+      $('mpLobby').classList.add('hidden');
+      $('mpStatus').textContent = '';
+    };
+    $('mpConnect').onclick = async () => {
+      const name = $('mpName').value.trim().slice(0, 14) || 'Náufrago';
+      const addr = $('mpAddr').value.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      try { localStorage.setItem('isla_mp_name', name); localStorage.setItem('isla_mp_color', color); localStorage.setItem('isla_mp_addr', addr); } catch (e) { /* nada */ }
+      $('mpConnect').disabled = true;
+      $('mpStatus').textContent = 'Conectando…';
+      try {
+        const w = await G.Net.connect(name, color, addr ? (addr.includes(':') ? addr : addr + ':8080') : null);
+        G.Audio.init();
+        $('mpForm').classList.add('hidden');
+        $('mpLobby').classList.remove('hidden');
+        if (w.host) Main.becameHostInLobby();
+        else {
+          G.Save.setMode('client', G.Net.hostAddr + '_' + name);
+          G.Net.waiting = true;
+          G.Net.send({ t: 'reqWorld' });
+          $('mpLobbyText').innerHTML = '✅ Conectado. Esperando a que el anfitrión 👑 inicie la partida…';
+        }
+        Main.refreshLobby();
+      } catch (e) {
+        $('mpStatus').innerHTML = e && e.message === 'full' ? '❌ La partida está llena (máximo 8 jugadores).' :
+          `❌ No hay ninguna partida en <b>${G.Net.esc(addr || location.host || 'localhost:8080')}</b>.<br>` +
+          'Si tú eres el anfitrión, abre el juego instalado (o <b>Iniciar servidor LAN.bat</b>). Si eres invitado, escribe la IP que ve el anfitrión en su pantalla.';
+      }
+      $('mpConnect').disabled = false;
+    };
+    // Pestañas de modo (solo el anfitrión las cambia)
+    document.querySelectorAll('#mpModeTabs button').forEach((b) => (b.onclick = () => {
+      if (!G.Net.isHost) return;
+      G.Net.lobbyCfg.mode = b.dataset.m;
+      readVsCfg(); G.Net.sendLobby(); Main.refreshLobby();
+    }));
+    document.querySelectorAll('#mpVs select, #mpVs input').forEach((i) => (i.onchange = () => { readVsCfg(); G.Net.sendLobby(); Main.refreshLobby(); }));
+    $('mpTeams').onclick = (e) => { const b = e.target.closest('button[data-t]'); if (b) G.Net.pickTeam(+b.dataset.t); };
+    $('vsBalance').onclick = () => { if (!G.Net.isHost) return; balanceTeams(true); G.Net.sendLobby(); Main.refreshLobby(); };
+    const hostStart = async (fn, save) => {
+      G.Save.setMode(save ? 'host' : 'versus');
+      await fn();
+      G.Net.startWorld();
+      startPlaying();
+    };
+    document.querySelectorAll('#mpCoop .diff').forEach((b) => (b.onclick = () => hostStart(() => G.Game.newGame(+b.dataset.d, { mode: 'coop', cfg: { diff: +b.dataset.d, death: $('coopDeath').value } }), true)));
+    $('mpContinue').onclick = () => {
+      G.Save.setMode('host');
+      const d = G.Save.load();
+      if (d) hostStart(() => G.Game.loadGame(d), true);
+    };
+    $('vsStart').onclick = () => {
+      readVsCfg();
+      balanceTeams(false);
+      const cfg = G.Net.lobbyCfg.cfg, assign = Object.assign({}, G.Net.lobbyCfg.assign);
+      const used = new Set(Object.values(assign));
+      if (used.size < 2) { $('vsWarn').textContent = '⚠ Hacen falta jugadores en al menos 2 equipos.'; return; }
+      if (!cfg.treasure && !cfg.ctf && !cfg.sink) { $('vsWarn').textContent = '⚠ Elige al menos una condición de victoria.'; return; }
+      $('vsWarn').textContent = '';
+      G.Net.sendLobby();
+      hostStart(() => G.Game.newGame(cfg.diff, { mode: 'versus', cfg, assign }), false);
+    };
+  }
+  function readVsCfg() {
+    const c = G.Net.lobbyCfg;
+    c.cfg = {
+      format: $('vsFormat').value, treasure: $('vsTreasure').checked, ctf: $('vsCtf').checked, caps: +$('vsCaps').value, sink: $('vsSink').checked,
+      minutes: +$('vsMinutes').value, truce: +$('vsTruce').value, death: $('vsDeath').value, structs: $('vsStructs').checked, ships: $('vsShips').checked, ff: $('vsFF').checked, diff: +$('vsDiff').value,
+    };
+  }
+  function writeVsCfg(c) {
+    if (!c) return;
+    $('vsFormat').value = c.format; $('vsTreasure').checked = c.treasure; $('vsCtf').checked = c.ctf; $('vsCaps').value = c.caps; $('vsSink').checked = c.sink;
+    $('vsMinutes').value = c.minutes; $('vsTruce').value = c.truce; $('vsDeath').value = c.death; $('vsStructs').checked = c.structs; $('vsShips').checked = c.ships; $('vsFF').checked = c.ff; $('vsDiff').value = c.diff;
+  }
+  // Reparte en equipos a quien no eligió (o a todos si se pide equilibrar)
+  function balanceTeams(all) {
+    const c = G.Net.lobbyCfg, sizes = G.Modes.FORMATS[c.cfg.format], n = sizes.length;
+    const ids = [G.Net.myId, ...G.Net.lobby.keys()];
+    if (all) c.assign = {};
+    for (const id of Object.keys(c.assign)) if (!ids.includes(+id) || c.assign[id] >= n) delete c.assign[id];
+    for (const id of ids) {
+      if (c.assign[id] !== undefined) continue;
+      const count = Array.from({ length: n }, (_, t) => Object.values(c.assign).filter((v) => v === t).length);
+      c.assign[id] = count.indexOf(Math.min(...count));
+    }
+  }
+  Main.becameHostInLobby = function () {
+    G.Net.waiting = false;
+    G.Save.setMode('host');
+    if (!G.Net.lobbyCfg.cfg) G.Net.lobbyCfg.cfg = Object.assign({}, G.Modes.DEFAULT_VS);
+    writeVsCfg(G.Net.lobbyCfg.cfg);
+    $('mpLobbyText').innerHTML = '👑 Eres el <b>anfitrión</b>: tu equipo simula el mundo. Elige el modo y la configuración.';
+    $('mpContinue').classList.toggle('hidden', !G.Save.has());
+    G.Net.sendLobby();
+    showLanIps();
+  };
+  // IP que deben usar los amigos para unirse (app de escritorio o servidor.py)
+  async function showLanIps() {
+    let info = null;
+    try { info = window.islaDesktop ? await window.islaDesktop.info() : await (await fetch('/lan-info')).json(); } catch (e) { /* sin datos */ }
+    const el = $('mpIps');
+    if (!info || !info.ips || !info.ips.length) { el.classList.add('hidden'); return; }
+    const addr = info.ips.map((ip) => `<b>${ip}${info.port && info.port !== 8080 ? ':' + info.port : ''}</b>`).join(' o ');
+    el.innerHTML = `📡 Tus amigos se unen escribiendo ${addr} en «IP del anfitrión» (o abriendo <b>http://${info.ips[0]}:${info.port || 8080}</b> en su navegador).`;
+    el.classList.remove('hidden');
+  }
+  Main.refreshLobby = function () {
+    const el = $('mpPlayers');
+    if (!el) return;
+    const N = G.Net, M = G.Modes, c = N.lobbyCfg;
+    const tm = (id) => (c.mode === 'versus' && c.assign[id] !== undefined ? ` <span class="team-dot" style="background:${M.teamColor(c.assign[id])}"></span>` : '');
+    const rows = [`<li><i style="background:${N.esc(N.color)}"></i>${N.esc(N.name)} (tú)${N.isHost ? ' 👑' : ''}${tm(N.myId)}</li>`];
+    for (const [id, p] of N.lobby) rows.push(`<li><i style="background:${N.esc(p.color)}"></i>${N.esc(p.name)}${id === N.hostId ? ' 👑' : ''}${tm(id)}</li>`);
+    el.innerHTML = rows.join('');
+    const vs = c.mode === 'versus';
+    document.querySelectorAll('#mpModeTabs button').forEach((b) => { b.classList.toggle('on', b.dataset.m === c.mode); b.disabled = !N.isHost; });
+    $('mpCoop').classList.toggle('hidden', vs || !N.isHost);
+    $('mpCoopGuest').classList.toggle('hidden', vs || N.isHost);
+    $('mpVs').classList.toggle('hidden', !vs);
+    if (vs && c.cfg) {
+      if (!N.isHost) writeVsCfg(c.cfg);
+      document.querySelectorAll('#mpVs select, #mpVs input').forEach((i) => (i.disabled = !N.isHost));
+      $('vsStart').classList.toggle('hidden', !N.isHost);
+      $('vsBalance').classList.toggle('hidden', !N.isHost);
+      const n = M.FORMATS[c.cfg.format].length, sizes = M.FORMATS[c.cfg.format];
+      $('mpTeams').innerHTML = Array.from({ length: n }, (_, t) => {
+        const members = Object.entries(c.assign).filter(([, v]) => v === t).map(([id]) => N.esc(N.nameOf(+id)));
+        return `<button data-t="${t}" class="team-btn${c.assign[N.myId] === t ? ' on' : ''}" style="--tc:${M.teamColor(t)}"><b>${M.teamName(t)}</b> <span class="muted">${members.length}/${sizes[t]}</span><br><small>${members.join(', ') || '—'}</small></button>`;
+      }).join('');
+      $('vsCapsRow').classList.toggle('hidden', !c.cfg.ctf);
+    }
+    G.UI.refreshPlayerList();
+  };
+  Main.joinWorld = async function (snap) {
+    G.Net.inWorld = true;
+    if (snap.st.gm === 'versus') G.Save.setMode('versus');
+    await G.Game.joinWorld(snap, G.Save.load());
+    startPlaying();
+  };
+  Main.onNetLost = function () {
+    const inGame = !['menu', 'loading'].includes(G.state.mode);
+    if (inGame && G.state.mode !== 'won') {
+      G.Save.save();
+      Main.releasePointer();
+      Main.showScreen('menu');
+    }
+    G.Modes.stop();
+    showMenuPanel('menuMP');
+    $('mpFile').classList.add('hidden');
+    $('mpForm').classList.remove('hidden');
+    $('mpLobby').classList.add('hidden');
+    $('mpStatus').textContent = '⚠ Se perdió la conexión con la partida LAN.';
+  };
+
+  // ------------------------------------------------------------------ entrada
+  function bindInput() {
+    window.addEventListener('keydown', (e) => {
+      const mode = G.state.mode;
+      if (G.chatOpen) {
+        if (e.code === 'Enter') {
+          e.preventDefault();
+          const text = $('chatInput').value.trim();
+          if (text) { G.Net.chat(text); G.UI.chatMsg(G.Net.name, G.Net.color, text); }
+          G.UI.closeChat();
+        }
+        else if (e.code === 'Escape') G.UI.closeChat();
+        return;
+      }
+      if (['Tab', 'Space', 'ArrowUp', 'ArrowDown'].includes(e.code) && mode !== 'menu') e.preventDefault();
+      if (e.repeat && !['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) return;
+      // Diálogo abierto: números para elegir, E / Esc para cerrar
+      if (G.Story.dialog && mode === 'playing') {
+        const n = /^Digit([1-9])$/.exec(e.code);
+        if (n) G.Story.choose(+n[1] - 1);
+        else if (e.code === 'Escape' || e.code === 'KeyE' || e.code === 'Enter') G.Story.choose(e.code === 'Enter' ? 0 : -1);
+        return;
+      }
+      Input.keys[e.code] = true;
+      if (mode === 'playing') {
+        if (!Input.locked && e.code !== 'Escape') return;
+        if (G.Ships.helmKey(e.code)) return;
+        if (e.code === 'Tab' || e.code === 'KeyI') G.Game.openInventory();
+        else if ((e.code === 'KeyT' || e.code === 'Enter') && G.Net.active) { e.preventDefault(); Input.keys = {}; G.UI.openChat(); }
+        else if (e.code === 'KeyE') G.Game.interact();
+        else if (e.code === 'KeyF') G.Game.useHeld();
+        else if (e.code === 'KeyG') G.Story.usePower();
+        else if (e.code === 'KeyV') G.Player.toggleCam();
+        else if (e.code === 'KeyM') G.Game.openMap();
+        else if (e.code === 'KeyJ') G.Game.openJournal();
+        else if (e.code === 'KeyX') G.Game.demolish();
+        else if (e.code === 'KeyR') {
+          const tg = G.Game.target;
+          if (tg && tg.kind === 'piece' && G.Ships.rotatePiece(tg)) G.Audio.play('select');
+          else if (G.Ships.itemType(G.Inv.heldId())) { G.Ships.rot = (G.Ships.rot + Math.PI / 2) % (Math.PI * 2); G.Audio.play('select'); }
+          else { G.Build.rotIdx = (G.Build.rotIdx + 1) % 4; G.Audio.play('select'); }
+        }
+        else if (/^Digit[1-8]$/.test(e.code)) { G.Inv.sel = +e.code.slice(5) - 1; G.Inv.changed(); G.Audio.play('select'); }
+      } else if (mode === 'inventory') {
+        if (e.code === 'Tab' || e.code === 'Escape' || e.code === 'KeyI') G.Game.closeInventory();
+      } else if (mode === 'map') {
+        if (e.code === 'KeyM' || e.code === 'Escape') G.Game.closeMap();
+      } else if (mode === 'journal') {
+        if (e.code === 'KeyJ' || e.code === 'Escape') G.Game.closeJournal();
+      } else if (mode === 'paused') {
+        if (e.code === 'Escape') resume();
+      }
+    });
+    window.addEventListener('keyup', (e) => { Input.keys[e.code] = false; });
+    window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; });
+    canvas.addEventListener('mousedown', (e) => {
+      if (G.state.mode !== 'playing') return;
+      if (!Input.locked) { Main.lockPointer(); return; }
+      if (G.chatOpen) return;
+      if (e.button === 0) { Input.mouseL = true; G.Game.attack(); }
+      else if (e.button === 2) {
+        const h = G.Inv.heldId();
+        if (h && G.ITEMS[h].spyglass) G.Player.zoom = 1; else G.Game.useHeld();
+      }
+    });
+    window.addEventListener('mouseup', (e) => { if (e.button === 0) Input.mouseL = false; if (e.button === 2) G.Player.zoom = 0; });
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+    window.addEventListener('mousemove', (e) => {
+      if (!Input.locked || G.state.mode !== 'playing') return;
+      if (G.Ships.aimInput(e.movementX, e.movementY)) return;
+      const P = G.Player, k = P.zoom ? 0.0006 : 0.0022;
+      P.yaw -= e.movementX * k;
+      P.pitch = U.clamp(P.pitch - e.movementY * k, -1.45, 1.45);
+    });
+    window.addEventListener('wheel', (e) => {
+      if (G.state.mode !== 'playing' || !Input.locked) return;
+      G.Inv.sel = (G.Inv.sel + (e.deltaY > 0 ? 1 : -1) + 8) % 8;
+      G.Inv.changed();
+    }, { passive: true });
+    document.addEventListener('pointerlockchange', () => {
+      Input.locked = document.pointerLockElement === canvas;
+      if (Input.locked) { $('clickToPlay').classList.add('hidden'); suppressPause = false; return; }
+      Input.mouseL = false;
+      if (G.chatOpen) G.UI.closeChat();
+      if (suppressPause) { suppressPause = false; return; }
+      if (G.state.mode === 'playing' && !G.Story.dialog) Main.pause();
+    });
+    window.addEventListener('resize', () => {
+      // Al minimizar la ventana el tamaño puede ser 0: no se toca la cámara
+      if (window.innerWidth < 2 || window.innerHeight < 2) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    window.addEventListener('beforeunload', () => G.Save.save());
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { if (!G.Net.active) G.Audio.suspend(); }
+      else if (G.state.mode !== 'menu') G.Audio.resume();
+    });
+  }
+
+  // ------------------------------------------------------------------ bucle
+  function tick(dt, render) {
+    const st = G.state, P = G.Player;
+    if (st.mode === 'menu' || st.mode === 'loading') {
+      if (!render) return;
+      menuAng += dt * 0.025;
+      st.t = 0.29;
+      camera.position.set(Math.cos(menuAng) * 175, 42, Math.sin(menuAng) * 175);
+      camera.lookAt(0, 4, 0);
+      focus.set(Math.cos(menuAng) * 60, 0, Math.sin(menuAng) * 60);
+      G.World.update(dt, st.t, camera, focus);
+      G.Build.update(dt);
+    } else {
+      // En LAN el mundo nunca se detiene (pausa o muerte incluidas)
+      const active = ['playing', 'inventory', 'map', 'sleeping', 'journal'].includes(st.mode) || (G.Net.active && ['paused', 'dead', 'won'].includes(st.mode));
+      if (active) G.Game.update(dt);
+      if (!render) return;
+      if (st.spectate) spectateCam(dt); else P.updateVisuals(active ? dt : 0);
+      focus.copy(st.spectate ? camera.position : P.pos);
+      G.World.update(active ? dt : 0, st.t, camera, focus);
+      G.UI.update(active ? dt : 0);
+      if (active) {
+        const h = G.height(P.pos.x, P.pos.z);
+        const fire = G.Build.nearestLitFire(P.pos.x, P.pos.z);
+        G.Audio.update(dt, { shore: U.clamp(1 - (h - 0.5) / 10, 0, 1), night: G.World.night, height: h, fireDist: fire ? fire.d : 99, sea: !G.Arch.landOf(P.pos.x, P.pos.z), gulls: G.Landmarks.inSchool(P.pos.x, P.pos.z) });
+      }
+      $('clickToPlay').classList.toggle('hidden', !(st.mode === 'playing' && !Input.locked && !G.Story.dialog));
+    }
+    G.Landmarks.update(dt, camera.position);
+    const wxActive = !['menu', 'loading', 'won'].includes(st.mode) && (st.mode !== 'paused' || G.Net.active);
+    G.Weather.update(dt, camera.position, wxActive);
+    G.Res.updateVisibility(camera.position);
+    G.World.updateGrass(camera.position);
+  }
+  // Eliminado en versus: la cámara sigue a un compañero de equipo
+  let specAng = 0;
+  function spectateCam(dt) {
+    specAng += dt * 0.2;
+    const mate = [...G.Net.peers.values()].find((p) => !p.dead && !p.out && p.team === G.Net.team) || [...G.Net.peers.values()].find((p) => !p.dead);
+    const c = mate || G.Player.pos;
+    camera.position.set(c.x + Math.cos(specAng) * 9, (c.y || 0) + 6, c.z + Math.sin(specAng) * 9);
+    camera.lookAt(c.x, (c.y || 0) + 1.5, c.z);
+    G.Player.setHidden(true);
+  }
+  // Avanza el juego a mano (pruebas automáticas con la ventana oculta)
+  Main.debugStep = function (n = 1, dt = 1 / 30) {
+    for (let i = 0; i < n; i++) tick(dt, true);
+    renderer.toneMappingExposure = G.World.exposure;
+    renderer.render(scene, camera);
+  };
+  function loop() {
+    requestAnimationFrame(loop);
+    lastFrame = performance.now();
+    const dt = Math.min(0.05, clock.getDelta());
+    tick(dt, true);
+    renderer.toneMappingExposure = G.World.exposure;
+    renderer.render(scene, camera);
+    // FPS y aviso de rendimiento
+    fpsFrames++; fpsTime += dt;
+    if (fpsTime >= 1) {
+      const fps = Math.round(fpsFrames / fpsTime);
+      $('fps').textContent = fps + ' FPS';
+      fpsFrames = 0; fpsTime = 0;
+      if (G.state.mode === 'playing' && fps < 24) fpsLow++; else fpsLow = Math.max(0, fpsLow - 1);
+      if (fpsLow >= 6 && !fpsWarned && Main.quality !== 'low') {
+        fpsWarned = true;
+        G.UI.msg('⚠ El juego va lento. Baja la calidad gráfica en el menú de pausa (Esc).', 'warn');
+      }
+    }
+  }
+})();
