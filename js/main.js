@@ -176,8 +176,10 @@
     return true;
   }
   Main.playSingle = async function (w) {
+    const fresh = w.fresh;
     await playWorld(w);
-    startPlaying();
+    if (fresh && G.Cinema) G.Cinema.play(() => startPlaying());
+    else startPlaying();
   };
 
   // ------------------------------------------------------------------ menús
@@ -399,6 +401,7 @@
   function bindInput() {
     window.addEventListener('keydown', (e) => {
       const mode = G.state.mode;
+      if (mode === 'cinema') { if (['Space', 'Escape', 'Enter'].includes(e.code)) { e.preventDefault(); G.Cinema.skip(); } return; }
       if (G.chatOpen) {
         if (e.code === 'Enter') {
           e.preventDefault();
@@ -505,7 +508,12 @@
   // ------------------------------------------------------------------ bucle
   function tick(dt, render) {
     const st = G.state, P = G.Player;
-    if (st.mode === 'menu' || st.mode === 'loading') {
+    if (st.mode === 'cinema') {
+      if (!render) return;
+      G.Cinema.update(dt);
+      G.Ships.update(dt);
+      G.World.update(dt, st.t, camera, G.Cinema.focus);
+    } else if (st.mode === 'menu' || st.mode === 'loading') {
       if (!render) return;
       menuAng += dt * 0.025;
       st.t = 0.29;

@@ -202,3 +202,36 @@
 #loading .spinner { width: 34px; height: 34px; margin-bottom: 10px; }
 .load-tip { font-size: 14px !important; color: #c9c3b4 !important; max-width: 640px !important; }
 @media (max-width: 760px) { #loadSlides .cap b { font-size: 28px; } #loadSlides .cap { bottom: 22%; left: 6%; right: 6%; } .load-title { font-size: 24px; left: 18px; top: 16px; } }
+
+/* Cinemática de introducción */
+#cine { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+.cine-bar { position: absolute; left: 0; right: 0; height: 11vh; background: #000; }
+.cine-bar.top { top: 0; } .cine-bar.bot { bottom: 0; }
+#cineFlash { position: absolute; inset: 0; background: #e8f0ff; opacity: 0; }
+#cineBlack { position: absolute; inset: 0; background: #000; opacity: 1; transition: opacity .9s; }
+#cineSub { position: absolute; left: 50%; bottom: 14vh; transform: translateX(-50%); max-width: min(900px, 90vw); text-align: center; opacity: 0; transition: opacity .35s; text-shadow: 0 2px 10px #000; font-size: 22px; line-height: 1.4; }
+#cineSub.show { opacity: 1; }
+#cineSub b { display: block; font-size: 15px; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+#cineSub .narr { font-style: italic; color: #e8e2d6; font-family: 'Cinzel', serif; font-size: 24px; }
+#cineTitle { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; opacity: 0; transition: opacity 1s; z-index: 2; }
+#cineTitle.show { opacity: 1; }
+#cineTitle small { font-family: 'Cinzel', serif; letter-spacing: 8px; color: #c9c3b4; font-size: 16px; }
+#cineTitle b { font-family: 'Cinzel', serif; font-size: 58px; font-weight: 900; background: linear-gradient(180deg, #ffe3a3, #e59a3a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#cineTitle span { font-size: 22px; color: #f1ece1; letter-spacing: 2px; }
+.cine-skip { position: absolute; right: 24px; bottom: calc(11vh + 14px); color: #c9c3b4; font-size: 13px; opacity: .8; }
+
+/* HUD del estilo de combate */
+#styleHud { position: absolute; right: 16px; bottom: 64px; min-width: 230px; padding: 9px 12px; border-radius: 12px; background: var(--panel); border: 1px solid color-mix(in srgb, var(--sc) 55%, transparent); font-size: 13px; }
+#styleHud .st-top { display: flex; gap: 6px; align-items: baseline; }
+#styleHud .st-top b { color: var(--sc); }
+#styleHud .st-top span { color: var(--muted); font-weight: 800; }
+#styleHud .st-xp, #styleHud .st-mana { height: 4px; border-radius: 3px; background: rgba(255,255,255,.12); margin: 5px 0 6px; overflow: hidden; }
+#styleHud .st-xp i { display: block; height: 100%; background: var(--sc); }
+#styleHud .st-mana i { display: block; height: 100%; background: linear-gradient(90deg, #7a5ae0, #c9a0ff); }
+#styleHud .st-techs { display: flex; flex-direction: column; gap: 3px; }
+#styleHud .st-tech.lock { opacity: .45; }
+#styleHud .st-tech.cd { color: var(--muted); }
+#styleHud .st-tech small { color: var(--muted); }
+#styleHud kbd { font-size: 11px; }
+/* Los diálogos respetan los saltos de línea (pergaminos) */
+#dialog .dlg-text { white-space: pre-line; }
