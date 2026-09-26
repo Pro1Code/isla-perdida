@@ -115,7 +115,11 @@ Los FPS aparecen bajo el minimapa.
 
 PARA EL DESARROLLO (carpeta del proyecto)
 -----------------------------------------
-node scripts/build-desktop.js            Crea el instalador .exe
-node scripts/build-desktop.js --publish  Lo publica en GitHub (GH_TOKEN)
-node scripts/build-web.js                Crea docs/ (página de descargas + web)
-La versión se cambia en package.json y en js/version.js (deben coincidir).
+Publicar una versión nueva (el juego instalado se actualiza solo):
+  1. Escribe las novedades en build/release-notes.md
+  2. node scripts/release.js 2.1.0      (cambia la versión, sube todo y publica)
+Otros:
+  node scripts/build-desktop.js         Solo crea el instalador .exe
+  node scripts/build-web.js             Solo crea docs/ (página de descargas + web)
+Página de descargas: https://pro1code.github.io/isla-perdida/
+Repositorio:         https://github.com/Pro1Code/isla-perdida
