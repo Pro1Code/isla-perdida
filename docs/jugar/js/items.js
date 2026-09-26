@@ -51,7 +51,7 @@
     tela_vela:   { n: 'Lona', i: '🏳️', stack: 20, d: 'Tela resistente para velas.' },
     cristal_hielo: { n: 'Cristal de hielo', i: '🧊', stack: 20, d: 'Nunca se derrite. Transparente como el vidrio.' },
     perla:       { n: 'Perla', i: '⚪', stack: 30, d: 'Tesoro del arrecife. Los shandara la valoran mucho.' },
-    doblon:      { n: 'Moneda de oro antigua', i: '🥇', stack: 99, d: 'Moneda antigua del Reino de Aurea. Sirve para comerciar con la tribu.' },
+    doblon:      { n: 'Doblón de oro', i: '🪙', stack: 99, d: 'Moneda antigua del Reino de Aurea. Sirve para comerciar.' },
     piel_gruesa: { n: 'Piel gruesa', i: '🐾', stack: 10, d: 'De osos y lobos de las nieves. Muy abrigada.' },
     grasa:       { n: 'Grasa de foca', i: '🧈', stack: 20, d: 'Arde mucho tiempo. Sirve para antorchas.' },
     veneno:      { n: 'Veneno de rana', i: '🧪', stack: 20, d: 'De las ranas azules de Tahuri. Para dardos.' },
@@ -255,7 +255,6 @@
     Inv.equip[q.slot] = { id: it.id, n: 1 };
     Inv.slots[idx] = old ? { id: old.id, n: 1 } : null;
     Inv.changed();
-    if (G.Ach) G.Ach.add('equip:' + it.id, 1, true);
     return true;
   };
   Inv.unequip = function (slot) {
@@ -326,7 +325,7 @@
     if (s.n <= 0) Inv.slots[Inv.sel] = null;
     Inv.changed();
   };
-  Inv.canCraft = (rec) => (G.Cheats && G.Cheats.flag('free')) || Object.entries(rec.req).every(([id, n]) => Inv.count(id) >= n);
+  Inv.canCraft = (rec) => Object.entries(rec.req).every(([id, n]) => Inv.count(id) >= n);
   Inv.clear = () => { Inv.slots.fill(null); Inv.sel = 0; for (const s of Inv.SLOTS) Inv.equip[s] = null; Inv.changed(); };
 
   // ------------------------------------------------------------------ modelos en la mano

@@ -9,16 +9,13 @@
     { name: 'Normal', decay: 1.0, dmg: 1.0, wolves: 2 },
     { name: 'Difícil', decay: 1.35, dmg: 1.4, wolves: 4 },
   ];
-  G.state = { mode: 'loading', day: 1, t: 0.3, diff: 1, dayLen: 300, spawn: null, flags: {}, stats: { kills: 0, crafted: 0, deaths: 0, k: {} }, obj: 0 };
-  // Estadísticas de la partida (muertes y animales cazados por tipo, para algunos logros)
-  const fixStats = (s) => Object.assign({ kills: 0, crafted: 0, deaths: 0 }, s || {}, { k: Object.assign({}, (s && s.k) || {}) });
-  Game.fixStats = fixStats;
+  G.state = { mode: 'loading', day: 1, t: 0.3, diff: 1, dayLen: 300, spawn: null, flags: {}, stats: { kills: 0, crafted: 0 }, obj: 0 };
   Game.diff = () => G.DIFFS[G.state.diff] || G.DIFFS[1];
   Game.hour = () => G.state.t * 24;
   Game.isNight = () => { const h = Game.hour(); return h >= 20 || h < 5.5; };
   Game.nearFire = () => { const f = G.Build.nearestLitFire(G.Player.pos.x, G.Player.pos.z); return !!f && f.d < 4.5; };
   Game.nearStation = (st) => {
-    if (!st || (G.Cheats && G.Cheats.flag('free'))) return true;
+    if (!st) return true;
     if (st === 'fire') return Game.nearFire();
     const P = G.Player.pos;
     return G.Build.list.some((s) => s.type === st && Math.hypot(s.x - P.x, s.z - P.z) < 4);
@@ -29,7 +26,6 @@
   Game.give = function (id, n) {
     const added = G.Inv.add(id, n);
     if (added > 0) G.UI.msg(`+${added} ${G.ITEMS[id].i} ${G.ITEMS[id].n}`, 'item');
-    if (added > 0 && G.Ach) G.Ach.add('get:' + id, added, true);
     if (added < n) G.UI.msg('¡Inventario lleno!', 'bad', 'full');
     return added;
   };
@@ -167,7 +163,6 @@
       if (hid === 'cuenco' && G.Weather.intensity > 0.3 && !Game.sheltered() && G.Weather.fallKind === 'rain') {
         G.Inv.consumeHeld(); Game.give('agua_limpia', 1); G.Audio.play('fill');
         G.UI.msg('🌧️ Recoges agua de lluvia: ¡es potable!', 'good');
-        G.Ach.add('rain');
       }
       return;
     }
@@ -208,7 +203,6 @@
           if (hid === 'almeja') G.Inv.remove('almeja', 1);
           G.Inv.consumeHeld();
           Game.give(out, 1);
-          G.Ach.add('cook:' + out);
           G.Audio.play('ignite');
           if (out === 'agua_limpia') G.state.flags.boiled = true;
         } else if (G.Inv.count('madera') > 0) {
@@ -275,7 +269,7 @@
     G.Audio.play('swing');
     let best = null, bt = 30;
     G.Creatures.forEachAlive((c) => { const t = raySphere(o, d, c.x, c.y + c.d.bodyY, c.z, c.d.hitR + 0.2); if (t >= 0 && t < bt) { bt = t; best = c; } });
-    if (best) { G.Creatures.hurt(best, 8, undefined, { poison: 12 }); G.UI.msg(`🎯 Dardo en el blanco: ${best.d.name} envenenado`, 'good', 'dart'); G.Ach.add('dart'); }
+    if (best) { G.Creatures.hurt(best, 8, undefined, { poison: 12 }); G.UI.msg(`🎯 Dardo en el blanco: ${best.d.name} envenenado`, 'good', 'dart'); }
     for (const p of G.Net.peers.values()) {
       if (p.dead || !G.Modes.canHurtPlayer(p.team)) continue;
       const t = raySphere(o, d, p.x, p.y + 1, p.z, 0.6);
@@ -313,7 +307,6 @@
     s.n--;
     if (s.n <= 0) G.Inv.slots[idx] = null;
     if (u.ret) G.Inv.add(u.ret, 1);
-    G.Ach.add('eat:' + s.id, 1, true);
     G.Inv.changed();
     G.Audio.play(u.thirst && !u.hunger ? 'drink' : 'eat');
     G.UI.msg(`${it.i} ${it.n}: ${parts.join(' ')}`, 'info');
@@ -332,7 +325,6 @@
     const placed = G.Build.place(pl);
     G.Net.placed(placed);
     G.Inv.consumeHeld();
-    G.Ach.add('place:' + type, 1, true);
     const f = G.state.flags;
     if (type === 'fogata') f.fire = true;
     if (type === 'techo') f.roof = true;
@@ -358,27 +350,22 @@
     G.UI.msg(`Desmontaste: ${G.ITEMS[s.type].n}`, 'info');
   };
 
-  Game.learned = (rec) => !rec.learn || (G.Cheats && G.Cheats.flag('free')) || (G.state.world && G.state.world.story && G.state.world.story.learned && G.state.world.story.learned[rec.learn]);
+  Game.learned = (rec) => !rec.learn || (G.state.world && G.state.world.story && G.state.world.story.learned && G.state.world.story.learned[rec.learn]);
   Game.craft = function (rec) {
     if (!rec || !G.Inv.canCraft(rec)) return;
     if (!Game.learned(rec)) { G.UI.msg('Aún no conoces esta receta. Quizá la tribu Shandara pueda enseñártela.', 'warn'); return; }
     if (!Game.nearStation(rec.station)) { G.UI.msg(rec.station === 'horno' ? 'Necesitas estar junto a un horno de piedra.' : rec.station === 'banco' ? 'Necesitas estar junto a un banco de carpintero.' : 'Necesitas estar junto a una fogata encendida.', 'warn'); G.Audio.play('error'); return; }
-    const free = G.Cheats && G.Cheats.flag('free');
-    if (!free) for (const [id, n] of Object.entries(rec.req)) G.Inv.remove(id, n);
+    for (const [id, n] of Object.entries(rec.req)) G.Inv.remove(id, n);
     const n = rec.n || 1;
     const added = G.Inv.add(rec.id, n);
     if (added < 1) {
-      if (!free) for (const [id, k] of Object.entries(rec.req)) G.Inv.add(id, k);
+      for (const [id, k] of Object.entries(rec.req)) G.Inv.add(id, k);
       G.UI.msg('¡Inventario lleno!', 'bad');
       return;
     }
     G.Audio.play(rec.station === 'horno' ? 'smelt' : rec.station === 'banco' ? 'hammer' : 'craft');
     G.UI.msg(`Fabricaste: ${G.ITEMS[rec.id].i} ${G.ITEMS[rec.id].n}${n > 1 ? ' ×' + n : ''}`, 'good');
     G.state.stats.crafted++;
-    G.Ach.add('craft:' + rec.id, added, true);
-    if (rec.cat === 'ropa') G.Ach.add('craftRopa');
-    if (rec.station === 'fire') G.Ach.add('cook:' + rec.id, added);
-    if (G.Ships.DEF[rec.id]) G.Ach.add('ship:' + rec.id);
     if (rec.id === 'hacha') G.state.flags.axe = true;
     if (rec.id === 'agua_limpia') G.state.flags.boiled = true;
   };
@@ -406,13 +393,11 @@
     G.Landmarks.setOpened(id, true);
     G.Story.onLootOpened(id);
     G.Net.send({ t: 'lootOpened', id });
-    const lc = G.Landmarks.loot.find((l) => l.id === id), kind = (lc && lc.kind) || 'chest';
     if (!G.Net.active || who === G.Net.myId) {
-      G.Ach.add('loot:' + kind, 1, true); G.Ach.earn('loot');
       for (const [it, n] of items) Game.give(it, n);
       if (items.length) G.Audio.play('loot');
       if (items.length) G.UI.msg('📦 ¡Encontraste un botín!', 'good');
-    } else G.Net.send({ t: 'give', to: who, items, loot: true, lk: kind });
+    } else G.Net.send({ t: 'give', to: who, items, loot: true });
   };
 
   // ------------------------------------------------------------------ dormir (cada isla tiene su propia noche)
@@ -443,7 +428,6 @@
     G.state.mode = 'sleeping';
     G.Main.releasePointer();
     G.Audio.play('sleep');
-    G.Ach.add('sleep');
     G.UI.fade(() => {
       const S = P.stats, D = Game.diff();
       applyTime();
@@ -480,9 +464,6 @@
     G.Audio.play('day');
     const z = G.Clock.zone >= 0 ? G.Arch.byId(G.Clock.zone) : null;
     G.UI.banner(`Día ${d}`, z ? z.name : 'En alta mar');
-    // Doblones solo por días nuevos de verdad (no al llegar a una isla con otra hora)
-    const stt = G.state.stats || {};
-    if (G.state.gm !== 'versus' && d > (stt.maxDay || 1)) { stt.maxDay = d; G.Ach.earn('day'); }
     const tips = {
       2: '🧭 Pista: los restos de un barco naufragado yacen en la costa este de la Isla Perdida (mira el mapa, M). ¡Tienen cofres!',
       3: '⛰️ Pista: al pie de la montaña hay una cueva con vetas de hierro… y una piedra negra con símbolos.',
@@ -504,10 +485,6 @@
   Game.die = function (cause) {
     const P = G.Player;
     if (P.dead) return;
-    if (G.Cheats.flag('god')) { P.stats.health = Math.max(P.stats.health, 1); return; }
-    G.state.stats = fixStats(G.state.stats);
-    G.state.stats.deaths++;
-    G.Ach.add('death');
     if (P.ship) G.Ships.leave(true);
     P.dead = true;
     P.stats.health = 0;
@@ -556,8 +533,6 @@
     const inputOn = st.mode === 'playing' && G.Input.locked && !G.chatOpen && !G.Story.dialog;
     G.Clock.tick(dt);
     G.Clock.updateLocal(dt);
-    G.Cheats.update(dt);
-    G.Ach.tick(dt);
     P.cd = Math.max(0, P.cd - dt);
     if (!st.spectate) { P.update(dt, inputOn); P.updateStats(dt); }
     G.Net.update(dt);
@@ -711,8 +686,7 @@
     const teams = mode === 'versus' ? G.Modes.FORMATS[opts.cfg.format].length : 0;
     await buildWorld(seed, mode, teams);
     const W = G.World;
-    G.state = { mode: 'playing', day: 1, t: 7 / 24, diff, dayLen: 300, spawn: null, flags: {}, stats: fixStats(), obj: 0, world: Game.newWorldState(), seed, gm: mode, cfg: opts.cfg || G.Modes.DEFAULT_COOP, fruit: null };
-    G.Cheats.reset();
+    G.state = { mode: 'playing', day: 1, t: 7 / 24, diff, dayLen: 300, spawn: null, flags: {}, stats: { kills: 0, crafted: 0 }, obj: 0, world: Game.newWorldState(), seed, gm: mode, cfg: opts.cfg || G.Modes.DEFAULT_COOP, fruit: null };
     G.Clock.init(seed, 7 / 24);
     G.Weather.set('clear', 200);
     G.Landmarks.resetLoot(null);
@@ -745,7 +719,7 @@
     await buildWorld(st.seed, st.gm || 'coop', teams);
     G.state = {
       mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 300, spawn: (pdata && pdata.spawn) || null,
-      flags: (pdata && pdata.flags) || {}, stats: fixStats(pdata && pdata.stats), obj: (pdata && pdata.obj) || 0,
+      flags: (pdata && pdata.flags) || {}, stats: (pdata && pdata.stats) || { kills: 0, crafted: 0 }, obj: (pdata && pdata.obj) || 0,
       world: st.world || Game.newWorldState(), seed: st.seed, gm: st.gm || 'coop', cfg: st.cfg, fruit: (pdata && pdata.fruit) || null,
     };
     if (Array.isArray(G.state.world.loot)) G.state.world.loot = Object.assign({}, G.state.world.loot);
@@ -777,15 +751,14 @@
     Game.updateObjective(true);
     G.UI.banner(G.state.gm === 'versus' ? `Equipo ${G.Modes.teamName(G.Net.team)}` : `Día ${G.state.day}`, G.state.gm === 'versus' ? G.Modes.TEAMS[G.Net.team].crew : 'Te uniste a la partida de tus amigos');
   };
-  // opts.cfg: reglas de la partida guardadas en el índice (trucos, al morir…)
-  Game.loadGame = async function (data, opts) {
+  Game.loadGame = async function (data) {
     Game.resetWorld();
     const st = data.st;
     const seed = st.seed || 20240101;
     await buildWorld(seed, 'coop', 0);
     G.state = {
-      mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 300, spawn: st.spawn, flags: st.flags || {}, stats: fixStats(st.stats), obj: st.obj || 0,
-      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null,
+      mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 300, spawn: st.spawn, flags: st.flags || {}, stats: st.stats || { kills: 0, crafted: 0 }, obj: st.obj || 0,
+      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: st.cfg || G.Modes.DEFAULT_COOP, fruit: st.fruit || null,
     };
     // Partidas antiguas: el botín era una lista y la balsa era una construcción
     if (Array.isArray(G.state.world.loot)) { const o = {}; G.state.world.loot.forEach((v, i) => { if (v) o[i] = 1; }); G.state.world.loot = o; }

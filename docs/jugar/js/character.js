@@ -409,8 +409,8 @@
   }
 
   // ------------------------------------------------------------------ brazo en primera persona (sin esqueleto)
-  Char.fpArm = function (shirt = 0xe6dfcc, opts) {
-    const C = palette(new Col(shirt).getHex(), opts), b = new Builder(), none = () => [[0, 1]];
+  Char.fpArm = function (shirt = 0xe6dfcc) {
+    const C = palette(new Col(shirt).getHex()), b = new Builder(), none = () => [[0, 1]];
     b.tube({
       y0: 0.44, y1: 0.03, R: 14, N: 18,
       prof: (t) => { const r = (U.lerp(0.047, 0.029, t) + 0.007 * bump(t, 0.3, 0.2)) * ends(t, 0.05, 0.1); return { rx: r * 0.85, rz: r * 1.05 }; },

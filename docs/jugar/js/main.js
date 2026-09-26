@@ -32,10 +32,10 @@
     G.World.setQuality(q);
     renderer.shadowMap.type = Q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     if (prevSoft !== undefined && prevSoft !== Q.soft) scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => (m.needsUpdate = true)); });
-    $('btnPauseQuality').textContent = 'Calidad gráfica: ' + Q.name;
-    document.querySelectorAll('#setQuality button').forEach((b) => b.classList.toggle('on', b.dataset.q === q));
+    const label = 'Calidad gráfica: ' + Q.name;
+    $('btnQuality').textContent = label;
+    $('btnPauseQuality').textContent = label;
   }
-  Main.setQuality = (q) => setQuality(q);
   const cycleQuality = () => setQuality(Q_ORDER[(Q_ORDER.indexOf(Main.quality) + 1) % Q_ORDER.length]);
 
   // Cede el control para que se pinte el texto de carga (sin depender de requestAnimationFrame,
@@ -78,7 +78,6 @@
     G.Player.pos.set(G.World.spawn.x, G.height(G.World.spawn.x, G.World.spawn.z), G.World.spawn.z);
     setQuality(q0);
     bindInput();
-    await G.Worlds.migrate();
     bindMenus();
     setLoad('Compilando sombreadores…'); await nextFrame();
     G.state.t = 0.3;
@@ -99,8 +98,9 @@
     for (const s of SCREENS) $(s).classList.toggle('hidden', s !== name);
     $('hud').classList.toggle('hidden', !(name === null || name === 'pause' || name === 'dead'));
     if (name === 'menu') {
-      G.Save.setMode('world', null);
-      G.Menus.show('menuMain');
+      G.Save.setMode('sp');
+      $('btnContinue').classList.toggle('hidden', !G.Save.has());
+      showMenuPanel('menuMain');
       G.state.mode = 'menu';
       G.World.mist = 0;
       G.Weather.set('clear', 150);
@@ -110,17 +110,18 @@
       G.Ships.updateGhost(null);
       G.UI.el.inventory.classList.add('hidden');
       G.UI.el.bigmap.classList.add('hidden');
-      $('cheats').classList.add('hidden');
       G.UI.closeJournal();
       G.Story.close();
       G.UI.closeChat();
       G.Player.zoom = 0;
     }
     $('pauseControls').classList.add('hidden');
-    $('pauseAch').classList.add('hidden');
     $('clickToPlay').classList.add('hidden');
     $('pauseNet').classList.toggle('hidden', !G.Net.active);
   };
+  function showMenuPanel(id) {
+    for (const p of ['menuMain', 'menuDiff', 'menuControls', 'menuMP']) $(p).classList.toggle('hidden', p !== id);
+  }
   Main.lockPointer = function () {
     if (G.Story && G.Story.dialog) return;
     try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* ignorar */ }
@@ -129,20 +130,14 @@
     if (document.pointerLockElement) { suppressPause = true; document.exitPointerLock(); }
   };
   function startPlaying() {
-    G.Player.setLook(G.Profile.lookHex());
-    G.Player.refreshCosmetics();
+    G.Player.setShirt(G.Net.active ? G.Net.color : 0xe6dfcc);
     Main.showScreen(null);
     G.state.mode = 'playing';
     G.Audio.init();
     G.Audio.resume();
-    G.Audio.setVolumes();
     Main.lockPointer();
     fpsLow = 0; fpsWarned = false;
-    const cheats = G.Cheats.enabled();
-    $('keyhintCheats').classList.toggle('hidden', !cheats);
-    if (cheats) setTimeout(() => G.UI.msg('🪄 Trucos activados: pulsa <kbd>K</kbd> para abrir el menú de trucos.', 'info'), 1500);
   }
-  Main.startPlaying = startPlaying;
   Main.pause = function () {
     if (G.state.mode !== 'playing') return;
     G.state.mode = 'paused';
@@ -150,7 +145,6 @@
     Main.showScreen('pause');
     if (G.Net.active) $('pauseNet').textContent = '🌐 Partida LAN: el mundo sigue en marcha mientras estás en pausa.';
     $('btnSave').classList.toggle('hidden', G.state.gm === 'versus');
-    $('btnPauseCheats').classList.toggle('hidden', !G.Cheats.enabled());
   };
   function resume() {
     Main.showScreen(null);
@@ -164,129 +158,124 @@
     Main.showScreen('menu');
   }
 
-  // Empieza o continúa una partida guardada (un jugador o, como anfitrión, multijugador)
-  async function playWorld(w) {
-    const cfg = { diff: w.diff, death: w.death || 'half', cheats: !!w.cheats };
-    G.Save.setWorld(w);
-    if (w.fresh) { await G.Game.newGame(w.diff, { mode: 'coop', seed: w.seed || undefined, cfg }); return true; }
-    const data = await G.Save.loadWorld(w);
-    if (!data) { await G.Game.newGame(w.diff, { mode: 'coop', seed: w.seed || undefined, cfg }); return true; }
-    await G.Game.loadGame(data, { cfg });
-    G.Cheats.reset();
-    return true;
-  }
-  Main.playSingle = async function (w) {
-    await playWorld(w);
-    startPlaying();
-  };
-
   // ------------------------------------------------------------------ menús
   function bindMenus() {
+    $('btnNew').onclick = () => {
+      showMenuPanel('menuDiff');
+      $('overwriteWarn').classList.toggle('hidden', !G.Save.has());
+    };
+    $('btnContinue').onclick = async () => {
+      const d = G.Save.load();
+      if (!d) { $('btnContinue').classList.add('hidden'); return; }
+      await G.Game.loadGame(d);
+      startPlaying();
+    };
+    $('btnControls').onclick = () => showMenuPanel('menuControls');
+    document.querySelectorAll('#menu .back').forEach((b) => (b.onclick = () => { G.Net.disconnect(); showMenuPanel('menuMain'); }));
+    document.querySelectorAll('#menuDiff .diff').forEach((b) => (b.onclick = async () => {
+      const d = +b.dataset.d;
+      await G.Game.newGame(d, { mode: 'coop', cfg: { diff: d, death: $('spDeath').value } });
+      startPlaying();
+    }));
+    $('btnQuality').onclick = cycleQuality;
     $('btnPauseQuality').onclick = cycleQuality;
+    $('versionLabel').textContent = `Versión ${G.VERSION} · ${G.VERSION_NAME}`;
+    $('btnDownloads').href = G.DOWNLOAD_URL;
+    // App de escritorio: aviso de actualizaciones
+    if (window.islaDesktop) {
+      $('btnDownloads').classList.add('hidden');
+      const note = $('updateNote');
+      window.islaDesktop.onUpdate((u) => {
+        note.classList.toggle('hidden', !['downloading', 'ready'].includes(u.state));
+        if (u.state === 'downloading') note.textContent = `⬇️ Descargando la versión ${u.version}… ${u.percent || 0}%`;
+        if (u.state === 'ready') { note.innerHTML = `✅ Versión ${u.version} lista. <button class="btn small" id="btnUpd">Reiniciar y actualizar</button>`; $('btnUpd').onclick = () => window.islaDesktop.installUpdate(); }
+      });
+    }
     $('btnResume').onclick = resume;
     $('btnSave').onclick = () => { G.UI.msg(G.Save.save() ? '💾 Partida guardada' : 'No se pudo guardar', 'info'); resume(); };
-    $('btnPauseControls').onclick = () => { $('pauseAch').classList.add('hidden'); $('pauseControls').classList.toggle('hidden'); };
-    $('btnPauseAch').onclick = () => {
-      $('pauseControls').classList.add('hidden');
-      const box = $('pauseAch');
-      box.classList.toggle('hidden');
-      if (!box.classList.contains('hidden')) G.Menus.renderAch(box.querySelector('.ach-list'), 'pending');
-    };
-    $('btnPauseCheats').onclick = () => { resume(); setTimeout(() => G.Cheats.open(), 60); };
+    $('btnPauseControls').onclick = () => $('pauseControls').classList.toggle('hidden');
     $('btnQuit').onclick = quitToMenu;
     $('btnRespawn').onclick = () => { G.Game.respawn(); resume(); };
     $('btnDeadMenu').onclick = () => { if (G.Modes.deathRule() !== 'out') G.Game.respawn(); quitToMenu(); };
     $('btnWinMenu').onclick = () => { G.Net.disconnect(); G.Modes.stop(); Main.showScreen('menu'); };
     $('clickToPlay').onclick = () => { $('clickToPlay').classList.add('hidden'); Main.lockPointer(); };
-    G.Menus.init();
     bindMultiplayerMenu();
   }
 
-  // ------------------------------------------------------------------ multijugador: partidas, unirse y lobby
-  let hostWorld = null;
-  function mpHome(status) {
-    G.Menus.show('menuMP');
-    const ok = G.Net.available();
-    $('mpFile').classList.toggle('hidden', ok);
-    $('mpHome').classList.toggle('hidden', !ok);
-    $('mpLobby').classList.add('hidden');
-    $('mpStatus').innerHTML = status || '';
-    $('mpMe').textContent = G.Profile.name();
-    G.Menus.renderWorlds($('mpList'), 'mp', (w) => hostGame(w, 'coop'));
-  }
-  Main.mpHome = mpHome;
-  async function connect(addr) {
-    const name = G.Profile.name(), color = G.Profile.look().shirt;
-    $('mpStatus').textContent = 'Conectando…';
-    document.querySelectorAll('#mpHome button').forEach((b) => (b.disabled = true));
-    try {
-      return await G.Net.connect(name, color, addr ? (addr.includes(':') ? addr : addr + ':8080') : null);
-    } catch (e) {
-      $('mpStatus').innerHTML = e && e.message === 'full' ? '❌ La partida está llena (máximo 8 jugadores).' :
-        `❌ No hay ninguna partida en <b>${G.Net.esc(addr || location.host || 'localhost:8080')}</b>.<br>` +
-        (addr ? 'Revisa la IP que ve el anfitrión en su pantalla y que estéis en la misma red.' : 'Para crear una partida abre el juego instalado (o <b>Iniciar servidor LAN.bat</b>).');
-      return null;
-    } finally {
-      document.querySelectorAll('#mpHome button').forEach((b) => (b.disabled = false));
-    }
-  }
-  function enterLobby(w) {
-    G.Audio.init();
-    $('mpHome').classList.add('hidden');
-    $('mpLobby').classList.remove('hidden');
-    $('mpStatus').textContent = '';
-    if (w.host) Main.becameHostInLobby();
-    else joinAsGuest();
-    Main.refreshLobby();
-  }
-  function joinAsGuest() {
-    G.Save.setMode('client', G.Net.hostAddr + '_' + G.Net.name);
-    G.Net.waiting = true;
-    G.Net.send({ t: 'reqWorld' });
-    $('mpLobbyText').innerHTML = '✅ Conectado. Esperando a que el anfitrión 👑 empiece la partida…';
-  }
-  // world: partida multijugador guardada (amistoso) · mode: 'coop' o 'versus'
-  async function hostGame(world, mode) {
-    hostWorld = world;
-    const w = await connect(null);
-    if (!w) return;
-    G.Net.lobbyCfg.mode = mode;
-    G.Net.lobbyCfg.world = world ? { name: world.name, diff: world.diff, death: world.death, cheats: !!world.cheats, day: world.fresh ? 0 : world.day } : null;
-    if (!w.host) G.UI.msg('Ya había un anfitrión en este servidor: entras como invitado.', 'warn');
-    enterLobby(w);
-  }
-  Main.hostNewWorld = (w) => hostGame(w, 'coop');
-
+  // ------------------------------------------------------------------ menú multijugador y lobby
   function bindMultiplayerMenu() {
-    try { $('mpAddr').value = localStorage.getItem('isla_mp_addr') || ''; } catch (e) { /* nada */ }
+    let color = G.Net.COLORS[0];
+    try {
+      $('mpName').value = localStorage.getItem('isla_mp_name') || 'Náufrago' + Math.floor(Math.random() * 90 + 10);
+      color = localStorage.getItem('isla_mp_color') || color;
+      $('mpAddr').value = localStorage.getItem('isla_mp_addr') || '';
+    } catch (e) { /* nada */ }
+    const sw = $('mpColors');
+    sw.innerHTML = G.Net.COLORS.map((c) => `<button class="swatch" data-c="${c}" style="background:${c}"></button>`).join('');
+    const mark = () => sw.querySelectorAll('.swatch').forEach((b) => b.classList.toggle('on', b.dataset.c === color));
+    sw.onclick = (e) => { const b = e.target.closest('.swatch'); if (b) { color = b.dataset.c; mark(); } };
+    mark();
     // Opciones del versus
     $('vsFormat').innerHTML = Object.keys(G.Modes.FORMATS).map((f) => `<option value="${f}">${f.replace(/v/g, ' vs ')}</option>`).join('');
     $('vsDeath').innerHTML = Object.entries(G.Modes.DEATH).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+    $('coopDeath').innerHTML = Object.entries(G.Modes.DEATH).filter(([k]) => k !== 'out').map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+    $('spDeath').innerHTML = $('coopDeath').innerHTML;
+    $('spDeath').value = 'half'; $('coopDeath').value = 'half';
 
-    $('btnMP').onclick = () => mpHome();
-    $('mpNewWorld').onclick = () => G.Menus.openCreate('mp');
-    $('mpVersus').onclick = () => hostGame(null, 'versus');
-    $('mpJoin').onclick = async () => {
-      const addr = $('mpAddr').value.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-      try { localStorage.setItem('isla_mp_addr', addr); } catch (e) { /* nada */ }
-      const w = await connect(addr);
-      if (w) enterLobby(w);
+    $('btnMP').onclick = () => {
+      showMenuPanel('menuMP');
+      const ok = G.Net.available();
+      $('mpFile').classList.toggle('hidden', ok);
+      $('mpForm').classList.toggle('hidden', !ok);
+      $('mpLobby').classList.add('hidden');
+      $('mpStatus').textContent = '';
     };
-    $('mpAddr').onkeydown = (e) => { if (e.key === 'Enter') $('mpJoin').click(); };
+    $('mpConnect').onclick = async () => {
+      const name = $('mpName').value.trim().slice(0, 14) || 'Náufrago';
+      const addr = $('mpAddr').value.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      try { localStorage.setItem('isla_mp_name', name); localStorage.setItem('isla_mp_color', color); localStorage.setItem('isla_mp_addr', addr); } catch (e) { /* nada */ }
+      $('mpConnect').disabled = true;
+      $('mpStatus').textContent = 'Conectando…';
+      try {
+        const w = await G.Net.connect(name, color, addr ? (addr.includes(':') ? addr : addr + ':8080') : null);
+        G.Audio.init();
+        $('mpForm').classList.add('hidden');
+        $('mpLobby').classList.remove('hidden');
+        if (w.host) Main.becameHostInLobby();
+        else {
+          G.Save.setMode('client', G.Net.hostAddr + '_' + name);
+          G.Net.waiting = true;
+          G.Net.send({ t: 'reqWorld' });
+          $('mpLobbyText').innerHTML = '✅ Conectado. Esperando a que el anfitrión 👑 inicie la partida…';
+        }
+        Main.refreshLobby();
+      } catch (e) {
+        $('mpStatus').innerHTML = e && e.message === 'full' ? '❌ La partida está llena (máximo 8 jugadores).' :
+          `❌ No hay ninguna partida en <b>${G.Net.esc(addr || location.host || 'localhost:8080')}</b>.<br>` +
+          'Si tú eres el anfitrión, abre el juego instalado (o <b>Iniciar servidor LAN.bat</b>). Si eres invitado, escribe la IP que ve el anfitrión en su pantalla.';
+      }
+      $('mpConnect').disabled = false;
+    };
+    // Pestañas de modo (solo el anfitrión las cambia)
+    document.querySelectorAll('#mpModeTabs button').forEach((b) => (b.onclick = () => {
+      if (!G.Net.isHost) return;
+      G.Net.lobbyCfg.mode = b.dataset.m;
+      readVsCfg(); G.Net.sendLobby(); Main.refreshLobby();
+    }));
     document.querySelectorAll('#mpVs select, #mpVs input').forEach((i) => (i.onchange = () => { readVsCfg(); G.Net.sendLobby(); Main.refreshLobby(); }));
     $('mpTeams').onclick = (e) => { const b = e.target.closest('button[data-t]'); if (b) G.Net.pickTeam(+b.dataset.t); };
     $('vsBalance').onclick = () => { if (!G.Net.isHost) return; balanceTeams(true); G.Net.sendLobby(); Main.refreshLobby(); };
-    const hostStart = async (fn, versus) => {
-      if (!versus) G.Save.setWorld(hostWorld); else G.Save.setMode('versus');
+    const hostStart = async (fn, save) => {
+      G.Save.setMode(save ? 'host' : 'versus');
       await fn();
       G.Net.startWorld();
       startPlaying();
     };
-    $('mpStart').onclick = () => {
-      if (!G.Net.isHost) return;
-      // Si el anfitrión anterior se fue, el nuevo anfitrión empieza una partida nueva
-      if (!hostWorld) hostWorld = G.Worlds.create({ kind: 'mp', name: G.Worlds.freeName('Partida de ' + G.Profile.name()), diff: 1 });
-      hostStart(() => playWorld(hostWorld), false);
+    document.querySelectorAll('#mpCoop .diff').forEach((b) => (b.onclick = () => hostStart(() => G.Game.newGame(+b.dataset.d, { mode: 'coop', cfg: { diff: +b.dataset.d, death: $('coopDeath').value } }), true)));
+    $('mpContinue').onclick = () => {
+      G.Save.setMode('host');
+      const d = G.Save.load();
+      if (d) hostStart(() => G.Game.loadGame(d), true);
     };
     $('vsStart').onclick = () => {
       readVsCfg();
@@ -297,7 +286,7 @@
       if (!cfg.treasure && !cfg.ctf && !cfg.sink) { $('vsWarn').textContent = '⚠ Elige al menos una condición de victoria.'; return; }
       $('vsWarn').textContent = '';
       G.Net.sendLobby();
-      hostStart(() => G.Game.newGame(cfg.diff, { mode: 'versus', cfg, assign }), true);
+      hostStart(() => G.Game.newGame(cfg.diff, { mode: 'versus', cfg, assign }), false);
     };
   }
   function readVsCfg() {
@@ -326,9 +315,11 @@
   }
   Main.becameHostInLobby = function () {
     G.Net.waiting = false;
+    G.Save.setMode('host');
     if (!G.Net.lobbyCfg.cfg) G.Net.lobbyCfg.cfg = Object.assign({}, G.Modes.DEFAULT_VS);
     writeVsCfg(G.Net.lobbyCfg.cfg);
-    $('mpLobbyText').innerHTML = G.Net.lobbyCfg.mode === 'versus' ? '👑 Eres el <b>anfitrión</b> del versus: elige las reglas y los equipos.' : '👑 Eres el <b>anfitrión</b>: tu equipo simula el mundo. Cuando estéis todos, empieza la partida.';
+    $('mpLobbyText').innerHTML = '👑 Eres el <b>anfitrión</b>: tu equipo simula el mundo. Elige el modo y la configuración.';
+    $('mpContinue').classList.toggle('hidden', !G.Save.has());
     G.Net.sendLobby();
     showLanIps();
   };
@@ -342,7 +333,6 @@
     el.innerHTML = `📡 Tus amigos se unen escribiendo ${addr} en «IP del anfitrión» (o abriendo <b>http://${info.ips[0]}:${info.port || 8080}</b> en su navegador).`;
     el.classList.remove('hidden');
   }
-  const DIFF_NAMES = ['Fácil', 'Normal', 'Difícil'];
   Main.refreshLobby = function () {
     const el = $('mpPlayers');
     if (!el) return;
@@ -356,12 +346,10 @@
     for (const [id, p] of N.lobby) rows.push(`<li><i style="background:${N.esc(p.color)}"></i>${N.esc(p.name)}${id === N.hostId ? ' 👑' : ''}${tm(id)}${vtag(id)}</li>`);
     if ([N.myId, ...N.lobby.keys()].some(odd)) rows.push(`<li class="warn-text">⚠ Hay jugadores con otra versión del juego. Para evitar fallos, todos deben jugar la ${N.esc(hostVer)} (la del anfitrión).</li>`);
     el.innerHTML = rows.join('');
-    const vs = c.mode === 'versus', wi = c.world;
-    const worldText = wi ? `🏝️ <b>${N.esc(wi.name)}</b> · ${DIFF_NAMES[wi.diff] || 'Normal'} · ${wi.day ? 'día ' + wi.day : 'mundo nuevo'}${wi.cheats ? ' · 🪄 con trucos (no se consiguen logros)' : ''}` : '🏝️ Partida amistosa nueva';
+    const vs = c.mode === 'versus';
+    document.querySelectorAll('#mpModeTabs button').forEach((b) => { b.classList.toggle('on', b.dataset.m === c.mode); b.disabled = !N.isHost; });
     $('mpCoop').classList.toggle('hidden', vs || !N.isHost);
-    $('mpWorldInfo').innerHTML = worldText + '<br><small class="muted">Todos aparecen juntos en la Isla Perdida y siguen la historia. La partida se guarda en el equipo del anfitrión.</small>';
     $('mpCoopGuest').classList.toggle('hidden', vs || N.isHost);
-    $('mpCoopGuest').innerHTML = `🤝 Modo amistoso · ${worldText}<br>Esperando a que el anfitrión empiece…`;
     $('mpVs').classList.toggle('hidden', !vs);
     if (vs && c.cfg) {
       if (!N.isHost) writeVsCfg(c.cfg);
@@ -381,7 +369,6 @@
     G.Net.inWorld = true;
     if (snap.st.gm === 'versus') G.Save.setMode('versus');
     await G.Game.joinWorld(snap, G.Save.load());
-    G.Cheats.reset();
     startPlaying();
   };
   Main.onNetLost = function () {
@@ -392,7 +379,11 @@
       Main.showScreen('menu');
     }
     G.Modes.stop();
-    mpHome('⚠ Se perdió la conexión con la partida LAN.');
+    showMenuPanel('menuMP');
+    $('mpFile').classList.add('hidden');
+    $('mpForm').classList.remove('hidden');
+    $('mpLobby').classList.add('hidden');
+    $('mpStatus').textContent = '⚠ Se perdió la conexión con la partida LAN.';
   };
 
   // ------------------------------------------------------------------ entrada
@@ -431,11 +422,9 @@
         else if (e.code === 'KeyM') G.Game.openMap();
         else if (e.code === 'KeyJ') G.Game.openJournal();
         else if (e.code === 'KeyX') G.Game.demolish();
-        else if (e.code === 'KeyK') G.Cheats.open();
         else if (e.code === 'KeyR') {
           const tg = G.Game.target;
           if (tg && tg.kind === 'piece' && G.Ships.rotatePiece(tg)) G.Audio.play('select');
-          else if (G.Player.ship && !G.Player.station && !G.Ships.itemType(G.Inv.heldId())) { if (G.Ships.applyLook(G.Player.ship)) G.Audio.play('select'); }
           else if (G.Ships.itemType(G.Inv.heldId())) { G.Ships.rot = (G.Ships.rot + Math.PI / 2) % (Math.PI * 2); G.Audio.play('select'); }
           else { G.Build.rotIdx = (G.Build.rotIdx + 1) % 4; G.Audio.play('select'); }
         }
@@ -446,8 +435,6 @@
         if (e.code === 'KeyM' || e.code === 'Escape') G.Game.closeMap();
       } else if (mode === 'journal') {
         if (e.code === 'KeyJ' || e.code === 'Escape') G.Game.closeJournal();
-      } else if (mode === 'cheats') {
-        if (e.code === 'KeyK' || e.code === 'Escape') G.Cheats.close();
       } else if (mode === 'paused') {
         if (e.code === 'Escape') resume();
       }
@@ -469,9 +456,9 @@
     window.addEventListener('mousemove', (e) => {
       if (!Input.locked || G.state.mode !== 'playing') return;
       if (G.Ships.aimInput(e.movementX, e.movementY)) return;
-      const P = G.Player, k = (P.zoom ? 0.0006 : 0.0022) * G.Profile.set('sens'), inv = G.Profile.set('invY') ? -1 : 1;
+      const P = G.Player, k = P.zoom ? 0.0006 : 0.0022;
       P.yaw -= e.movementX * k;
-      P.pitch = U.clamp(P.pitch - e.movementY * k * inv, -1.45, 1.45);
+      P.pitch = U.clamp(P.pitch - e.movementY * k, -1.45, 1.45);
     });
     window.addEventListener('wheel', (e) => {
       if (G.state.mode !== 'playing' || !Input.locked) return;
@@ -514,7 +501,7 @@
       G.Build.update(dt);
     } else {
       // En LAN el mundo nunca se detiene (pausa o muerte incluidas)
-      const active = ['playing', 'inventory', 'map', 'sleeping', 'journal', 'cheats'].includes(st.mode) || (G.Net.active && ['paused', 'dead', 'won'].includes(st.mode));
+      const active = ['playing', 'inventory', 'map', 'sleeping', 'journal'].includes(st.mode) || (G.Net.active && ['paused', 'dead', 'won'].includes(st.mode));
       if (active) G.Game.update(dt);
       if (!render) return;
       if (st.spectate) spectateCam(dt); else P.updateVisuals(active ? dt : 0);
@@ -561,12 +548,12 @@
     fpsFrames++; fpsTime += dt;
     if (fpsTime >= 1) {
       const fps = Math.round(fpsFrames / fpsTime);
-      $('fps').textContent = G.Profile.set('fps') ? fps + ' FPS' : '';
+      $('fps').textContent = fps + ' FPS';
       fpsFrames = 0; fpsTime = 0;
       if (G.state.mode === 'playing' && fps < 24) fpsLow++; else fpsLow = Math.max(0, fpsLow - 1);
       if (fpsLow >= 6 && !fpsWarned && Main.quality !== 'low') {
         fpsWarned = true;
-        G.UI.msg('⚠ El juego va lento. Baja la calidad gráfica en el menú de pausa (Esc) o en Configuración → Gráficos.', 'warn');
+        G.UI.msg('⚠ El juego va lento. Baja la calidad gráfica en el menú de pausa (Esc).', 'warn');
       }
     }
   }

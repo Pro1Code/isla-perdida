@@ -333,11 +333,10 @@
     }
     if (c.type === 'villager') G.Story && G.Story.tribeKilled(c);
     if (!c.d.drops.length) return;
-    if (peerId !== null && peerId !== undefined) G.Net.send({ t: 'give', to: peerId, items: c.d.drops, kill: c.d.name.toLowerCase(), kt: c.type, boss: c.type === 'boss' });
+    if (peerId !== null && peerId !== undefined) G.Net.send({ t: 'give', to: peerId, items: c.d.drops, kill: c.d.name.toLowerCase(), boss: c.type === 'boss' });
     else {
       for (const [id, n] of c.d.drops) G.Game.give(id, n);
       G.state.stats.kills++;
-      G.Ach.onKill(c.type);
       G.UI.msg(`Has cazado: ${c.d.name.toLowerCase()}`, 'good');
     }
   }

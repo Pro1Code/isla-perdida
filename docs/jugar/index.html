@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@400;600;800&display=swap" />
 <link rel="stylesheet" href="css/style.css" />
-<link rel="stylesheet" href="css/menus.css" />
 <script type="importmap">
 {
   "imports": {
@@ -30,62 +29,42 @@
 
 <!-- ============ MENÚ PRINCIPAL ============ -->
 <div id="menu" class="screen hidden">
-  <button id="profileChip" class="profile-chip" title="Tu perfil"></button>
-  <div class="menu-card" id="menuCard">
+  <div class="menu-card">
     <h1>Isla Perdida</h1>
     <p class="tagline">Naufragaste en un archipiélago desconocido.<br />Sobrevive, construye tu barco y sigue la ruta de <b>La Última Pieza</b>.</p>
 
     <div id="menuMain" class="menu-buttons">
-      <button id="btnSP" class="btn primary big">🏝️ Un Jugador</button>
-      <button id="btnMP" class="btn big">🌐 Multijugador</button>
-      <button id="btnSettings" class="btn big">⚙️ Configuración</button>
-      <button id="btnShop" class="btn big">🛒 Tienda</button>
+      <button id="btnContinue" class="btn primary hidden">Continuar partida</button>
+      <button id="btnNew" class="btn">Nueva partida (un jugador)</button>
+      <button id="btnMP" class="btn">🌐 Multijugador (LAN)</button>
+      <button id="btnControls" class="btn">Controles</button>
+      <button id="btnQuality" class="btn small">Calidad gráfica: Alta</button>
+      <a id="btnDownloads" class="btn small" target="_blank" rel="noopener">⬇️ Descargar el juego / ver versiones</a>
       <p id="updateNote" class="update-note hidden"></p>
       <p class="version muted" id="versionLabel"></p>
     </div>
 
-    <!-- Un jugador: lista de partidas -->
-    <div id="menuSP" class="hidden wide">
-      <div class="panel-head">
-        <h3>🏝️ Un Jugador</h3>
-        <div class="head-btns"><button id="btnAch" class="btn small">🏆 Logros <span id="achCount" class="muted"></span></button><button id="spNew" class="btn small primary">➕ Nueva partida</button></div>
-      </div>
-      <div id="spList" class="world-list"></div>
-      <button class="btn small back">Volver</button>
-    </div>
-
-    <!-- Crear partida (un jugador o multijugador) -->
-    <div id="menuCreate" class="hidden wide">
-      <h3 id="cwTitle">Nueva partida</h3>
-      <label class="mp-label">Nombre de la partida<input id="cwName" class="mp-input" maxlength="32" autocomplete="off" /></label>
-      <div class="mp-label">Dificultad</div>
-      <div class="diff-cards" id="cwDiff">
+    <div id="menuDiff" class="hidden">
+      <h3>Elige la dificultad</h3>
+      <div class="diff-cards">
         <button class="diff" data-d="0"><b>Fácil</b><span>Hambre y sed lentas.<br />Animales menos peligrosos.</span></button>
         <button class="diff" data-d="1"><b>Normal</b><span>La experiencia equilibrada.</span></button>
         <button class="diff" data-d="2"><b>Difícil</b><span>Todo se agota rápido.<br />El mar no perdona.</span></button>
       </div>
-      <div class="create-grid">
-        <label class="opt-row">Al morir <select id="cwDeath"></select></label>
-        <label class="opt-row">Semilla <input id="cwSeed" class="mp-input seed" placeholder="Aleatoria" maxlength="12" autocomplete="off" /></label>
-      </div>
-      <label class="toggle-row"><input type="checkbox" id="cwCheats" /> <span>🪄 <b>Activar trucos</b> <small class="muted">Invencible, volar, dar objetos, cambiar la hora… En esta partida no se consiguen logros ni doblones.</small></span></label>
-      <div class="row-btns"><button id="cwCancel" class="btn small">Cancelar</button><button id="cwCreate" class="btn primary">Crear partida</button></div>
+      <label class="opt-row">Al morir <select id="spDeath"></select></label>
+      <p id="overwriteWarn" class="warn-text hidden">⚠ Empezar una nueva partida sobrescribirá la partida guardada.</p>
+      <button class="btn small back">Volver</button>
     </div>
 
-    <!-- Logros -->
-    <div id="menuAch" class="hidden wide">
-      <div class="panel-head"><h3>🏆 Logros</h3><span id="achSummary" class="muted"></span></div>
-      <div id="achTiers" class="ach-tiers"></div>
-      <div id="achTabs" class="tabs"></div>
-      <div id="achList" class="ach-list"></div>
-      <button id="achBack" class="btn small">Volver</button>
+    <div id="menuControls" class="hidden">
+      <div class="controls-list"></div>
+      <button class="btn small back">Volver</button>
     </div>
 
-    <!-- Multijugador -->
-    <div id="menuMP" class="hidden wide">
-      <h3>🌐 Multijugador</h3>
+    <div id="menuMP" class="hidden">
+      <h3>🌐 Multijugador en red local</h3>
       <div id="mpFile" class="mp-info hidden">
-        <p>Desde aquí no se puede jugar en red. Opciones:</p>
+        <p>Desde aquí no se puede jugar en LAN. Opciones:</p>
         <ol>
           <li><b>Anfitrión:</b> abre el juego <b>instalado</b> (Isla Perdida) y entra en Multijugador. Ahí verás la IP de tu partida.</li>
           <li><b>Invitados:</b> abren el juego instalado y escriben esa IP, o abren <b>http://IP-DEL-ANFITRIÓN:8080</b> en el navegador.</li>
@@ -93,31 +72,32 @@
         </ol>
         <p class="muted">Todos deben estar conectados a la misma red wifi o cable.</p>
       </div>
-      <div id="mpHome" class="hidden">
-        <p class="muted small-text">Juegas como <b id="mpMe"></b> · puedes cambiar tu nombre y tu aspecto en ⚙️ Configuración → Personaje.</p>
-        <div class="mp-cols">
-          <section>
-            <h4>👑 Crear una partida <small class="muted">(tú eres el anfitrión)</small></h4>
-            <div id="mpList" class="world-list compact"></div>
-            <div class="row-btns"><button id="mpNewWorld" class="btn small primary">➕ Nuevo mundo amistoso</button><button id="mpVersus" class="btn small">⚔️ Partida versus</button></div>
-          </section>
-          <section>
-            <h4>🔗 Unirse a una partida</h4>
-            <label class="mp-label">IP del anfitrión<input id="mpAddr" class="mp-input" maxlength="40" placeholder="ej. 192.168.1.35" autocomplete="off" /></label>
-            <button id="mpJoin" class="btn primary">Unirse</button>
-            <p class="muted small-text">Todos deben estar en la misma red wifi o cable. La IP aparece en la pantalla del anfitrión cuando crea la partida.</p>
-          </section>
-        </div>
+      <div id="mpForm" class="hidden">
+        <label class="mp-label">Tu nombre<input id="mpName" class="mp-input" maxlength="14" autocomplete="off" /></label>
+        <div class="mp-label">Color de tu ropa</div>
+        <div id="mpColors"></div>
+        <label class="mp-label">IP del anfitrión <span class="muted">(déjalo vacío si tú creas la partida)</span><input id="mpAddr" class="mp-input" maxlength="40" placeholder="ej. 192.168.1.35" autocomplete="off" /></label>
+        <button id="mpConnect" class="btn primary">Conectar</button>
         <p id="mpStatus" class="muted"></p>
       </div>
       <div id="mpLobby" class="hidden">
         <p id="mpLobbyText"></p>
         <p id="mpIps" class="mp-ips hidden"></p>
         <ul id="mpPlayers"></ul>
-        <div id="mpCoopGuest" class="muted hidden"></div>
+        <div id="mpModeTabs">
+          <button data-m="coop">🤝 Amistoso</button>
+          <button data-m="versus">⚔️ Versus</button>
+        </div>
+        <div id="mpCoopGuest" class="muted hidden">Modo amistoso: todos aparecen juntos en la Isla Perdida. Esperando al anfitrión…</div>
         <div id="mpCoop" class="hidden">
-          <div id="mpWorldInfo" class="world-info"></div>
-          <button id="mpStart" class="btn primary">▶ Empezar la partida</button>
+          <p class="muted small-text">Todos aparecen en la Isla Perdida y siguen la historia juntos. La partida se guarda para continuarla otro día.</p>
+          <button id="mpContinue" class="btn primary hidden">Continuar partida LAN guardada</button>
+          <label class="opt-row">Al morir <select id="coopDeath"></select></label>
+          <div class="diff-cards">
+            <button class="diff" data-d="0"><b>Fácil</b><span>Nuevo archipiélago</span></button>
+            <button class="diff" data-d="1"><b>Normal</b><span>Nuevo archipiélago</span></button>
+            <button class="diff" data-d="2"><b>Difícil</b><span>Nuevo archipiélago</span></button>
+          </div>
         </div>
         <div id="mpVs" class="hidden">
           <div class="vs-grid">
@@ -143,71 +123,6 @@
           <button id="vsBalance" class="btn small">⚖️ Equilibrar equipos</button>
           <p id="vsWarn" class="warn-text"></p>
           <button id="vsStart" class="btn primary">⚔️ Iniciar versus</button>
-        </div>
-      </div>
-      <button class="btn small back">Volver</button>
-    </div>
-
-    <!-- Configuración -->
-    <div id="menuSettings" class="hidden wide">
-      <h3>⚙️ Configuración</h3>
-      <div id="setTabs" class="tabs">
-        <button data-p="char" class="on">🧑 Personaje</button><button data-p="controls">🎮 Controles</button><button data-p="gfx">🖥️ Gráficos</button><button data-p="audio">🔊 Sonido</button><button data-p="game">🗂️ Juego y versiones</button>
-      </div>
-      <div class="set-page" data-p="char">
-        <div class="char-cols">
-          <div id="charPreview" class="preview-box"><span class="preview-hint">Arrastra para girar</span></div>
-          <div class="char-edit">
-            <label class="mp-label">Nombre<input id="setName" class="mp-input" maxlength="14" autocomplete="off" /></label>
-            <div class="mp-label">Tono de piel</div><div id="setSkin" class="swatches"></div>
-            <div class="mp-label">Camisa <small class="muted">(también es tu color en el multijugador)</small></div><div id="setShirt" class="swatches"></div>
-            <div class="mp-label">Pantalón</div><div id="setPants" class="swatches"></div>
-            <div class="mp-label">Cosméticos puestos <small class="muted">(se compran en la 🛒 Tienda)</small></div>
-            <div id="setCos" class="cos-slots"></div>
-          </div>
-        </div>
-      </div>
-      <div class="set-page hidden" data-p="controls">
-        <label class="slider-row">Sensibilidad del ratón <input type="range" id="setSens" min="0.2" max="3" step="0.05" /><b id="setSensV"></b></label>
-        <label class="slider-row">Campo de visión <input type="range" id="setFov" min="55" max="100" step="1" /><b id="setFovV"></b></label>
-        <label class="toggle-row"><input type="checkbox" id="setInvY" /> <span>Invertir el eje vertical del ratón</span></label>
-        <div class="mp-label">Teclas</div>
-        <div class="controls-list"></div>
-      </div>
-      <div class="set-page hidden" data-p="gfx">
-        <div class="mp-label">Calidad gráfica</div>
-        <div id="setQuality" class="seg"><button data-q="high">Alta</button><button data-q="med">Media</button><button data-q="low">Baja</button></div>
-        <p class="muted small-text">Si el juego va lento, baja la calidad. En Alta se ven más sombras, hierba y detalle a lo lejos.</p>
-        <label class="toggle-row"><input type="checkbox" id="setFps" /> <span>Mostrar los FPS bajo el minimapa</span></label>
-      </div>
-      <div class="set-page hidden" data-p="audio">
-        <label class="slider-row">Volumen general <input type="range" id="setVol" min="0" max="100" step="1" /><b id="setVolV"></b></label>
-        <label class="slider-row">Efectos <input type="range" id="setSfx" min="0" max="100" step="1" /><b id="setSfxV"></b></label>
-        <label class="slider-row">Ambiente (mar, viento, lluvia) <input type="range" id="setAmb" min="0" max="100" step="1" /><b id="setAmbV"></b></label>
-      </div>
-      <div class="set-page hidden" data-p="game">
-        <p id="setVersion" class="world-info"></p>
-        <div class="row-btns left">
-          <button id="btnLauncher" class="btn small hidden">🗂️ Versiones (lanzador)</button>
-          <button id="btnCheckUpd" class="btn small hidden">🔄 Buscar actualizaciones</button>
-          <a id="btnDownloads" class="btn small" target="_blank" rel="noopener">⬇️ Descargar el juego / ver versiones</a>
-        </div>
-        <p id="setUpdState" class="muted small-text"></p>
-      </div>
-      <button class="btn small back">Volver</button>
-    </div>
-
-    <!-- Tienda -->
-    <div id="menuShop" class="hidden wide">
-      <div class="panel-head"><h3>🛒 Tienda</h3><span class="coins-big" id="shopCoins"></span></div>
-      <p class="muted small-text">Solo cosméticos: no cambian cómo se juega. Los doblones se ganan jugando (días superados, cofres, cacerías…) y con los 🏆 logros.</p>
-      <div id="shopTabs" class="tabs"></div>
-      <div class="shop-body">
-        <div id="shopGrid" class="shop-grid"></div>
-        <div class="shop-side">
-          <div id="shopPreview" class="preview-box"><span class="preview-hint">Arrastra para girar</span></div>
-          <div id="shopFlat" class="shop-flat hidden"></div>
-          <div id="shopInfo"></div>
         </div>
       </div>
       <button class="btn small back">Volver</button>
@@ -246,7 +161,7 @@
   <div id="messages"></div>
   <div id="banner"></div>
   <div id="vignette"></div>
-  <div id="keyhint"><kbd>Tab</kbd> Inventario <kbd>M</kbd> Mapa <kbd>J</kbd> Bitácora <kbd>V</kbd> Cámara <kbd>Esc</kbd> Pausa<span id="keyhintCheats" class="hidden"> <kbd>K</kbd> Trucos</span></div>
+  <div id="keyhint"><kbd>Tab</kbd> Inventario <kbd>M</kbd> Mapa <kbd>J</kbd> Bitácora <kbd>V</kbd> Cámara <kbd>Esc</kbd> Pausa</div>
 </div>
 
 <!-- ============ DIÁLOGO ============ -->
@@ -317,14 +232,11 @@
     <div class="menu-buttons">
       <button id="btnResume" class="btn primary">Reanudar</button>
       <button id="btnSave" class="btn">Guardar partida</button>
-      <button id="btnPauseCheats" class="btn hidden">🪄 Trucos (K)</button>
-      <button id="btnPauseAch" class="btn">🏆 Logros</button>
       <button id="btnPauseControls" class="btn">Controles</button>
       <button id="btnPauseQuality" class="btn small">Calidad gráfica: Alta</button>
       <button id="btnQuit" class="btn small">Guardar y salir al menú</button>
     </div>
     <div id="pauseControls" class="hidden"><div class="controls-list"></div></div>
-    <div id="pauseAch" class="hidden"><div class="ach-list compact"></div></div>
   </div>
 </div>
 
@@ -352,23 +264,6 @@
   </div>
 </div>
 
-<!-- ============ TRUCOS ============ -->
-<div id="cheats" class="hidden">
-  <div class="cheat-card">
-    <button id="cheatsClose" class="close" title="Cerrar (K)">✕</button>
-    <h2>🪄 Trucos</h2>
-    <p class="muted small-text">Esta partida tiene los trucos activados: aquí no se consiguen logros ni doblones.</p>
-    <div id="chToggles" class="ch-toggles"></div>
-    <div class="ch-sec"><b>Rápidos</b><div class="row-btns left"><button id="chHeal" class="btn small">❤️ Curarme</button><button id="chLearn" class="btn small">📜 Aprender todas las recetas</button><button id="chMap" class="btn small">🗺️ Descubrir el mapa</button></div></div>
-    <div class="ch-sec"><b>Dar objeto</b><div class="row-btns left"><select id="chItem"></select><input id="chQty" type="number" min="1" max="999" value="10" class="mp-input qty" /><button id="chGive" class="btn small primary">Dar</button></div></div>
-    <div class="ch-sec"><b>Hora de esta isla</b><div id="chTime" class="row-btns left"></div></div>
-    <div class="ch-sec"><b>Clima</b><div id="chWeather" class="row-btns left"></div></div>
-    <p id="chHostNote" class="muted small-text hidden">Solo el anfitrión puede cambiar la hora y el clima.</p>
-    <div class="ch-sec"><b>Teletransporte</b><div id="chTp" class="row-btns left"></div></div>
-  </div>
-</div>
-
-<div id="toasts"></div>
 <div id="underwater" class="hidden"></div>
 <div id="clickToPlay" class="hidden"><div>🖱️ Haz clic para seguir jugando</div></div>
 <div id="fade"></div>
@@ -396,9 +291,9 @@
   window.mergeVertices = mergeVertices;
 
   const files = [
-    'js/version.js', 'js/util.js', 'js/profile.js', 'js/models.js', 'js/audio.js', 'js/net.js', 'js/items.js', 'js/islands.js', 'js/world.js', 'js/resources.js',
-    'js/building.js', 'js/landmarks.js', 'js/weather.js', 'js/fishing.js', 'js/animals.js', 'js/creatures.js', 'js/character.js', 'js/equipment.js', 'js/shop.js', 'js/player.js',
-    'js/clock.js', 'js/ships.js', 'js/story.js', 'js/modes.js', 'js/achievements.js', 'js/cheats.js', 'js/ui.js', 'js/game.js', 'js/save.js', 'js/menus.js', 'js/main.js'
+    'js/version.js', 'js/util.js', 'js/models.js', 'js/audio.js', 'js/net.js', 'js/items.js', 'js/islands.js', 'js/world.js', 'js/resources.js',
+    'js/building.js', 'js/landmarks.js', 'js/weather.js', 'js/fishing.js', 'js/animals.js', 'js/creatures.js', 'js/character.js', 'js/equipment.js', 'js/player.js',
+    'js/clock.js', 'js/ships.js', 'js/story.js', 'js/modes.js', 'js/ui.js', 'js/game.js', 'js/save.js', 'js/main.js'
   ];
   for (const f of files) {
     await new Promise((ok, fail) => {

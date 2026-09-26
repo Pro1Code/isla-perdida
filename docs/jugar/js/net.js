@@ -12,8 +12,6 @@
   Net.esc = esc;
   Net.COLORS = ['#e6dfcc', '#e05a4f', '#4f9de0', '#5fc46a', '#e8b83c', '#b36ee0', '#f08a3c', '#3cc4b8'];
   Net.MAX = 8;
-  // Aspecto del jugador local: "camisa,piel,pantalón"
-  Net.lookStr = () => { const l = G.Profile.look(); return [l.shirt, l.skin, l.pants].join(','); };
 
   // Sin red (partida individual) el jugador local tiene toda la autoridad
   Net.authority = () => !Net.active || Net.isHost;
@@ -41,7 +39,7 @@
           Net.active = true; Net.myId = m.id; Net.hostId = m.hostId; Net.isHost = m.host;
           Net.lobby.clear();
           for (const p of m.players || []) if (p.name) Net.lobby.set(p.id, { name: p.name, color: p.color, ver: p.ver });
-          Net.send({ t: 'hello', name, color, ver: G.VERSION, lk: Net.lookStr() });
+          Net.send({ t: 'hello', name, color, ver: G.VERSION });
           resolve(m);
         } else Net.onMessage(m);
       };
@@ -137,12 +135,8 @@
         break;
       case 'give':
         for (const [id, n] of m.items) G.Game.give(id, n);
-        if (m.kill) { G.state.stats.kills++; G.UI.msg(`Has cazado: ${esc(m.kill)}`, 'good'); if (m.kt) G.Ach.onKill(m.kt); }
-        if (m.loot) { G.Ach.add('loot:' + (m.lk || 'chest'), 1, true); G.Ach.earn('loot'); }
+        if (m.kill) { G.state.stats.kills++; G.UI.msg(`Has cazado: ${esc(m.kill)}`, 'good'); }
         if (m.loot && m.items.length) { G.Audio.play('loot'); G.UI.msg('📦 ¡Encontraste un botín!', 'good'); }
-        break;
-      case 'ach':
-        if (m.to === Net.myId && typeof m.k === 'string') { G.Ach.add(m.k); if (m.k === 'vs:win') G.Ach.earn('vsWin'); }
         break;
       case 'loot':
         if (Net.isHost) G.Game.grantLoot(m.id, from);
@@ -274,11 +268,10 @@
     return s;
   }
   function createPeer(id, m) {
-    const lk = String(m.lk || '').split(',');
-    const model = lk.length === 3 ? G.Character.create(new THREE.Color(lk[0]).getHex(), { skin: new THREE.Color(lk[1]).getHex(), pants: new THREE.Color(lk[2]).getHex() }) : G.Character.create(new THREE.Color(m.col || '#e6dfcc').getHex());
+    const model = G.Character.create(new THREE.Color(m.col || '#e6dfcc').getHex());
     const tag = nameSprite(m.n || 'Jugador', m.col || '#fff');
     G.scene.add(model.root); G.scene.add(tag);
-    return { id, name: m.n, color: m.col, lk: m.lk, model, tag, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: 0, hs: 0, swing: 0, sg: m.sg, held: null, dead: false, swim: false, ground: true, hp: 100, shipId: null, local: null, team: m.tm ?? null };
+    return { id, name: m.n, color: m.col, model, tag, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: 0, hs: 0, swing: 0, sg: m.sg, held: null, dead: false, swim: false, ground: true, hp: 100, shipId: null, local: null, team: m.tm ?? null };
   }
   function removePeer(p) {
     G.scene.remove(p.model.root); G.scene.remove(p.tag);
@@ -287,7 +280,7 @@
   }
   function updatePeer(id, m) {
     let p = Net.peers.get(id);
-    if (p && (p.name !== m.n || p.color !== m.col || (m.lk && p.lk !== m.lk))) { removePeer(p); p = null; }
+    if (p && (p.name !== m.n || p.color !== m.col)) { removePeer(p); p = null; }
     if (!p) {
       p = createPeer(id, m);
       Net.peers.set(id, p);
@@ -343,7 +336,7 @@
       const m = {
         t: 'p', x: +P.pos.x.toFixed(2), y: +P.pos.y.toFixed(2), z: +P.pos.z.toFixed(2), yaw: +P.yaw.toFixed(3),
         pi: +P.pitch.toFixed(2), g: P.onGround || P.wading ? 1 : 0, hs: +P.hs.toFixed(2), sw: P.swimming ? 1 : 0, d: P.dead ? 1 : 0, h: G.Inv.heldId(), hp: Math.round(P.stats.health),
-        sg: P.swingCount, n: Net.name, col: Net.color, lk: Net.lookStr(), tm: Net.team, eq: G.Player.visibleIds(), fr: G.state.fruit || undefined, sk: P.sinking ? 1 : 0, out: G.state.spectate ? 1 : 0, st: P.station ? P.station.kind : undefined,
+        sg: P.swingCount, n: Net.name, col: Net.color, tm: Net.team, eq: G.Inv.eqIds(), fr: G.state.fruit || undefined, sk: P.sinking ? 1 : 0, out: G.state.spectate ? 1 : 0, st: P.station ? P.station.kind : undefined,
       };
       if (P.ship) { m.sh = P.ship.id; m.lx = +P.local.x.toFixed(2); m.ly = +P.local.y.toFixed(2); m.lz = +P.local.z.toFixed(2); }
       Net.send(m);

@@ -196,9 +196,6 @@
     const first = !w.monos[c.id];
     w.monos[c.id] = 1;
     G.Audio.play('mono');
-    if (!G.Profile.cnt('mono:' + c.id)) G.Ach.add('mono');
-    G.Ach.flag('mono:' + c.id);
-    if (first) G.Ach.earn('mono');
     St.show({ who: '🗿 ' + m.title, text: m.text, fact: first ? m.fact : undefined });
     if (first) { w.facts[m.fact] = 1; G.Net.send({ t: 'story', w }); }
   };
@@ -321,7 +318,6 @@
         if (!Object.entries(tr.give).every(([id, n]) => G.Inv.count(id) >= n)) { G.UI.msg('No tienes lo necesario.', 'warn'); G.Audio.play('error'); return; }
         for (const [id, n] of Object.entries(tr.give)) G.Inv.remove(id, n);
         G.Game.give(tr.get[0], tr.get[1]);
-        G.Ach.add('trade');
         G.Audio.play('loot');
         trader(c);
       }];
@@ -338,7 +334,6 @@
       options: [['Comerla', () => {
         G.Inv.remove(itemId, 1);
         G.state.fruit = k;
-        G.Ach.add('fruit:' + k, 1, true);
         const w = W(); w.fruits[k] = { holder: myKey() };
         G.Net.send({ t: 'fruit', k, holder: myKey() });
         G.Audio.play('eatfruit');
@@ -394,7 +389,6 @@
     if (!k) { G.UI.msg('No tienes ningún poder. Las Frutas del Abismo están escondidas en cofres del archipiélago.', 'info', 'power'); return; }
     if (St.powerCd > 0) { G.UI.msg(`Poder recargando (${Math.ceil(St.powerCd)} s)`, 'warn', 'power'); return; }
     const near = (r) => { const out = []; G.Creatures.forEachAlive((c) => { if (Math.hypot(c.x - P.pos.x, c.z - P.pos.z) < r && !c.d.npc) out.push(c); }); return out; };
-    G.Ach.add('power');
     if (k === 'llama') {
       St.powerCd = 3;
       const d = P.lookDir(new THREE.Vector3()), o = P.eyePos(new THREE.Vector3());
@@ -429,7 +423,6 @@
     const P = G.Player;
     G.Net.send({ t: 'rescue', to: peer.id, ship: P.ship ? P.ship.id : null });
     G.UI.msg(`🛟 Sujetas a ${G.Net.esc(peer.name)}.`, 'good');
-    G.Ach.add('rescue');
   };
   // Sin historia en versus (salvo los Monoglifos y las curiosidades)
   St.getState = () => W();
