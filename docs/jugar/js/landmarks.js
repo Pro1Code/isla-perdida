@@ -81,6 +81,8 @@
   };
 
   function track(o) { G.scene.add(o); L.extra.push(o); return o; }
+  // Piezas de escenario reutilizables (campamentos del prólogo en la Isla Perdida)
+  L.kit = () => ({ firePit, tikiTorch, hut, totem, dryingRack, camp, track, mats: getMats, circle: (x, z, r) => circle(x, z, r, true) });
   function add(o, extra) { if (extra) track(o); else G.scene.add(o); return o; }
   function mesh(geo, mat, extra, shadow = true) { const m = new THREE.Mesh(geo, mat); m.castShadow = shadow; m.receiveShadow = true; return add(m, extra); }
   const circle = (x, z, r, extra, y0 = -99, y1 = 99) => L.circles.push({ x, z, r, extra: !!extra, y0, y1 });

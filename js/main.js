@@ -513,6 +513,7 @@
       G.Cinema.update(dt);
       G.Ships.update(dt);
       G.World.update(dt, st.t, camera, G.Cinema.focus);
+      G.World.exposure *= G.Cinema.expMul || 1;
     } else if (st.mode === 'menu' || st.mode === 'loading') {
       if (!render) return;
       menuAng += dt * 0.025;

@@ -1,5 +1,6 @@
 // Publica una versión nueva del juego en GitHub con un solo comando:
 //   node scripts/release.js 2.1.0 "Nombre de la versión"   (el nombre es opcional)
+//   node scripts/release.js 2.1.0 --rehacer                 (vuelve a publicar la misma versión)
 // Antes de ejecutarlo, escribe las novedades en build/release-notes.md.
 // Hace esto:
 //   1) cambia la versión (y el nombre) en package.json y js/version.js
@@ -14,13 +15,15 @@ const os = require('os');
 const { execSync, execFileSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
-const ver = process.argv[2], verName = process.argv[3];
+const ver = process.argv[2], verName = process.argv[3] && !process.argv[3].startsWith('--') ? process.argv[3] : undefined;
+// --rehacer: vuelve a publicar la misma versión (por ejemplo, si se retiró un borrador)
+const redo = process.argv.includes('--rehacer');
 if (!/^\d+\.\d+\.\d+$/.test(ver || '')) { console.error('Uso: node scripts/release.js 2.1.0 "Nombre de la versión"'); process.exit(1); }
 
 const pkgPath = path.join(ROOT, 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 const newer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i]; return false; };
-if (!newer(ver, pkg.version)) { console.error(`La versión ${ver} debe ser mayor que la actual (${pkg.version}).`); process.exit(1); }
+if (!redo && !newer(ver, pkg.version)) { console.error(`La versión ${ver} debe ser mayor que la actual (${pkg.version}).`); process.exit(1); }
 
 // GitHub CLI: la copia portátil de la carpeta de compilación o la instalada en el sistema
 const ghLocal = path.join(os.homedir(), 'isla-perdida-build', 'tools', 'gh', 'bin', 'gh.exe');

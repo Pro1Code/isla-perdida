@@ -10,44 +10,53 @@
     cam: 'fp', swing: 0, cd: 0, hurtT: 99, stepAcc: 0, bob: 0, dead: false, sick: 0, sprinting: false, moving: false,
     cause: '', shake: 0, hs: 0, exhausted: false, swingCount: 0, ship: null, local: null, station: null, sinking: false, zoom: 0,
   });
-  let camera, vm, vmHolder, vmArm, vmId = '__', model, torchLight, shirtColor = 0xe6dfcc;
+  let camera, vm, vmHand, vmHolder, vmArm, vmId = '__', model, torchLight, lookKey = '';
+  // Brazo en primera persona: el golpe gira alrededor del codo, que queda siempre fuera de la pantalla
+  // (así solo se ve del antebrazo a la mano). Posiciones en el espacio de la cámara.
+  const VM_ELBOW = new THREE.Vector3(0.229, -0.243, -0.197), VM_HAND = new THREE.Vector3(0.0187, 0.0373, -0.3716);
   const _v = new V3(), _d = new V3();
 
   P.init = function (scene, cam) {
     camera = cam;
     // La ropa y la armadura se ven puestas sobre el personaje
-    G.Inv.listeners.push(() => {
-      if (!model) return;
-      const before = model.eqKey;
-      G.Equip.apply(model, G.Inv.eqIds());
-      if (model.eqKey !== before) { const l = curLayer; curLayer = -1; setLayer(Math.max(0, l)); }
-    });
+    G.Inv.listeners.push(() => P.refreshCosmetics());
     // Brazo y objeto en primera persona
     vm = new THREE.Group();
     camera.add(vm);
+    vmHand = new THREE.Group();
+    vmHand.position.copy(VM_HAND);
+    vm.add(vmHand);
     vmHolder = new THREE.Group();
     vmHolder.rotation.set(-0.35, 0, 0.25);
-    vm.add(vmHolder);
+    vmHand.add(vmHolder);
     vm.scale.setScalar(0.6);
     torchLight = new THREE.PointLight(0xffa04a, 0, 20, 1.6);
     scene.add(torchLight);
-    P.setShirt(shirtColor, true);
+    P.setLook(G.Profile.lookHex(), true);
   };
 
-  // Cambia el color de la camisa (en LAN cada jugador elige el suyo)
-  P.setShirt = function (color, force) {
-    const c = new THREE.Color(color).getHex();
-    if (!force && c === shirtColor && model) return;
-    shirtColor = c;
+  // Lo que se ve puesto: equipo + cosméticos de la tienda
+  P.visibleIds = () => G.Equip.visibleIds(G.Inv.eqIds(), G.Profile.cosIds());
+  P.refreshCosmetics = function () {
+    if (!model) return;
+    const before = model.eqKey;
+    G.Equip.apply(model, P.visibleIds());
+    if (model.eqKey !== before) { const l = curLayer; curLayer = -1; setLayer(Math.max(0, l)); }
+  };
+  // Aspecto del personaje (perfil): { shirt, skin, pants } en números
+  P.setLook = function (look, force) {
+    const key = [look.shirt, look.skin, look.pants].join(',');
+    if (!force && key === lookKey && model) return;
+    lookKey = key;
     if (model) { G.scene.remove(model.root); model.dispose(); }
-    model = G.Character.create(c);
+    model = G.Character.create(look.shirt, { skin: look.skin, pants: look.pants });
     G.scene.add(model.root);
-    G.Equip.apply(model, G.Inv.eqIds());
+    G.Equip.apply(model, P.visibleIds());
     curLayer = -1;
-    if (vmArm) { vm.remove(vmArm); vmArm.geometry.dispose(); vmArm.material.dispose(); }
-    vmArm = G.Character.fpArm(c);
+    if (vmArm) { vmHand.remove(vmArm); vmArm.geometry.dispose(); vmArm.material.dispose(); }
+    vmArm = G.Character.fpArm(look.shirt, { skin: look.skin });
     vmArm.rotation.set(0.1, -0.05, 0);
-    vm.add(vmArm);
+    vmHand.add(vmArm);
     vmId = '__';
   };
 
@@ -118,6 +127,7 @@
   P.update = function (dt, inputOn) {
     const K = inputOn ? G.Input.keys : {};
     if (P.ship) { G.Ships.updatePlayer(dt, K); return; }
+    if (G.Cheats.flag('fly')) { fly(dt, K); return; }
     const fwd = (K.KeyW || K.ArrowUp ? 1 : 0) - (K.KeyS || K.ArrowDown ? 1 : 0);
     const str = (K.KeyD || K.ArrowRight ? 1 : 0) - (K.KeyA || K.ArrowLeft ? 1 : 0);
     const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
@@ -132,6 +142,7 @@
     let speed = P.swimming ? (P.diving ? 2.8 : 2.6) : P.sprinting ? 7.2 : 4.4;
     if (P.wading) speed *= 0.7;
     if (G.Story) speed *= G.Story.speedMul();
+    if (G.Cheats.flag('fast')) speed *= 2;
     // Equipo: armadura pesada, aletas, botas de nieve
     speed *= P.swimming ? G.Inv.eqStat('swim') : G.Inv.eqStat('speed');
     if (!P.swimming && !G.Inv.eqStat('snow') && G.Arch.biomeAt(P.pos.x, P.pos.z) === 'escarcha' && P.pos.y > 1.5) speed *= 0.85;
@@ -201,6 +212,27 @@
     }
   };
 
+  // Truco: volar (Espacio sube, C o Ctrl baja, Shift más rápido)
+  function fly(dt, K) {
+    const fwd = (K.KeyW || K.ArrowUp ? 1 : 0) - (K.KeyS || K.ArrowDown ? 1 : 0), str = (K.KeyD || K.ArrowRight ? 1 : 0) - (K.KeyA || K.ArrowLeft ? 1 : 0);
+    const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
+    let wx = -sy * fwd + cy * str, wz = -cy * fwd - sy * str;
+    const wl = Math.hypot(wx, wz);
+    if (wl > 0) { wx /= wl; wz /= wl; }
+    const sp = K.ShiftLeft || K.ShiftRight ? 26 : 11;
+    P.vel.x += (wx * sp - P.vel.x) * Math.min(1, dt * 8);
+    P.vel.z += (wz * sp - P.vel.z) * Math.min(1, dt * 8);
+    P.vel.y += (((K.Space ? 1 : 0) - (K.KeyC || K.ControlLeft ? 1 : 0)) * 8 - P.vel.y) * Math.min(1, dt * 8);
+    P.pos.addScaledVector(P.vel, dt);
+    const rr = Math.hypot(P.pos.x, P.pos.z), B = G.Arch.BOUND;
+    if (rr > B) { P.pos.x *= B / rr; P.pos.z *= B / rr; }
+    const ground = Math.max(G.height(P.pos.x, P.pos.z), G.World.waterLevelAt(P.pos.x, P.pos.z) + 0.1);
+    if (P.pos.y < ground) { P.pos.y = ground; P.vel.y = Math.max(0, P.vel.y); }
+    P.pos.y = Math.min(P.pos.y, 260);
+    P.moving = wl > 0; P.onGround = false; P.swimming = false; P.diving = false; P.sinking = false; P.wading = false; P.sprinting = false;
+    P.hs = Math.hypot(P.vel.x, P.vel.z);
+  }
+
   // ------------------------------------------------------------------ estadísticas
   P.updateStats = function (dt) {
     if (P.dead) return;
@@ -230,11 +262,13 @@
     if (fire && fire.d < 0.75 && Math.abs(fire.s.y - P.pos.y) < 1 && !(G.Story && G.Story.fruitOf() === 'llama')) { S.health -= 10 * dt; P.cause = 'Te quemaste'; P.hurtT = 0; G.UI.hurtFlash(0.3); }
     // Lava del volcán
     if (!P.ship && G.Arch.biomeAt(P.pos.x, P.pos.z) === 'brasa' && G.Landmarks.lavaAt(P.pos.x, P.pos.z, P.pos.y) && !(G.Story && G.Story.fruitOf() === 'llama')) { S.health -= 30 * (1 - G.Inv.eqStat('lava')) * dt; P.cause = 'Caíste en la lava'; P.hurtT = 0; G.UI.hurtFlash(0.5); }
+    if (G.Cheats.flag('god')) S.health = Math.max(S.health, 1);
     if (S.health <= 0) G.Game.die(P.cause);
   };
 
   P.damage = function (amt, src, cause) {
     if (P.dead || G.state.mode === 'dead') return;
+    if (G.Cheats.flag('god')) return;
     if (G.Story) amt *= G.Story.damageMul();
     amt *= 1 - G.Inv.eqStat('armor');
     P.stats.health -= amt;
@@ -258,25 +292,29 @@
     if (id !== vmId) {
       vmId = id;
       vmHolder.clear();
+      const fp = id && G.ITEMS[id] && G.ITEMS[id].fp;
+      if (fp) vmHolder.rotation.set(fp[0], fp[1], fp[2]); else vmHolder.rotation.set(-0.35, 0, 0.25);
       const t = G.makeItemMesh(id);
       if (t) { t.traverse((o) => (o.castShadow = false)); vmHolder.add(t); }
       model.hand.clear();
       const t2 = G.makeItemMesh(id);
-      if (t2) { t2.rotation.x = Math.PI / 2; model.hand.add(t2); t2.traverse((o) => o.layers.set(Math.max(0, curLayer))); }
+      if (t2) { t2.rotation.set(Math.PI / 2, 2.12, 0); model.hand.add(t2); t2.traverse((o) => o.layers.set(Math.max(0, curLayer))); }
     }
     if (P.swing > 0) P.swing = Math.max(0, P.swing - dt / 0.32);
     const s = P.swing > 0 ? Math.sin((1 - P.swing) * Math.PI) : 0;
     const bobA = P.onGround ? Math.min(1, hs / 4) : 0;
-    // Balanceo del brazo en primera persona: anticipación hacia atrás y golpe hacia delante
+    // Balanceo del brazo en primera persona (girando desde el codo): levanta la herramienta
+    // hacia atrás, golpea hacia delante y hacia el centro, y vuelve a su sitio
     const p = 1 - P.swing;
-    const wind = P.swing > 0 ? (p < 0.38 ? U.smooth(0, 1, p / 0.38) : 1 - U.smooth(0, 1, (p - 0.38) / 0.62)) : 0;
-    const strike = P.swing > 0 && p >= 0.38 ? Math.sin(((p - 0.38) / 0.62) * Math.PI) : 0;
-    const sway = Math.sin(performance.now() / 900) * 0.006 * (1 - bobA);
-    vm.rotation.set(wind * 0.55 - strike * 1.0, s * 0.25, wind * 0.15);
+    const wind = P.swing > 0 ? (p < 0.35 ? U.smooth(0, 1, p / 0.35) : 1 - U.smooth(0, 1, (p - 0.35) / 0.3)) : 0;
+    const strike = P.swing > 0 && p >= 0.35 ? Math.sin(Math.min(1, (p - 0.35) / 0.65) * Math.PI) : 0;
+    const sway = Math.sin(performance.now() / 900) * 0.005 * (1 - bobA);
+    void s;
+    vm.rotation.set(wind * 0.5 - strike * 0.62, -wind * 0.1 + strike * 0.3, -wind * 0.12 + strike * 0.18);
     vm.position.set(
-      0.24 + wind * 0.04 - strike * 0.06 + Math.cos(P.bob) * 0.012 * bobA,
-      -0.22 + wind * 0.05 + Math.sin(P.bob * 2) * 0.012 * bobA - strike * 0.04 + sway,
-      -0.42 + wind * 0.05 - strike * 0.12);
+      VM_ELBOW.x + Math.cos(P.bob) * 0.01 * bobA,
+      VM_ELBOW.y + Math.sin(P.bob * 2) * 0.01 * bobA + sway,
+      VM_ELBOW.z);
 
     // Antorcha (y el brillo de la Fruta Llama-Llama)
     const torch = id === 'antorcha' || (G.Story && G.Story.fruitOf() === 'llama' && G.World.night > 0.5);
@@ -303,7 +341,7 @@
     P.shake = Math.max(0, P.shake - dt);
     const sh = P.shake * 0.25;
     // Zoom del catalejo
-    const wantFov = P.zoom ? 18 : 70;
+    const wantFov = P.zoom ? 18 : G.Profile.set('fov');
     if (Math.abs(camera.fov - wantFov) > 0.05) { camera.fov = U.lerp(camera.fov, wantFov, Math.min(1, dt * 8)); camera.updateProjectionMatrix(); }
     if (G.Ships && G.Ships.cameraFor(camera)) { setLayer(0); vm.visible = false; return; }
     if (P.cam === 'fp') {

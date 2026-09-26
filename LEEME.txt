@@ -20,6 +20,33 @@ CÓMO JUGAR
   navegador" (siempre es la última versión; no incluye LAN).
 
 
+LA ISLA PERDIDA: CÓMO EMPIEZA
+-----------------------------
+Una partida nueva empieza con una cinemática (Espacio para saltarla). Silvano,
+el viejo ermitaño, te encuentra en la playa y te cuenta la leyenda: Rogan D.
+Aldor escondió una Fruta del Abismo en la isla.
+- Tu tripulación está en el campamento de la costa este, junto al viejo
+  naufragio: la capitana Mara y tres maestros (Kaito, Crane y Bastián).
+- Silvano vive junto al lago y enseña la magia de las mareas.
+- Los piratas de la capitana Hiena acampan en la costa oeste. ¡Cuidado!
+- Pistas de Rogan: el ancla oxidada del naufragio, la piedra de la calavera
+  del lago y la que guarda la Hiena. Con las tres, el cofre aparece con una ✖
+  en tu mapa. Cava con E: dentro hay una Fruta del Abismo.
+La brújula te guía durante todo el prólogo.
+
+ESTILOS DE COMBATE
+------------------
+Se aprenden hablando con los maestros y suben de nivel (1 a 10) al usarlos.
+Técnicas: Q (desde el nivel 1) y Z (desde el nivel 3).
+- ⚔️ Espadachín (Kaito): katana o sable. Q Corte volador, Z Torbellino.
+- 🔫 Tirador (Crane): pistola o mosquete, gasta balas (horno: hierro +
+  pólvora). Q Disparo certero, Z Ráfaga.
+- 👊 Luchador (Bastián): con las manos vacías. Q Patada huracán, Z Salto
+  del tigre.
+- 🔮 Brujo (Silvano): bastón rúnico, gasta maná. Clic Chispa arcana, Q Rayo,
+  Z Marea curativa (cura también a tu tripulación en LAN).
+Cada maestro te pone una prueba con un muñeco de entrenamiento.
+
 MENÚ PRINCIPAL
 --------------
 - UN JUGADOR: tus partidas guardadas (como los mundos de Minecraft). Pulsa
@@ -148,7 +175,7 @@ C o Ctrl bucear · E recoger/interactuar/hablar/subir a un barco
 Clic izq. golpear/atacar/disparar · Clic der. o F comer/colocar/usar catalejo
 1-8 o rueda: barra rápida · Tab inventario y fabricación · R girar al colocar
 X desmontar · G poder de la fruta · V cámara · M mapa · J bitácora
-T chat (LAN) · K trucos · Esc pausa · F11 pantalla completa (juego instalado)
+Q / Z técnicas de combate · T chat (LAN) · K trucos · Esc pausa · F11 pantalla completa (juego instalado)
 
 
 RENDIMIENTO
