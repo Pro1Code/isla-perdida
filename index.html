@@ -22,11 +22,42 @@
 
 <!-- ============ CARGA ============ -->
 <div id="loading" class="screen">
+  <!-- Tomas panorámicas de las islas (se funden solas con CSS, aunque el juego esté ocupado cargando) -->
+  <div id="loadSlides">
+    <div class="slide" style="background-image:url(img/loading/perdida.jpg)"><div class="cap"><b>Isla Perdida</b><span>Donde empieza todo: un naufragio, una cueva… y un secreto escondido.</span></div></div>
+    <div class="slide" style="background-image:url(img/loading/tahuri.jpg)"><div class="cap"><b>Isla Tahuri</b><span>Selva de bambú y la aldea de la tribu Shandara.</span></div></div>
+    <div class="slide" style="background-image:url(img/loading/escarcha.jpg)"><div class="cap"><b>Isla Escarcha</b><span>Nieve eterna, osos blancos y aguas termales.</span></div></div>
+    <div class="slide" style="background-image:url(img/loading/brasa.jpg)"><div class="cap"><b>Isla Brasa</b><span>Un volcán vivo: lava, azufre y obsidiana.</span></div></div>
+    <div class="slide" style="background-image:url(img/loading/mar.jpg)"><div class="cap"><b>Mar abierto</b><span>Construye tu barco y sigue la ruta de La Última Pieza.</span></div></div>
+  </div>
+  <div class="load-shade"></div>
+  <div class="load-title">Isla Perdida</div>
   <div class="load-box">
     <div class="spinner"></div>
     <p id="loadText">Preparando la isla…</p>
+    <p id="loadTip" class="load-tip"></p>
   </div>
 </div>
+<script>
+  // Empieza en una isla al azar y muestra un consejo
+  (function () {
+    var off = Math.floor(Math.random() * 5) * 7;
+    document.querySelectorAll('#loadSlides .slide').forEach(function (s, i) { s.style.animationDelay = (i * 7 - off - 35) + 's'; });
+    var tips = [
+      'Hierve el agua en una fogata: el agua sin hervir puede enfermarte.',
+      'Quien come una Fruta del Abismo ya no puede nadar. ¡Cuidado con el mar!',
+      'Cada isla tiene su propio día y noche: la niebla marina oculta el cambio.',
+      'Duerme bajo techo para recuperar salud.',
+      'Los barcos grandes se construyen pieza a pieza: coloca el plano en el agua.',
+      'Consigue logros para ganar doblones y compra cosméticos en la Tienda.',
+      'Un abrigo polar y unas botas de nieve te salvarán en Isla Escarcha.',
+      'Con botas de obsidiana puedes caminar sobre la lava de Isla Brasa.',
+      'En el mapa (M) haz clic para marcar un destino: la brújula te guiará.'
+    ];
+    var t = document.getElementById('loadTip');
+    if (t) t.textContent = '💡 ' + tips[Math.floor(Math.random() * tips.length)];
+  })();
+</script>
 
 <!-- ============ MENÚ PRINCIPAL ============ -->
 <div id="menu" class="screen hidden">

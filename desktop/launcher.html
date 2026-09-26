@@ -80,6 +80,13 @@
   </main>
   <footer><span id="appVer"></span><span id="appUpd"></span></footer>
 <script>
+  // Fondo: una de las tomas panorámicas de las islas (las trae el juego incluido en la app)
+  (function () {
+    const pics = ['perdida', 'tahuri', 'escarcha', 'brasa', 'mar'], p = pics[Math.floor(Math.random() * pics.length)];
+    const img = new Image();
+    img.onload = () => { document.body.style.backgroundImage = 'linear-gradient(180deg, rgba(8,18,24,.55), rgba(8,14,18,.9)), url(../img/loading/' + p + '.jpg)'; document.body.style.backgroundSize = 'cover'; document.body.style.backgroundPosition = 'center'; };
+    img.src = '../img/loading/' + p + '.jpg';
+  })();
   const D = window.islaDesktop, $ = (id) => document.getElementById(id);
   const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = (d) => (d ? new Date(d).toLocaleDateString('es', { year: 'numeric', month: 'long', day: 'numeric' }) : '');

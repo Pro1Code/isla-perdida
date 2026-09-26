@@ -36,6 +36,7 @@
       "js/**/*",
       "css/**/*",
       "lib/**/*",
+      "img/**/*",
       "desktop/**/*",
       "package.json"
     ],

@@ -162,3 +162,43 @@
   .slider-row { grid-template-columns: 1fr 1fr 50px; }
   .world { flex-wrap: wrap; }
 }
+
+/* Pantalla de carga: tomas panorámicas de las islas */
+#loading { overflow: hidden; }
+#loadSlides { position: absolute; inset: 0; background: #0b1418; }
+#loadSlides .slide {
+  position: absolute; inset: -4%; background-size: cover; background-position: center; opacity: 0;
+  animation: loadSlide 35s linear infinite; will-change: opacity, transform;
+}
+#loadSlides .slide:nth-child(even) { animation-name: loadSlide2; }
+@keyframes loadSlide {
+  0% { opacity: 0; transform: scale(1.02) translate(1.5%, 0); }
+  3% { opacity: 1; }
+  20% { opacity: 1; }
+  23% { opacity: 0; transform: scale(1.12) translate(-1.5%, -1%); }
+  100% { opacity: 0; transform: scale(1.12) translate(-1.5%, -1%); }
+}
+@keyframes loadSlide2 {
+  0% { opacity: 0; transform: scale(1.12) translate(-1.5%, 1%); }
+  3% { opacity: 1; }
+  20% { opacity: 1; }
+  23% { opacity: 0; transform: scale(1.03) translate(1.5%, 0); }
+  100% { opacity: 0; transform: scale(1.03) translate(1.5%, 0); }
+}
+#loadSlides .cap {
+  position: absolute; left: 8%; bottom: 17%; display: flex; flex-direction: column; gap: 4px; max-width: 520px;
+  text-shadow: 0 2px 12px rgba(0,0,0,.8);
+}
+#loadSlides .cap b { font-family: 'Cinzel', serif; font-size: 42px; color: #ffe3a3; letter-spacing: 1px; }
+#loadSlides .cap span { font-size: 17px; color: #f1ece1; }
+.load-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 55%, rgba(0,0,0,.75) 100%); pointer-events: none; }
+.load-title {
+  position: absolute; top: 26px; left: 34px; font-family: 'Cinzel', serif; font-weight: 900; font-size: 34px; letter-spacing: 2px;
+  background: linear-gradient(180deg, #ffe3a3, #e59a3a); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 3px 10px rgba(0,0,0,.6));
+}
+#loading .load-box { position: absolute; left: 0; right: 0; bottom: 5%; }
+#loading .load-box p { margin: 6px auto; text-shadow: 0 2px 8px rgba(0,0,0,.8); color: #e8e2d6; }
+#loading .spinner { width: 34px; height: 34px; margin-bottom: 10px; }
+.load-tip { font-size: 14px !important; color: #c9c3b4 !important; max-width: 640px !important; }
+@media (max-width: 760px) { #loadSlides .cap b { font-size: 28px; } #loadSlides .cap { bottom: 22%; left: 6%; right: 6%; } .load-title { font-size: 24px; left: 18px; top: 16px; } }
