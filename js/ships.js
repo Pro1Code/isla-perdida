@@ -540,7 +540,7 @@
   S.isAuth = (s) => (!G.Net.active ? true : s.driver ? s.driver === G.Net.myId || !G.Net.peers.has(s.driver) && G.Net.isHost : G.Net.isHost);
   S.data = (s) => ({ id: s.id, type: s.type, x: +s.x.toFixed(2), z: +s.z.toFixed(2), yaw: +s.yaw.toFixed(3), hp: Math.round(s.hp), anchor: s.anchor, crate: s.crate, fuel: s.fuel, net: s.net, netFish: s.netFish,
     building: s.building, placed: [...s.placed], fh: s.fh, sail: s.sailColor, flagColor: s.flagColor, flag: s.flag, team: s.team, flagship: s.flagship, name: s.name, driver: s.driver });
-  S.getState = () => S.list.filter((s) => !s.sinking).map(S.data);
+  S.getState = () => S.list.filter((s) => !s.sinking && !s.navy).map(S.data); // los de la Marina no se guardan
   S.setState = function (arr) { S.clear(); for (const d of arr || []) if (DEF[d.type]) S.create(d); };
   function netState(s) {
     return { t: 'sh', id: s.id, x: +s.x.toFixed(2), z: +s.z.toFixed(2), yaw: +s.yaw.toFixed(3), v: +s.speed.toFixed(2), th: s.throttle, rd: +s.rudder.toFixed(2), an: s.anchor ? 1 : 0, ap: s.ap ? 1 : 0, no: s.netOn ? 1 : 0, fu: Math.round(s.fuel), drv: s.driver };
@@ -1118,6 +1118,7 @@
     }
   }
   S.puff = puff;
+  S.spawnBall = (m, mine) => spawnBall(m, mine);
   function flash(x, y, z) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: G.Build.smokeTex, color: 0xffc060, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     s.position.set(x, y, z); s.raycast = () => {};
@@ -1210,7 +1211,8 @@
         continue;
       }
       if (s.building) { waterHeave(s); placeRoot(s); continue; }
-      if (S.isAuth(s)) simulate(s, dt);
+      if (s.navy && G.Net.authority()) G.Navy.steer(s, dt); // barcos de la Marina Blanca (navy.js)
+      else if (!s.navy && S.isAuth(s)) simulate(s, dt);
       else {
         // Interpolación + predicción con la velocidad recibida
         const k = 1 - Math.exp(-dt * 6);

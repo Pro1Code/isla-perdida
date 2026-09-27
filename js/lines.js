@@ -36,6 +36,9 @@
     brahan: { name: 'Brahan', v: 'ald', p: 1.25, l: 0.92 },
     aisha: { name: 'Aisha', v: 'claude', p: 1.02, l: 0.95 },
     laka: { name: 'Laka', v: 'daniela', p: 1.1, l: 0.92 },
+    // Marina Blanca
+    marino: { name: 'Marine', v: 'sharvard', s: 0, p: 1.06, l: 0.94, lobo: true },
+    comodoro: { name: 'Comodoro', v: 'davefx', p: 0.84, l: 1.05, rudo: 0.1, lobo: true },
     // Mascotas
     loro: { name: 'Loro', v: 'sharvard', s: 1, p: 1.55, l: 0.82, rudo: 0.35, lobo: true },
     caracol: { name: 'Caracolófono', v: 'davefx', p: 0.95, l: 1.0, lobo: true },
@@ -171,6 +174,10 @@
   // Cuando tu recompensa es alta, te reconocen
   const FAMA = ['{grito}«¡Es el del cartel! ¡Esa cabeza vale una fortuna!»', '{burla}«¡Mirad, muchachos! ¡La recompensa viene sola!»'];
   for (const k of ['pirata1', 'pirata2', 'pirata3']) L[k] = { spot: BARKS.slice(), fama: FAMA.slice() };
+
+  // ------------------------------------------------------------------ Marina Blanca
+  L.marino = { spot: ['{mando}«¡Alto en nombre de la Marina Blanca!»', '{grito}«¡Preparad los cañones!»', '{mando}«¡Rendíos y seréis juzgados!»', '{grito}«¡Es el pirata del cartel! ¡A por él!»'], rinde: '{miedo}«¡Nos rendimos! ¡No disparéis!»' };
+  L.comodoro = { spot: ['{mando}«Tu recompensa acaba de subir… a precio de horca.»', '{mando}«Por la justicia de la Marina Blanca: ¡fuego a discreción!»'], rage: '{furia}«¡Nadie humilla a la Marina Blanca!»', fall: '{triste}«La justicia… volverá…»' };
 
   // ------------------------------------------------------------------ mascotas
   L.loro = { aviso: ['{grito}«¡Peligro! ¡Peligro!»', '{grito}«¡Cuidado, grumete! ¡Cuidado!»', '{grito}«¡Arrr! ¡Enemigo a la vista!»', '{grito}«¡Rrratas a babor! ¡Rrratas!»'] };

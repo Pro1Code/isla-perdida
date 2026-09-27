@@ -636,6 +636,7 @@
     G.Quests.update(dt);
     G.SeaWx.update(dt);
     G.Crew.update(dt);
+    G.Navy.update(dt);
     P.cd = Math.max(0, P.cd - dt);
     if (!st.spectate) { P.update(dt, inputOn); P.updateStats(dt); }
     G.Net.update(dt);

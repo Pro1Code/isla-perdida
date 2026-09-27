@@ -5,7 +5,7 @@
   'use strict';
   const G = window.G, U = G.U;
   const C = (G.Creatures = { list: [], timer: 0, nextId: 0 });
-  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss'];
+  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss'];
   const DEF = (C.DEF = {
     crab: { name: 'Cangrejo', hp: 12, speed: 0.8, run: 2.6, bodyY: 0.2, hitR: 0.5, drops: [['carne_cruda', 1]] },
     boar: { name: 'Jabalí', hp: 45, speed: 1.1, run: 4.8, bodyY: 0.7, hitR: 0.8, dmg: 10, drops: [['carne_cruda', 3], ['cuero', 1]] },
@@ -32,6 +32,9 @@
     dummy: { name: 'Muñeco de entrenamiento', hp: 9999, speed: 0, run: 0, bodyY: 1.1, hitR: 0.55, dummy: true, drops: [] },
     pirate: { name: 'Pirata de la Hiena', hp: 60, speed: 1.1, run: 4.3, bodyY: 1.0, hitR: 0.55, dmg: 9, human: true, drops: [['doblon', 1], ['cuero', 1]] },
     pirate_gun: { name: 'Pirata tirador', hp: 45, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 11, human: true, drops: [['polvora', 1], ['bala', 4]] },
+    marine: { name: 'Marine de la Marina Blanca', hp: 70, speed: 1.1, run: 4.3, bodyY: 1.0, hitR: 0.55, dmg: 11, human: true, drops: [['doblon', 1], ['bala', 3]] },
+    marine_gun: { name: 'Tirador de la Marina', hp: 55, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 12, human: true, drops: [['polvora', 1], ['bala', 5]] },
+    marine_boss: { name: 'Comodoro de la Marina Blanca', hp: 320, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.6, dmg: 16, human: true, drops: [['doblon', 10], ['katana', 1], ['mapa_tesoro', 1]] },
     pirate_boss: { name: 'Capitana Hiena', hp: 300, speed: 1.2, run: 4.6, bodyY: 1.0, hitR: 0.6, dmg: 15, human: true, drops: [['pista_3', 1], ['sable', 1], ['doblon', 6]] },
   });
 
@@ -142,7 +145,7 @@
       salamander: () => A.salamander(mat), lavacrab: () => A.crab(mat, 0x3a2a24, 0x241814, true), whale: () => A.whale(mat), dolphin: () => A.dolphin(mat),
       jelly: () => A.jelly(), serpent: () => A.serpent(mat), villager: () => villager(extra || 0),
       npc: () => G.Prologue.human('npc', extra || 0), pirate: () => G.Prologue.human('pirate', extra || 0), pirate_gun: () => G.Prologue.human('pirate_gun', extra || 0),
-      pirate_boss: () => G.Prologue.human('pirate_boss', extra || 0), dummy: () => G.Prologue.dummy(extra || 0),
+      pirate_boss: () => G.Prologue.human('pirate_boss', extra || 0), marine: () => G.Prologue.human('marine', extra || 0), marine_gun: () => G.Prologue.human('marine_gun', extra || 0), marine_boss: () => G.Prologue.human('marine_boss', extra || 0), dummy: () => G.Prologue.dummy(extra || 0),
     };
     const m = build[type]();
     const d = DEF[type];
@@ -445,7 +448,7 @@
     const cam = G.camera.position, far = c.type === 'boss' || c.d.sea ? 240 : 140;
     c.g.visible = Math.abs(cam.x - c.x) < far && Math.abs(cam.z - c.z) < far;
   }
-  const _vp = new THREE.Vector3();
+  const _vp = new THREE.Vector3(), _deck = new THREE.Vector3(), _deckW = new THREE.Vector3();
   function animateDeath(c, dt) {
     c.deadT += dt;
     if (c.model) { c.g.rotation.x = -Math.min(Math.PI / 2, c.deadT * 3); if (c.deadT > 4) c.g.position.y -= dt * 0.8; return; }
@@ -506,6 +509,17 @@
         return true;
       };
       let faceT = null;
+      // Marines en la cubierta de un barco de la Marina Blanca (navy.js): en su puesto, pelean desde allí
+      if (c.deck) {
+        if (!G.Navy.placeOnDeck(c)) { removeAt(i); continue; }
+        if (tgt && !tgt.dead && dist < 60) {
+          c.yaw = Math.atan2(tgt.x - c.x, tgt.z - c.z);
+          c.aggro = Math.max(c.aggro, 2); c.aggroId = tgt.id;
+          if (c.type === 'marine_gun') { if (dist < 32 && c.cd <= 0) shootAt(c, tgt); }
+          else if (dist < 2.6) attack(c, tgt, 2.7);
+        }
+        c.speedNow = 0; animate(c, dt, night); continue;
+      }
       // Animal marino atascado contra la costa: vuelve un rato a aguas profundas (antes se quedaba quieto para siempre)
       if (c.d.sea && c.retreat > 0) { c.retreat -= dt; c.aggro = Math.min(c.aggro, 0); tx = c.rx; tz = c.rz; speed = c.d.run * 0.85; }
       else switch (c.type) {
@@ -762,7 +776,9 @@
       c.x += (c.nx - c.x) * k; c.z += (c.nz - c.z) * k;
       c.yaw += U.angDiff(c.yaw, c.nyaw) * k;
       c.speedNow = U.lerp(c.speedNow, Math.hypot(c.x - ox, c.z - oz) / Math.max(dt, 1e-3), 0.3);
-      c.y = U.lerp(c.y, G.height(c.x, c.z), Math.min(1, dt * 10));
+      let gy = G.height(c.x, c.z);
+      if (c.model && gy < -0.3) for (const s of G.Ships.list) if (!s.sinking && Math.hypot(s.x - c.x, s.z - c.z) < (s.def.L || 5) / 2 + 1) { gy = G.Ships.toWorld(s, _deck.set(0, s.def.deckY + 0.02, 0), _deckW).y; break; }
+      c.y = U.lerp(c.y, gy, Math.min(1, dt * 10));
       animate(c, dt, nightOf(c.isl));
     }
   }

@@ -46,6 +46,9 @@
   function pirateLook(type, extra) {
     const r = U.rng(extra * 7919 + 13);
     const pick = (a) => a[Math.floor(r() * a.length)];
+    // Marines de la Marina Blanca (uniforme blanco y azul)
+    if (type === 'marine_boss') return { name: 'Comodoro de la Marina Blanca', role: 'boss', shirt: '#f4f4f0', skin: pick(['#e6b48e', '#c68d67']), pants: '#1e2a4a', cos: ['cos_gorra_marina', 'cos_abrigo_alm', 'cos_bigote'], hold: 'katana' };
+    if (type === 'marine' || type === 'marine_gun') return { name: type === 'marine_gun' ? 'Tirador de la Marina' : 'Marine de la Marina Blanca', role: 'marine', shirt: '#f2f2ee', skin: pick(['#f3d2b4', '#e6b48e', '#c68d67', '#a8704a']), pants: '#1e2a4a', cos: ['cos_gorra_marina'], hold: type === 'marine_gun' ? 'mosquete' : 'sable' };
     if (type === 'pirate_boss') return { name: 'Capitana Hiena', role: 'boss', shirt: '#2a2a2e', skin: '#e6b48e', pants: '#5a1a1a', cos: ['cos_tricornio', 'cos_capa', 'cos_parche'], hold: 'sable' };
     return {
       name: type === 'pirate_gun' ? 'Pirata tirador' : 'Pirata de la Hiena', role: 'pirate',

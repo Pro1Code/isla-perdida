@@ -26,6 +26,8 @@
     if (c.type === 'npc') { const n = G.Prologue.NPCS[c.extra % G.Prologue.NPCS.length]; return n && n.key; }
     if (c.type === 'villager') return V.speakerOf(c.name);
     if (c.type === 'pirate_boss') return 'hiena';
+    if (c.type === 'marine_boss') return 'comodoro';
+    if (c.type === 'marine' || c.type === 'marine_gun') return 'marino';
     if (c.type === 'pirate' || c.type === 'pirate_gun') return 'pirata' + (1 + (Math.abs(c.extra | 0) % 3));
     return null;
   };
@@ -255,11 +257,11 @@
   function barks() {
     const P = G.Player.pos, f = flags();
     for (const c of G.Creatures.list) {
-      if (c.type !== 'pirate' && c.type !== 'pirate_gun' && c.type !== 'pirate_boss') continue;
-      const boss = c.type === 'pirate_boss', ag = c.aggro > 0;
-      if (boss && c.dead && !c._fell) { c._fell = true; say1(c, 'hiena', G.LINES.hiena.fall, true); continue; }
+      if (!/^(pirate|marine)/.test(c.type)) continue;
+      const boss = c.type === 'pirate_boss' || c.type === 'marine_boss', bk = c.type === 'marine_boss' ? 'comodoro' : 'hiena', ag = c.aggro > 0;
+      if (boss && c.dead && !c._fell) { c._fell = true; say1(c, bk, G.LINES[bk].fall, true); continue; }
       if (c.dead) continue;
-      if (boss && !c._rage && c.hp < c.d.hp * 0.5) { c._rage = true; say1(c, 'hiena', G.LINES.hiena.rage, true); }
+      if (boss && !c._rage && c.hp < c.d.hp * 0.5) { c._rage = true; say1(c, bk, G.LINES[bk].rage, true); }
       if (ag && !c._ag && barkCd <= 0 && near(c, P, 40) && (!c._barkT || performance.now() - c._barkT > 25000)) {
         c._barkT = performance.now();
         const spk = V.speakerOfCreature(c), pool = (G.Bounty.famous() && Math.random() < 0.5 && G.LINES[spk].fama) || G.LINES[spk].spot;
