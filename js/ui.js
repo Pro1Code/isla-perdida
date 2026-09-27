@@ -20,6 +20,7 @@
     ['<kbd>Tab</kbd>', 'Inventario y fabricación'],
     ['<kbd>R</kbd>', 'Girar al colocar · cambiar diseño de una pieza · a bordo: poner tus diseños de la Tienda'],
     ['<kbd>X</kbd>', 'Desmontar construcción (recupera la mitad)'],
+    ['<kbd>B</kbd> / <kbd>Mayús</kbd>+<kbd>B</kbd>', 'Soltar el objeto de la mano (uno / todo el montón). Se recoge pasando por encima; desaparece a los 5 minutos'],
     ['<kbd>G</kbd>', 'Poder de la Fruta del Abismo'],
     ['<kbd>V</kbd>', 'Cambiar cámara 1ª / 3ª persona'],
     ['<kbd>M</kbd>', 'Mapa del archipiélago (clic: marcar destino)'],
@@ -185,6 +186,7 @@
   };
   UI.eqDesc = eqDesc;
   UI.showEquipInfo = function (slot) {
+    UI.hoverSlot = null;
     const e = G.Inv.equip[slot];
     if (!e) { el.itemInfo.innerHTML = `<b>${G.Inv.SLOT_ICONS[slot]} ${G.Inv.SLOT_NAMES[slot]}</b><br><span class="muted">Vacío. Selecciona una prenda en la mochila y haz clic aquí, o clic derecho sobre ella.</span>`; return; }
     const it = G.ITEMS[e.id];
@@ -233,7 +235,9 @@
     G.Game.openInventory();
     G.Audio.play('place');
   };
+  UI.hoverSlot = null;
   UI.showInfo = function (i) {
+    UI.hoverSlot = i;
     const s = G.Inv.slots[i];
     if (!s) { el.itemInfo.innerHTML = '<span class="muted">Casilla vacía.</span>'; return; }
     const it = G.ITEMS[s.id];
@@ -252,9 +256,11 @@
     if (it.eq) h += `<br>${eqDesc(it.eq)}<br><i>Clic derecho: ponértelo (${G.Inv.SLOT_NAMES[it.eq.slot].toLowerCase()})</i>`;
     if (it.read) h += '<br><i>Clic derecho: leer</i>';
     if (s.d !== undefined && it.dur < 9999) h += `<br>Durabilidad: ${Math.ceil(s.d)} / ${it.dur}`;
-    h += `<br><button class="btn small" id="dropBtn">Tirar</button>`;
+    h += `<br><button class="btn small" id="dropBtn">Soltar al suelo</button>${s.n > 1 ? ' <button class="btn small" id="dropOne">Soltar 1</button>' : ''} <span class="muted small-text">(<kbd>B</kbd> sobre la casilla: 1 · <kbd>Mayús</kbd>+<kbd>B</kbd>: todo)</span>`;
     el.itemInfo.innerHTML = h;
-    $('dropBtn').onclick = () => { G.Inv.slots[i] = null; UI.picked = null; G.Inv.changed(); el.itemInfo.innerHTML = '<span class="muted">Objeto tirado.</span>'; };
+    const done = () => { UI.picked = null; if (G.Inv.slots[i]) UI.showInfo(i); else el.itemInfo.innerHTML = '<span class="muted">Lo has soltado en el suelo. Desaparece a los 5 minutos si nadie lo recoge.</span>'; };
+    $('dropBtn').onclick = () => { G.Drops.dropSlot(i); done(); };
+    if ($('dropOne')) $('dropOne').onclick = () => { G.Drops.dropSlot(i, 1); done(); };
   };
   UI.renderRecipes = function () {
     el.craftTabs.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.c === UI.craftCat));

@@ -9,7 +9,7 @@
     { name: 'Normal', decay: 1.0, dmg: 1.0, wolves: 2 },
     { name: 'Difícil', decay: 1.35, dmg: 1.4, wolves: 4 },
   ];
-  G.state = { mode: 'loading', day: 1, t: 0.3, diff: 1, dayLen: 300, spawn: null, flags: {}, stats: { kills: 0, crafted: 0, deaths: 0, k: {} }, obj: 0 };
+  G.state = { mode: 'loading', day: 1, t: 0.3, diff: 1, dayLen: 600, spawn: null, flags: {}, stats: { kills: 0, crafted: 0, deaths: 0, k: {} }, obj: 0 };
   // Estadísticas de la partida (muertes y animales cazados por tipo, para algunos logros)
   const fixStats = (s) => Object.assign({ kills: 0, crafted: 0, deaths: 0 }, s || {}, { k: Object.assign({}, (s && s.k) || {}) });
   Game.fixStats = fixStats;
@@ -568,6 +568,7 @@
     G.Styles.update(dt);
     G.Prologue.update(dt);
     G.Voice.update(dt);
+    G.Drops.update(dt);
     P.cd = Math.max(0, P.cd - dt);
     if (!st.spectate) { P.update(dt, inputOn); P.updateStats(dt); }
     G.Net.update(dt);
@@ -661,6 +662,7 @@
 
   // ------------------------------------------------------------------ nueva partida / cargar
   Game.resetWorld = function () {
+    G.Drops.clear();
     if (G.Player.ship) { G.Player.ship = null; G.Player.station = null; }
     G.Ships.clear();
     G.Build.clear();
@@ -722,7 +724,7 @@
     const teams = mode === 'versus' ? G.Modes.FORMATS[opts.cfg.format].length : 0;
     await buildWorld(seed, mode, teams);
     const W = G.World;
-    G.state = { mode: 'playing', day: 1, t: 7 / 24, diff, dayLen: 300, spawn: null, flags: {}, stats: fixStats(), obj: 0, world: Game.newWorldState(), seed, gm: mode, cfg: opts.cfg || G.Modes.DEFAULT_COOP, fruit: null };
+    G.state = { mode: 'playing', day: 1, t: 7 / 24, diff, dayLen: 600, spawn: null, flags: {}, stats: fixStats(), obj: 0, world: Game.newWorldState(), seed, gm: mode, cfg: opts.cfg || G.Modes.DEFAULT_COOP, fruit: null };
     G.Cheats.reset();
     G.Clock.init(seed, 7 / 24);
     G.Weather.set('clear', 200);
@@ -755,7 +757,7 @@
     const teams = st.gm === 'versus' ? G.Modes.FORMATS[st.cfg.format].length : 0;
     await buildWorld(st.seed, st.gm || 'coop', teams);
     G.state = {
-      mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 300, spawn: (pdata && pdata.spawn) || null,
+      mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 600, spawn: (pdata && pdata.spawn) || null,
       flags: (pdata && pdata.flags) || {}, stats: fixStats(pdata && pdata.stats), obj: (pdata && pdata.obj) || 0,
       world: st.world || Game.newWorldState(), seed: st.seed, gm: st.gm || 'coop', cfg: st.cfg, fruit: (pdata && pdata.fruit) || null,
       styles: (pdata && pdata.seed === st.seed && pdata.styles) || {}, train: (pdata && pdata.seed === st.seed && pdata.train) || {},
@@ -771,6 +773,7 @@
     G.Ships.setState(snap.ships);
     G.Creatures.applySnapshot(snap.c || []);
     for (const bl of snap.drops || []) G.Landmarks.addDrop(bl);
+    G.Drops.setState(snap.gd);
     if (st.gm === 'versus') { G.Modes.st = st.vs; G.Modes.start(st.cfg, st.vs.assign, false); }
     if (G.state.spawn && !G.Build.list.some((s) => s.type === 'cama' && Math.hypot(s.x - G.state.spawn.x, s.z - G.state.spawn.z) < 0.5)) G.state.spawn = null;
     const P = G.Player;
@@ -796,7 +799,7 @@
     const seed = st.seed || 20240101;
     await buildWorld(seed, 'coop', 0);
     G.state = {
-      mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 300, spawn: st.spawn, flags: st.flags || {}, stats: fixStats(st.stats), obj: st.obj || 0,
+      mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 600, spawn: st.spawn, flags: st.flags || {}, stats: fixStats(st.stats), obj: st.obj || 0,
       world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null, styles: st.styles || {}, train: st.train || {},
     };
     // Partidas antiguas: el botín era una lista y la balsa era una construcción
@@ -814,6 +817,7 @@
     G.Res.setState(data.r);
     for (const s of data.ships || []) G.Ships.create(s);
     for (const bl of data.drops || []) G.Landmarks.addDrop(bl);
+    G.Drops.setState(data.gd);
     applyPlayer(data.p);
     applyInventory(data.inv, data.sel, data.eq);
     G.Creatures.populate();

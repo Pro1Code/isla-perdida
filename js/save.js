@@ -121,7 +121,7 @@
       v: 2,
       st: { day: st.day, t: st.t, diff: st.diff, spawn: st.spawn, flags: st.flags, stats: st.stats, obj: st.obj, world: st.world, weather: [G.Weather.type, Math.round(G.Weather.timer)],
         seed: st.seed, cfg: st.cfg, clocks: st.clocks, pt: st.pt, pday: st.pday, fruit: st.fruit, styles: st.styles, train: st.train },
-      p: player, inv: G.Inv.slots, eq: G.Inv.equip, sel: G.Inv.sel, b: G.Build.getState(), r: G.Res.getState(), ships: G.Ships.getState(), drops: G.Landmarks.getDrops(),
+      p: player, inv: G.Inv.slots, eq: G.Inv.equip, sel: G.Inv.sel, b: G.Build.getState(), r: G.Res.getState(), ships: G.Ships.getState(), drops: G.Landmarks.getDrops(), gd: G.Drops.getState(),
     };
   }
   Save.save = function () {

@@ -159,6 +159,7 @@
         G.Landmarks.setOpened(m.id, false);
         break;
       case 'drop': if (Net.inWorld) G.Landmarks.addDrop(m.d); break;
+      case 'gdrop': case 'gtakeReq': case 'gtake': if (Net.inWorld) G.Drops.onNet(m, from); break;
       case 'chest': {
         const s = G.Build.byId(m.id);
         if (s) { s.items = m.items; if (G.UI.chest === s) G.UI.refreshInv(); }
@@ -201,7 +202,7 @@
       day: G.state.day, t: G.state.t, diff: G.state.diff, world: G.state.world, weather: [G.Weather.type, Math.round(G.Weather.timer)],
       seed: G.state.seed, gm: G.state.gm, cfg: G.state.cfg, clocks: G.Clock.pack(), vs: G.Modes.st,
     },
-    b: G.Build.getState(), r: G.Res.getState(), c: G.Creatures.snapshot(), ships: G.Ships.getState(), drops: G.Landmarks.getDrops(),
+    b: G.Build.getState(), r: G.Res.getState(), c: G.Creatures.snapshot(), ships: G.Ships.getState(), drops: G.Landmarks.getDrops(), gd: G.Drops.getState(),
   });
   Net.startWorld = function () { Net.inWorld = true; Net.send({ t: 'worldReady' }); };
   // Configuración del lobby (el anfitrión la reparte)

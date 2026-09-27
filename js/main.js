@@ -428,6 +428,7 @@
         else if (e.code === 'KeyX') G.Game.demolish();
         else if (e.code === 'KeyK') G.Cheats.open();
         else if (e.code === 'KeyQ') G.Styles.tech(0);
+        else if (e.code === 'KeyB') G.Drops.dropHeld(e.shiftKey);
         else if (e.code === 'KeyZ') G.Styles.tech(1);
         else if (e.code === 'KeyR') {
           const tg = G.Game.target;
@@ -439,6 +440,7 @@
         else if (/^Digit[1-8]$/.test(e.code)) { G.Inv.sel = +e.code.slice(5) - 1; G.Inv.changed(); G.Audio.play('select'); }
       } else if (mode === 'inventory') {
         if (e.code === 'Tab' || e.code === 'Escape' || e.code === 'KeyI') G.Game.closeInventory();
+        else if (e.code === 'KeyB' && G.UI.hoverSlot !== null) { G.Drops.dropSlot(G.UI.hoverSlot, e.shiftKey ? 0 : 1); G.UI.showInfo(G.UI.hoverSlot); }
       } else if (mode === 'map') {
         if (e.code === 'KeyM' || e.code === 'Escape') G.Game.closeMap();
       } else if (mode === 'journal') {

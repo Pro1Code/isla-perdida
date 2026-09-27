@@ -27,13 +27,17 @@
   Clock.hourOf = (id) => { const c = clk(id); return (c ? c.t : G.state.t) * 24; };
   Clock.nightAt = (id) => { const h = Clock.hourOf(id); return h >= 20 || h < 5.5; };
   Clock.islandOf = (x, z) => { const s = G.Arch.zoneOf(x, z); return s ? s.id : -1; };
+  // Velocidad del tiempo (fracción de día por segundo real): un día completo dura 10 minutos,
+  // de los que la noche (20:00 a 5:30) dura solo 3 y el día 7
+  const DAY_S = 420, NIGHT_S = 180, NIGHT_H = 9.5;
+  Clock.rate = (t) => { const h = t * 24; return h >= 20 || h < 5.5 ? NIGHT_H / 24 / NIGHT_S : (24 - NIGHT_H) / 24 / DAY_S; };
 
   // Avance de los relojes de todas las islas (solo quien tiene la autoridad cambia de día)
   Clock.tick = function (dt) {
-    const st = G.state, len = st.dayLen || 300;
+    const st = G.state;
     for (const id in st.clocks) {
       const c = st.clocks[id];
-      c.t += dt / len;
+      c.t += dt * Clock.rate(c.t);
       if (c.t >= 1) {
         c.t -= 1;
         if (G.Net.authority()) { c.day++; G.Game.onNewDay(+id); }
@@ -44,9 +48,9 @@
 
   // Hora que ve el jugador local: la de su isla, la de su reloj personal en el mar o una mezcla oculta por la niebla
   Clock.updateLocal = function (dt) {
-    const st = G.state, P = G.Player.pos, len = st.dayLen || 300;
+    const st = G.state, P = G.Player.pos;
     const prevDay = st.day;
-    st.pt += dt / len;
+    st.pt += dt * Clock.rate(st.pt);
     if (st.pt >= 1) { st.pt -= 1; st.pday++; }
     const z = G.Arch.zoneOf(P.x, P.z);
     let t = st.pt, day = st.pday, mist = 0;
