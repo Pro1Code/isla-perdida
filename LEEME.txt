@@ -34,6 +34,17 @@ Aldor escondió una Fruta del Abismo en la isla.
   en tu mapa. Cava con E: dentro hay una Fruta del Abismo.
 La brújula te guía durante todo el prólogo.
 
+VOCES Y CONVERSACIONES
+----------------------
+Todos los personajes hablan con su propia voz (cada frase tiene su audio):
+Silvano, la tripulación, la Hiena y sus piratas, los shandara… Si pasas cerca,
+los oirás conversar entre ellos (con bocadillos y subtítulos), y los piratas
+gritan al verte. Volumen de las voces y subtítulos: Configuración → Sonido.
+
+EL DÍA Y LA NOCHE
+-----------------
+Un día completo dura 10 minutos: 7 de día y 3 de noche (de 20:00 a 5:30).
+
 ESTILOS DE COMBATE
 ------------------
 Se aprenden hablando con los maestros y suben de nivel (1 a 10) al usarlos.
@@ -82,6 +93,16 @@ máscara shandara…), espalda (capa, abrigo de almirante, katana…), mascotas
 al hombro (loro, mono, gaviota, caracolófono) y, para tus barcos, velas,
 banderas y mascarones. Los barcos nuevos llevan tus diseños puestos; en uno
 que ya tengas, súbete y pulsa R. En multijugador los demás ven tus cosméticos.
+"Tu propia bandera" (gratis) abre una pizarra para dibujarla: pincel, cubo de
+pintura, formas, sellos piratas, texto, modo espejo y colores.
+
+OBJETOS EN EL SUELO Y COFRES
+----------------------------
+- B suelta el objeto que tienes en la mano (Mayús+B: todo el montón). En el
+  inventario: botón "Soltar" o B sobre una casilla. Se recoge pasando por
+  encima y desaparece a los 5 minutos si nadie lo recoge.
+- Los cofres de las islas enseñan su botín al abrirlos y después sirven para
+  guardar tus cosas (16 casillas), igual que el cofre de madera que fabricas.
 
 MULTIJUGADOR LAN (hasta 8 jugadores)
 ------------------------------------
@@ -174,7 +195,7 @@ WASD mover · Ratón mirar · Shift correr · Espacio saltar/subir nadando
 C o Ctrl bucear · E recoger/interactuar/hablar/subir a un barco
 Clic izq. golpear/atacar/disparar · Clic der. o F comer/colocar/usar catalejo
 1-8 o rueda: barra rápida · Tab inventario y fabricación · R girar al colocar
-X desmontar · G poder de la fruta · V cámara · M mapa · J bitácora
+X desmontar · B soltar objeto · G poder de la fruta · V cámara · M mapa · J bitácora
 Q / Z técnicas de combate · T chat (LAN) · K trucos · Esc pausa · F11 pantalla completa (juego instalado)
 
 
