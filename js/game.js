@@ -148,6 +148,7 @@
       if (c.kind === 'bottle') return '🍾 <b>Botella con mensaje</b> · <kbd>E</kbd> Leer';
       if (c.kind === 'barrel') return `🛢️ <b>${c.name}</b> · <kbd>E</kbd> Abrir`;
       if (c.kind === 'bag') return '🎒 <b>Bolsa caída</b> · <kbd>E</kbd> Recoger';
+      if (c.kind === 'chest') return `<b>${c.name}</b> · <kbd>E</kbd> Abrir${c.opened ? ' <span class="muted">(puedes guardar objetos)</span>' : ''}`;
       return c.opened ? `<b>${c.name}</b> · vacío` : `<b>${c.name}</b> · <kbd>E</kbd> Abrir`;
     }
     if (['station', 'piece', 'ship'].includes(tg.kind)) return G.Ships.promptFor(tg);
@@ -400,9 +401,65 @@
       Game.grantLoot(c.id, G.Net.myId);
       return;
     }
+    if (c.kind === 'chest') { Game.openStore(c); return; }
     if (c.opened) { G.UI.msg('Está vacío.', 'info', 'loot'); return; }
     if (!G.Net.authority()) { G.Net.send({ t: 'loot', id: c.id }); return; }
     Game.grantLoot(c.id, G.Net.myId);
+  };
+  // Cofres de las islas: al abrirlos enseñan su botín y después sirven para guardar objetos,
+  // como un cofre construido (16 casillas). Su contenido está en world.store y se guarda con la partida.
+  const pad16 = (items) => {
+    const out = [];
+    for (const [id, n] of items) {
+      if (!G.ITEMS[id]) continue;
+      for (let left = n; left > 0 && out.length < 16;) { const k = Math.min(left, G.Inv.maxStack(id)); out.push({ id, n: k, d: G.ITEMS[id].tool ? G.ITEMS[id].dur : undefined }); left -= k; }
+    }
+    while (out.length < 16) out.push(null);
+    return out;
+  };
+  const storeOf = (id) => { const w = G.state.world; w.store = w.store || {}; if (!w.store[id]) w.store[id] = new Array(16).fill(null); return w.store[id]; };
+  const showStore = (c) => G.UI.openChest({ id: c.id, loot: true, title: '📦 ' + c.name, items: storeOf(c.id) });
+  const lootAch = () => { G.Ach.add('loot:chest', 1, true); G.Ach.earn('loot'); G.Audio.play('loot'); };
+  let pendingStore = null;
+  Game.openStore = function (c) {
+    const w = G.state.world;
+    if (w.loot[c.id]) { showStore(c); return; }
+    if (!G.Net.authority()) { pendingStore = c.id; G.Net.send({ t: 'lootOpen', id: c.id }); return; }
+    fillStore(c.id, G.Net.myId);
+    showStore(c);
+  };
+  // Solo el anfitrión (o la partida individual) llena el cofre con su botín la primera vez
+  function fillStore(id, who) {
+    const w = G.state.world;
+    if (w.loot[id]) return;
+    w.store = w.store || {};
+    w.store[id] = pad16(G.Landmarks.lootItems(id));
+    w.loot[id] = 1;
+    G.Landmarks.setOpened(id, true);
+    G.Story.onLootOpened(id);
+    G.Net.send({ t: 'lootOpened', id });
+    G.Net.send({ t: 'lstore', id, items: w.store[id], opener: who });
+    if (!G.Net.active || who === G.Net.myId) lootAch();
+  }
+  Game.lootOpenReq = function (id, from) {
+    const w = G.state.world;
+    if (!w) return;
+    if (!w.loot[id]) fillStore(id, from);
+    else G.Net.send({ t: 'lstore', id, items: storeOf(id), opener: from, again: 1 });
+  };
+  // Contenido de un cofre de isla recibido por la red (lo llenó el anfitrión o alguien lo cambió)
+  Game.onStore = function (m) {
+    const w = G.state.world;
+    if (!w) return;
+    w.store = w.store || {};
+    w.store[m.id] = m.items;
+    if (G.UI.chest && G.UI.chest.loot && G.UI.chest.id === m.id) { G.UI.chest.items = m.items; G.UI.refreshInv(); }
+    if (m.opener === G.Net.myId && pendingStore === m.id) {
+      pendingStore = null;
+      const c = G.Landmarks.byId(m.id);
+      if (!m.again) lootAch();
+      if (c) showStore(c);
+    }
   };
   // Solo el anfitrión (o la partida individual) reparte el botín, para que nadie lo reciba dos veces
   Game.grantLoot = function (id, who) {

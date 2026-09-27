@@ -149,6 +149,8 @@
       case 'loot':
         if (Net.isHost) G.Game.grantLoot(m.id, from);
         break;
+      case 'lootOpen': if (Net.isHost) G.Game.lootOpenReq(m.id, from); break;
+      case 'lstore': if (Net.inWorld) G.Game.onStore(m); break;
       case 'lootOpened':
         if (G.state.world) G.state.world.loot[m.id] = 1;
         G.Landmarks.setOpened(m.id, true);
@@ -185,7 +187,8 @@
   Net.fuel = (s) => { if (Net.active) Net.send({ t: 'fuel', id: s.id, fuel: s.fuel }); };
   Net.chestChanged = (s) => {
     if (!Net.active) return;
-    if (s.ship) Net.send({ t: 'shCrate', id: s.ship.id, items: s.items });
+    if (s.loot) Net.send({ t: 'lstore', id: s.id, items: s.items });
+    else if (s.ship) Net.send({ t: 'shCrate', id: s.ship.id, items: s.items });
     else Net.send({ t: 'chest', id: s.id, items: s.items });
   };
   Net.chat = (text) => { if (Net.active && text) Net.send({ t: 'chat', text: text.slice(0, 140) }); };
