@@ -301,22 +301,19 @@
     <button id="invClose" class="close" title="Cerrar (Tab)">✕</button>
     <section class="inv-col">
       <h2>Inventario</h2>
-      <p class="hint" id="invHint">Clic: mover/intercambiar · Clic derecho: usar/comer</p>
+      <div id="craftTabs"></div>
       <div id="chestSec" class="hidden">
         <div class="inv-label" id="chestTitle">📦 Cofre</div>
         <div id="invChest" class="inv-grid chest-grid"></div>
       </div>
-      <div class="inv-label">Equipo <span class="muted" id="eqStats"></span></div>
+      <div class="inv-label inv-first">Equipo <span class="muted" id="eqStats"></span></div>
       <div id="invEquip" class="inv-grid equip-grid"></div>
       <div class="inv-label">Barra rápida (1-8)</div>
       <div id="invHot" class="inv-grid"></div>
       <div class="inv-label">Mochila</div>
       <div id="invBag" class="inv-grid"></div>
-      <div id="itemInfo"><span class="muted">Haz clic en un objeto para ver sus detalles y dónde se consigue.</span></div>
     </section>
     <section class="craft-col">
-      <h2>Fabricación</h2>
-      <div id="craftTabs"></div>
       <div id="recipes"></div>
     </section>
   </div>

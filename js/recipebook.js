@@ -5,7 +5,7 @@
 (function () {
   'use strict';
   const G = window.G;
-  const Bk = (G.Book = { cat: 'all', q: '', focus: null });
+  const Bk = (G.Book = { cat: 'all', q: '', focus: null, slot: null });
 
   Bk.CATS = [['all', '📚 Todo'], ['mat', '🪵 Materiales'], ['food', '🍖 Comida y curas'], ['tool', '🪓 Herramientas y armas'], ['ropa', '🛡️ Ropa'],
     ['cons', '🏠 Construcción'], ['nav', '⚓ Barcos'], ['esp', '✨ Especiales']];
@@ -133,6 +133,7 @@
     let h = `<div class="bk-item${Bk.focus === id ? ' focus' : ''}" data-id="${id}"><div class="bk-ic">${G.icon(id)}</div><div class="bk-body">`;
     h += `<div class="bk-nm">${it.n}${have ? ` <span class="bk-have">tienes ${have}</span>` : ''}</div>`;
     if (it.d) h += `<div class="bk-ds">${it.d}</div>`;
+    if (Bk.focus === id && Bk.slot !== null) h += `<div class="bk-act">${G.UI.slotActions(Bk.slot)}</div>`;
     h += `<div class="bk-h">📍 Cómo conseguirlo</div><ul class="bk-src">${Bk.sources(id).map((s) => `<li>${s}</li>`).join('')}</ul>`;
     if (U.length || tr) h += `<div class="bk-h">🔧 Sirve para</div><div class="bk-uses">${U.map(link).join('')}${tr ? '<span class="bk-trade">🤝 comerciar con Genbu</span>' : ''}</div>`;
     return h + '</div></div>';
@@ -141,18 +142,22 @@
     const q = Bk.q.trim().toLowerCase();
     const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     const nq = norm(q);
-    const ids = Object.keys(G.ITEMS).filter((id) => (Bk.cat === 'all' || Bk.catOf(id) === Bk.cat) && (!nq || norm(G.ITEMS[id].n).includes(nq) || norm(G.ITEMS[id].d || '').includes(nq)));
+    let ids = Object.keys(G.ITEMS).filter((id) => (Bk.cat === 'all' || Bk.catOf(id) === Bk.cat) && (!nq || norm(G.ITEMS[id].n).includes(nq) || norm(G.ITEMS[id].d || '').includes(nq)));
+    // El objeto elegido (clic en el inventario o en un enlace), el primero
+    if (Bk.focus && G.ITEMS[Bk.focus]) ids = [Bk.focus, ...ids.filter((x) => x !== Bk.focus)];
     return ids.length ? ids.map(entry).join('') : '<div class="muted bk-empty">No hay ningún objeto con ese nombre.</div>';
   }
   Bk.render = function (box) {
     box.innerHTML = `<div class="bk-head"><input id="bookSearch" type="text" placeholder="🔎 Busca un objeto (madera, lingote, perla…)" value="${Bk.q.replace(/"/g, '&quot;')}" autocomplete="off">`
       + `<div class="bk-cats">${Bk.CATS.map(([k, n]) => `<button data-bcat="${k}" class="${Bk.cat === k ? 'on' : ''}">${n}</button>`).join('')}</div></div><div id="bookList">${list()}</div>`;
     const inp = box.querySelector('#bookSearch');
-    inp.addEventListener('input', () => { Bk.q = inp.value; Bk.focus = null; box.querySelector('#bookList').innerHTML = list(); });
-    if (Bk.focus) { const e = box.querySelector(`.bk-item[data-id="${Bk.focus}"]`); if (e) e.scrollIntoView({ block: 'start' }); }
+    inp.addEventListener('input', () => { Bk.q = inp.value; Bk.focus = null; Bk.slot = null; box.querySelector('#bookList').innerHTML = list(); });
+    box.scrollTop = 0;
   };
   // Solo actualiza lo que llevas encima (sin rehacer la lista ni perder la búsqueda)
   Bk.refreshCounts = function (box) {
+    const act = box.querySelector('.bk-act');
+    if (act && Bk.slot !== null) act.innerHTML = G.UI.slotActions(Bk.slot);
     for (const e of box.querySelectorAll('.bk-item')) {
       const id = e.dataset.id, n = G.Inv.count(id), nmEl = e.querySelector('.bk-nm');
       const cur = nmEl.querySelector('.bk-have');
@@ -162,8 +167,8 @@
     }
   };
   // Abre el recetario en la ficha de un objeto
-  Bk.open = function (id) {
-    Bk.focus = id; Bk.q = ''; Bk.cat = 'all';
+  Bk.open = function (id, slot) {
+    Bk.focus = id; Bk.slot = slot ?? null; Bk.q = ''; Bk.cat = 'all';
     G.UI.craftCat = 'libro'; G.UI.bookShown = false;
     G.UI.renderRecipes();
   };
