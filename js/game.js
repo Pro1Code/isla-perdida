@@ -23,7 +23,7 @@
     const P = G.Player.pos;
     return G.Build.list.some((s) => s.type === st && Math.hypot(s.x - P.x, s.z - P.z) < 4);
   };
-  Game.sheltered = () => G.Build.hasRoof(G.Player.pos.x, G.Player.pos.z) || G.Landmarks.inCave(G.Player.pos.x, G.Player.pos.z);
+  Game.sheltered = () => G.Build.hasRoof(G.Player.pos.x, G.Player.pos.z) || G.Landmarks.inCave(G.Player.pos.x, G.Player.pos.z) || G.Landmarks.underRoof(G.Player.pos.x, G.Player.pos.z);
   Game.newWorldState = () => ({ loot: {}, bossKilled: false, story: null });
 
   Game.give = function (id, n) {
@@ -130,9 +130,15 @@
     if (tg.kind === 'struct') {
       const s = tg.s;
       let t = `<b>${G.ITEMS[s.type] ? G.ITEMS[s.type].n : s.type}</b>`;
+      // Encender con el mechero (fogata apagada sin leña: además, 1 madera)
+      const light = (wood) => G.Inv.count('mechero') ? `<kbd>E</kbd> Encender <span class="muted">(mechero${wood ? ' + 1 madera' : ''})</span>` : `<span class="warn">necesitas un 🔥 mechero${wood ? ' y 1 madera' : ''} para encenderla</span>`;
       if (s.type === 'fogata') {
         if (s.fuel > 0 && G.COOK[hid]) t += ` · <kbd>E</kbd> Cocinar ${G.ITEMS[hid].n.toLowerCase()}`;
-        else t += s.fuel > 0 ? ` · 🔥 ${U.fmtSecs(s.fuel)} · <kbd>E</kbd> Añadir madera` : ' · apagada · <kbd>E</kbd> Encender (1 madera)';
+        else t += s.fuel > 0 ? ` · 🔥 ${U.fmtSecs(s.fuel)} · <kbd>E</kbd> Añadir madera` : ' · apagada · ' + light(s.fuel === 0);
+      }
+      if (s.type === 'antorcha') {
+        t += s.fuel > 0 ? (s.wet ? ` · 🌧️ se apaga en ${U.fmtSecs(s.fuel)}` : ' · 🔥') : ' · apagada · ' + light(false);
+        if (!(G.Modes.active && s.team !== null && s.team !== G.Net.team)) return t + ' · <kbd>X</kbd> Recoger';
       }
       if (s.type === 'cama') t += ' · <kbd>E</kbd> Dormir';
       if (s.type === 'cofre') t += ' · <kbd>E</kbd> Abrir';
@@ -221,14 +227,17 @@
           G.Ach.add('cook:' + out);
           G.Audio.play('ignite');
           if (out === 'agua_limpia') G.state.flags.boiled = true;
-        } else if (G.Inv.count('madera') > 0) {
+        } else if (s.fuel <= 0) Game.lightFire(s);
+        else if (G.Inv.count('madera') > 0) {
           G.Inv.remove('madera', 1);
-          const was = s.fuel > 0;
-          s.fuel = Math.min(600, Math.max(0, s.fuel) + 120);
+          s.fuel = Math.min(600, s.fuel + 120);
           G.Net.fuel(s);
           G.Audio.play('ignite');
-          G.UI.msg(was ? `Avivas el fuego (🔥 ${U.fmtSecs(s.fuel)})` : '¡Fuego encendido!', 'good', 'fuel');
+          G.UI.msg(`Avivas el fuego (🔥 ${U.fmtSecs(s.fuel)})`, 'good', 'fuel');
         } else G.UI.msg('Necesitas madera para alimentar el fuego.', 'warn', 'nowood');
+      } else if (s.type === 'antorcha') {
+        if (s.fuel <= 0) Game.lightFire(s);
+        else G.UI.msg('La antorcha ya está encendida (<kbd>X</kbd> para recogerla).', 'info', 'torch');
       } else if (s.type === 'cama') Game.sleep(s);
       else if (s.type === 'cofre') G.UI.openChest(s);
     }
@@ -300,6 +309,7 @@
     const held = G.Inv.held();
     if (!held) return;
     const it = G.ITEMS[held.id];
+    if (held.id === 'antorcha') { Game.placeTorch(); return; }
     if (it.eq) { G.Inv.equipFrom(G.Inv.sel); G.Audio.play('select'); G.UI.msg(`Te pones: ${G.icon(held.id, 'xs')} ${it.n}`, 'info'); return; }
     if (it.fruit) { G.Story.eatFruit(held.id); return; }
     if (it.read) { G.Story.readItem(it.read); return; }
@@ -342,12 +352,17 @@
     const type = it.place;
     const pl = G.Build.plan(type);
     if (!pl.ok) { G.UI.msg(pl.reason, 'warn', 'place'); G.Audio.play('error'); return; }
+    const lighter = type === 'fogata' && G.Inv.count('mechero') > 0;
+    if (type === 'fogata') pl.fuel = lighter ? 150 : -150;
     const placed = G.Build.place(pl);
     G.Net.placed(placed);
     G.Inv.consumeHeld();
     G.Ach.add('place:' + type, 1, true);
     const f = G.state.flags;
-    if (type === 'fogata') f.fire = true;
+    if (type === 'fogata') {
+      if (lighter) { Game.useLighter(); f.fire = true; G.UI.msg('🔥 Enciendes la fogata con el mechero.', 'good', 'fuel'); }
+      else G.UI.msg('Fogata colocada pero <b>apagada</b>: necesitas un 🔥 <b>mechero</b> (1 sílex + 1 fibra) para encenderla con <kbd>E</kbd>.', 'warn', 'lighter');
+    }
     if (type === 'techo') f.roof = true;
     if (type === 'cama') { f.bed = true; G.state.spawn = { x: pl.x, z: pl.z }; G.UI.msg('🛏️ Punto de reaparición establecido.', 'good'); }
   };
@@ -368,7 +383,65 @@
     G.Build.remove(s, true);
     G.Net.removed(s);
     if (s.type === 'cama' && G.state.spawn && Math.hypot(G.state.spawn.x - s.x, G.state.spawn.z - s.z) < 0.5) G.state.spawn = null;
-    G.UI.msg(`Desmontaste: ${G.ITEMS[s.type].n}`, 'info');
+    if (s.type !== 'antorcha') G.UI.msg(`Desmontaste: ${G.ITEMS[s.type].n}`, 'info');
+  };
+
+  // ------------------------------------------------------------------ fuego: mechero y antorchas clavadas
+  // Devuelve una herramienta con su desgaste (si la mochila está llena, se queda en el suelo)
+  Game.giveTool = function (id, d, x, y, z) {
+    const it = G.ITEMS[id], S = G.Inv.slots, i = S.findIndex((s) => !s);
+    if (i >= 0) {
+      S[i] = { id, n: 1, d: d > 0 ? Math.min(d, it.dur) : it.dur };
+      G.Inv.changed();
+      G.UI.msg(`+1 ${G.icon(id, 'xs')} ${it.n}`, 'item');
+      return;
+    }
+    const drop = { id: 'gd:' + (G.Net.myId || 0) + ':' + Date.now().toString(36) + Math.floor(Math.random() * 1e4), item: id, n: 1, dur: d, x, y: y + 0.3, z, age: 0 };
+    G.Net.send({ t: 'gdrop', d: Object.assign({}, drop) });
+    G.Drops.add(drop);
+    G.UI.msg(`Mochila llena: ${it.n.toLowerCase()} se queda en el suelo.`, 'warn', 'full');
+  };
+  // Gasta una chispa del mechero (primero el de la mano; si no, cualquiera de la mochila)
+  Game.useLighter = function () {
+    const S = G.Inv.slots, i = S[G.Inv.sel] && S[G.Inv.sel].id === 'mechero' ? G.Inv.sel : S.findIndex((s) => s && s.id === 'mechero');
+    if (i < 0) return false;
+    const s = S[i];
+    s.d = (s.d ?? G.ITEMS.mechero.dur) - 1;
+    if (s.d <= 0) { S[i] = null; G.Audio.play('break'); G.UI.msg('Tu mechero se ha gastado: fabrica otro (1 sílex + 1 fibra).', 'warn', 'lighter'); }
+    G.Inv.changed();
+    const P = G.Player; P.swing = 1; P.swingCount++;
+    return true;
+  };
+  // Encender una fogata o una antorcha apagada
+  Game.lightFire = function (s) {
+    if (!G.Inv.count('mechero')) { G.UI.msg('Necesitas un 🔥 <b>mechero</b> para encenderla: fabrícalo con 1 sílex + 1 fibra (pestaña 🪓 Herramientas).', 'warn', 'lighter'); G.Audio.play('error'); return false; }
+    if (s.type === 'fogata') {
+      if (s.fuel < 0) s.fuel = -s.fuel;
+      else if (G.Inv.count('madera') > 0) { G.Inv.remove('madera', 1); s.fuel = 120; }
+      else { G.UI.msg('La fogata no tiene leña: necesitas 1 madera para encenderla.', 'warn', 'nowood'); return false; }
+      G.state.flags.fire = true;
+    } else s.fuel = G.Build.TORCH_RAIN;
+    Game.useLighter();
+    G.Net.fuel(s);
+    G.Audio.play('ignite');
+    G.UI.msg(s.type === 'fogata' ? '🔥 ¡Fuego encendido!' : '🔥 Antorcha encendida', 'good', 'fuel');
+    return true;
+  };
+  // Clic derecho con la antorcha en la mano: clavarla en el suelo o en la pared que miras
+  Game.placeTorch = function () {
+    const P = G.Player, held = G.Inv.held(), tg = Game.target;
+    if (!held || held.id !== 'antorcha' || P.ship || P.dead) return;
+    if (tg && tg.kind !== 'water' && (tg.kind !== 'struct' || tg.s.type === 'antorcha')) return;
+    const pl = G.Build.planTorch();
+    if (!pl.ok) { G.UI.msg(pl.reason || 'Apunta al suelo o a una pared cercana.', 'warn', 'place'); G.Audio.play('error'); return; }
+    pl.d = held.d; pl.fuel = G.Build.TORCH_RAIN;
+    const s = G.Build.place(pl);
+    G.Net.placed(s);
+    G.Inv.consumeHeld();
+    G.Ach.add('place:antorcha', 1, true);
+    P.swing = 1; P.swingCount++;
+    const f = G.state.flags;
+    if (!f.torchTip) { f.torchTip = true; G.UI.msg('🔥 Antorcha clavada: aquí no se gasta, pero con lluvia y sin techo se apaga en 3 minutos. Vuelve a encenderla con un mechero (<kbd>E</kbd>) o recógela (<kbd>X</kbd>).', 'info'); }
   };
 
   Game.learned = (rec) => !rec.learn || (G.Cheats && G.Cheats.flag('free')) || (rec.learn.startsWith('style_') ? G.Styles.learned(rec.learn.slice(6)) : false) || (G.state.world && G.state.world.story && G.state.world.story.learned && G.state.world.story.learned[rec.learn]);
@@ -668,6 +741,7 @@
     const shipType = hit && (hit.ship || hit.plano);
     const pl = G.Build.updateGhost(st.mode === 'playing' && !P.ship ? placeType || null : null);
     const spl = G.Ships.updateGhost(st.mode === 'playing' && !P.ship ? shipType || null : null);
+    const tgt = Game.target, tpl = G.Build.updateTorchGhost(st.mode === 'playing' && !P.ship && !!held && held.id === 'antorcha' && (!tgt || tgt.kind === 'water' || (tgt.kind === 'struct' && tgt.s.type !== 'antorcha')));
     G.Fishing.update(dt);
     let prompt = Game.promptFor(Game.target);
     if (!prompt && G.Treasure.near()) prompt = '✖ <b>Tesoro enterrado</b> · <kbd>E</kbd> Cavar aquí';
@@ -676,6 +750,7 @@
     if (st.sleepBed && G.Net.sleepCount) prompt = `💤 Esperando a que todos se acuesten (${G.Net.sleepCount.n}/${G.Net.sleepCount.total})`;
     if (pl) prompt = `<b>${hit.n}</b> · ` + (pl.ok ? '<kbd>Clic</kbd> Colocar' : `<span class="warn">${pl.reason}</span>`) + (placeType === 'cama' || placeType === 'fogata' || placeType === 'banco' ? ' · <kbd>R</kbd> Girar' : '');
     if (spl) prompt = `<b>${hit.n}</b> · ` + (spl.ok ? '<kbd>Clic</kbd> Colocar en el agua' : `<span class="warn">${spl.reason}</span>`) + ' · <kbd>R</kbd> Girar';
+    if (tpl && tpl.hit) prompt = '<b>Antorcha</b> · ' + (tpl.ok ? `<kbd>Clic derecho</kbd> Clavar ${tpl.mount === 'wall' ? 'en la pared' : 'en el suelo'}` : `<span class="warn">${tpl.reason}</span>`);
     const gp = G.Grave.prompt();
     if (gp && (G.Grave.aimed() || G.Grave.near() || !prompt)) prompt = gp;
     if (P.station && P.station.kind === 'cannon') prompt = '💣 <kbd>Clic</kbd> Disparar · ratón: apuntar · <kbd>E</kbd> Soltar';

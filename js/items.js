@@ -21,7 +21,8 @@
     hacha:       { n: 'Hacha de piedra', i: '🪓', tool: true, toolType: 'hacha', power: 1, dur: 120, dmg: 12, d: 'Tala árboles. También sirve como arma.' },
     pico:        { n: 'Pico de piedra', i: '⛏️', tool: true, toolType: 'pico', power: 1, dur: 120, dmg: 10, d: 'Rompe rocas y extrae mineral de hierro.' },
     lanza:       { n: 'Lanza de sílex', i: '🔱', tool: true, dur: 70, dmg: 24, reach: 4.2, d: 'Buena arma con mayor alcance.' },
-    antorcha:    { n: 'Antorcha', i: '🔥', tool: true, dur: 180, dmg: 6, torch: true, d: 'Ilumina la noche y las cuevas. Se consume con el tiempo.' },
+    antorcha:    { n: 'Antorcha', i: '🔥', tool: true, dur: 180, dmg: 6, torch: true, d: 'Ilumina la noche y las cuevas; en la mano se consume con el tiempo. Clic derecho: clávala en el suelo o en una pared (ahí no se gasta, pero con lluvia y sin techo se apaga en 3 minutos).' },
+    mechero:     { n: 'Mechero de sílex', i: '🔥', tool: true, dur: 25, dmg: 2, d: 'Chispas de sílex para encender fogatas y antorchas apagadas (E). Basta con llevarlo en la mochila; cada fuego gasta un poco.' },
     // --- Pesca y cocina
     cana:        { n: 'Caña de pescar', i: '🎣', tool: true, dur: 60, dmg: 3, fishing: true, d: 'Apunta al agua y haz clic para lanzar. Cuando pique, ¡clic otra vez!' },
     pez_crudo:   { n: 'Pescado crudo', i: '🐟', stack: 10, d: 'Ásalo en una fogata.', use: { hunger: 8, health: -3, sick: 0.3 } },
@@ -152,6 +153,7 @@
     { id: 'lanza', cat: 'herr', req: { palo: 3, silex: 2, fibra: 2 } },
     { id: 'antorcha', cat: 'herr', req: { palo: 1, fibra: 2 } },
     { id: 'antorcha', cat: 'herr', req: { palo: 1, grasa: 1 }, n: 2 },
+    { id: 'mechero', cat: 'herr', req: { silex: 1, fibra: 1 } },
     { id: 'cana', cat: 'herr', req: { palo: 3, fibra: 5 } },
     { id: 'cuenco', cat: 'herr', req: { madera: 2 } },
     { id: 'lingote', cat: 'herr', req: { mineral_hierro: 2, madera: 1 }, station: 'horno' },
@@ -668,6 +670,14 @@
         const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.16, 7, 1, true), M.flameB);
         f2.position.y = 0.07; fl.add(f2);
         g.userData.flame = fl;
+        break;
+      }
+      case 'mechero': {
+        // Eslabón de acero en forma de C con la empuñadura forrada y una lasca de sílex atada con fibra
+        part(g, new THREE.TorusGeometry(0.05, 0.01, 6, 16, Math.PI * 1.4), iron, 0, 0.07, 0, 0, 0, -Math.PI * 0.2);
+        part(g, new THREE.CylinderGeometry(0.014, 0.014, 0.06, 7), leather, 0, 0.12, 0, 0, 0, Math.PI / 2);
+        part(g, new THREE.OctahedronGeometry(0.036).scale(1, 1.3, 0.6), flint, 0.012, 0.045, 0.02, 0.3, 0.4, 0.2);
+        part(g, new THREE.TorusGeometry(0.03, 0.006, 4, 10), fiber, 0.012, 0.045, 0.02, Math.PI / 2, 0, 0);
         break;
       }
       case 'palo': part(g, new THREE.CylinderGeometry(0.025, 0.03, 0.6, 5), wood, 0, 0.15, 0); break;

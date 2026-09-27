@@ -95,7 +95,7 @@
     { id: 'gather', t: 'Recoge palos, piedras y fibra del suelo (<kbd>E</kbd>)', done: (I, f) => (I.count('palo') >= 2 && I.count('piedra') >= 2 && I.count('fibra') >= 3) || f.axe },
     { id: 'axe', t: 'Abre el inventario (<kbd>Tab</kbd>) y fabrica un <b>hacha de piedra</b>', done: (I, f) => f.axe || I.count('hacha') > 0 },
     { id: 'wood', t: 'Tala árboles para conseguir <b>8 de madera</b>', done: (I, f) => I.count('madera') >= 8 || f.fire },
-    { id: 'fire', t: 'Fabrica una <b>fogata</b> y colócala (clic derecho)', done: (I, f) => f.fire },
+    { id: 'fire', t: 'Recoge un <b>sílex</b> 🔷 del suelo, fabrica un <b>mechero</b> y una <b>fogata</b>: colócala (clic derecho) y enciéndela', done: (I, f) => f.fire },
     { id: 'crew', t: 'Reúnete con tu <b>tripulación</b> en la costa este, junto al viejo barco naufragado', done: (I, f, w) => !PRO() || w.flags.metCrew || legacy(w, f) },
     { id: 'style', t: 'Aprende un <b>estilo de combate</b>: Kaito ⚔️, Crane 🔫 o Bastián 👊 (en el campamento) o Silvano 🔮 (junto al lago)', done: (I, f, w) => !PRO() || G.Styles.any() || legacy(w, f) },
     { id: 'clues', t: 'Encuentra las <b>3 pistas de Rogan</b>: el ancla del naufragio, la piedra del lago… y la capitana Hiena', done: (I, f, w) => !PRO() || G.Prologue.clues() >= 3 || w.flags.treasure || legacy(w, f) },

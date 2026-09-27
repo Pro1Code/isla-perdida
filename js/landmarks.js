@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   const G = window.G, U = G.U, M = G.Mdl;
-  const L = (G.Landmarks = { loot: [], caves: [], circles: [], extra: [], anims: [], lights: [], lightPool: [], whirls: [], schools: [] });
+  const L = (G.Landmarks = { loot: [], caves: [], circles: [], extra: [], anims: [], lights: [], lightPool: [], whirls: [], schools: [], surfaces: [], roofs: [] });
   const V3 = THREE.Vector3;
 
   // Botín fijo de los cofres del naufragio de la Isla Perdida (ids 0, 1 y 2) y tablas del resto (con semilla)
@@ -13,7 +13,7 @@
     2: [['hacha_hierro', 1], ['mineral_hierro', 3], ['cuero', 1], ['hierba', 3]],
   };
   const POOLS = {
-    supplies: [['carne_cocida', 2, 4], ['agua_limpia', 1, 3], ['venda', 1, 3], ['antorcha', 1, 2], ['cuerda', 2, 5], ['tabla', 3, 8], ['cuero', 1, 3], ['cataplasma', 1, 2], ['casco_cuero', 1, 1], ['chaqueta_cuero', 1, 1], ['botas_cuero', 1, 1], ['pantalon_cuero', 1, 1]],
+    supplies: [['carne_cocida', 2, 4], ['agua_limpia', 1, 3], ['venda', 1, 3], ['antorcha', 1, 2], ['mechero', 1, 1], ['cuerda', 2, 5], ['tabla', 3, 8], ['cuero', 1, 3], ['cataplasma', 1, 2], ['casco_cuero', 1, 1], ['chaqueta_cuero', 1, 1], ['botas_cuero', 1, 1], ['pantalon_cuero', 1, 1]],
     treasure: [['perla', 1, 3], ['doblon', 3, 12], ['lingote', 1, 3], ['clavos', 4, 10], ['polvora', 2, 5], ['bala_canon', 2, 6], ['tela_vela', 1, 2], ['catalejo', 1, 1], ['bicornio', 1, 1], ['coraza_hierro', 1, 1], ['botas_hierro', 1, 1], ['casco_hierro', 1, 1]],
     sunken: [['doblon', 5, 15], ['perla', 1, 2], ['lingote', 2, 4], ['clavos', 4, 8], ['polvora', 2, 6], ['bala_canon', 3, 8], ['cuerda', 2, 4], ['casaca_capitan', 1, 1], ['bicornio', 1, 1], ['casco_buceo', 1, 1], ['aletas', 1, 1]],
     barrel: [['agua_limpia', 1, 3], ['carne_cocida', 1, 2], ['tabla', 2, 5], ['cuerda', 1, 3], ['polvora', 1, 3], ['doblon', 1, 4], ['pez_asado', 1, 3], ['sandalias', 1, 1], ['sombrero_paja', 1, 1], ['pantalon_fibra', 1, 1]],
@@ -82,10 +82,11 @@
     monoglyph('m:perdida', C.wx + Math.sin(a) * C.r * 0.35, C.wz + Math.cos(a) * C.r * 0.35, C.ent, false);
   };
 
-  function track(o) { G.scene.add(o); L.extra.push(o); return o; }
+  // surfaces: lo que hay en el escenario (paredes de chozas, cuevas, ruinas…) donde se puede clavar una antorcha
+  function track(o) { G.scene.add(o); L.extra.push(o); L.surfaces.push(o); return o; }
   // Piezas de escenario reutilizables (campamentos del prólogo en la Isla Perdida)
   L.kit = () => ({ firePit, tikiTorch, hut, totem, dryingRack, camp, track, mats: getMats, circle: (x, z, r) => circle(x, z, r, true) });
-  function add(o, extra) { if (extra) track(o); else G.scene.add(o); return o; }
+  function add(o, extra) { if (extra) track(o); else { G.scene.add(o); L.surfaces.push(o); } return o; }
   function mesh(geo, mat, extra, shadow = true) { const m = new THREE.Mesh(geo, mat); m.castShadow = shadow; m.receiveShadow = true; return add(m, extra); }
   const circle = (x, z, r, extra, y0 = -99, y1 = 99) => L.circles.push({ x, z, r, extra: !!extra, y0, y1 });
 
@@ -155,6 +156,8 @@
   }
   L.caveAt = (x, z) => L.caves.find((C) => Math.abs(x - C.wx) < C.r && Math.abs(z - C.wz) < C.r && Math.hypot(x - C.wx, z - C.wz) < C.r * 0.82) || null;
   L.inCave = (x, z) => !!L.caveAt(x, z);
+  // Bajo el tejado de una choza (no te mojas y las antorchas no se apagan con la lluvia)
+  L.underRoof = (x, z) => L.roofs.some((r) => Math.hypot(x - r.x, z - r.z) < r.r);
   L.nearestCave = (x, z) => { let b = L.caves[0], bd = 1e9; for (const C of L.caves) { const d = Math.hypot(x - C.wx, z - C.wz); if (d < bd) { bd = d; b = C; } } return b; };
   L.blocks = (x, z) => {
     for (const C of L.caves) {
@@ -339,8 +342,15 @@
     g.position.set(x, G.height(x, z), z); g.rotation.y = face;
     const wall = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 20, 1, true, 0.45, Math.PI * 2 - 0.9), m.woven);
     wall.position.y = H / 2; wall.castShadow = true; wall.receiveShadow = true; g.add(wall);
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(R * 1.3, H * 1.25, 20, 1, true), G.Build.mats.thatch);
+    const roofGeo = new THREE.ConeGeometry(R * 1.3, H * 1.25, 20, 1, true);
+    const roof = new THREE.Mesh(roofGeo, G.Build.mats.thatch);
     roof.position.y = H + H * 0.6; roof.castShadow = true; g.add(roof);
+    // Cara de dentro del tejado (el cono solo se veía desde fuera: dentro parecía que no había techo)
+    // (algo de luz propia: por dentro solo le llega la luz rebotada del suelo)
+    if (!m.thatchIn) m.thatchIn = new THREE.MeshStandardMaterial({ map: G.Build.mats.thatch.map, emissiveMap: G.Build.mats.thatch.map, emissive: 0x6a5438, emissiveIntensity: 0.35, roughness: 1, side: THREE.BackSide });
+    const inner = new THREE.Mesh(roofGeo, m.thatchIn);
+    inner.position.y = roof.position.y; inner.receiveShadow = true; g.add(inner);
+    L.roofs.push({ x, z, r: R * 1.05 });
     const parts = [];
     // Postes del marco de la puerta, franja de flecos y remate
     for (const s of [-1, 1]) parts.push(M.xf(M.paint(new THREE.CylinderGeometry(0.08, 0.1, H + 0.3, 6), 0x5a4028), Math.sin(s * 0.45) * R, H / 2, Math.cos(s * 0.45) * R));
@@ -797,6 +807,8 @@
     L.whirls = [];
     L.schools = [];
     L.drops = [];
+    L.roofs = [];
+    L.surfaces = L.surfaces.filter((o) => o.parent);
   };
 
   // ------------------------------------------------------------------ animación por fotograma

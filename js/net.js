@@ -367,7 +367,7 @@
       tT = 2;
       Net.send({
         t: 'time', clocks: G.Clock.pack(), wx: G.Weather.type, wa: +(G.Weather.windA || 0).toFixed(3), bk: G.state.world.bossKilled ? 1 : 0,
-        fires: G.Build.list.filter((s) => s.type === 'fogata').map((s) => [s.id, Math.round(s.fuel)]),
+        fires: G.Build.list.filter((s) => s.type === 'fogata' || s.type === 'antorcha').map((s) => [s.id, Math.round(s.fuel)]),
       });
     }
   };

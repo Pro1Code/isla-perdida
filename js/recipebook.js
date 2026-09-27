@@ -111,6 +111,7 @@
     // Usos: recetas que lo piden y comercio
     const uses = {};
     for (const r of G.RECIPES) for (const k in r.req) (uses[k] = uses[k] || new Set()).add(r.id);
+    uses.mechero = new Set(['fogata', 'antorcha']); // enciende las fogatas y las antorchas apagadas
     const trade = new Set();
     for (const tr of (G.Story && G.Story.TRADES) || []) for (const k in tr.give) trade.add(k);
     return { S, uses, trade };

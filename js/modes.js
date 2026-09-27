@@ -107,7 +107,7 @@
       G.Net.send({ t: 'shNew', d: G.Ships.data(s) });
       // Cofre con provisiones iguales para todos los equipos
       const cx = sp.x - dx / dl * 5, cz = sp.z - dz / dl * 5;
-      const c = G.Build.place({ type: 'cofre', x: cx, y: G.height(cx, cz), z: cz, rot: 0, team: t, items: [{ id: 'hacha', n: 1, d: 120 }, { id: 'pico', n: 1, d: 120 }, { id: 'pala', n: 1, d: 200 }, { id: 'carne_cocida', n: 4 }, { id: 'agua_limpia', n: 3 }, { id: 'cuenco', n: 2 }, { id: 'polvora', n: 6 }, { id: 'bala_canon', n: 6 }, { id: 'cuerda', n: 4 }, { id: 'tabla', n: 8 }, { id: 'clavos', n: 8 }, { id: 'antorcha', n: 2 }, null, null, null, null] }, true);
+      const c = G.Build.place({ type: 'cofre', x: cx, y: G.height(cx, cz), z: cz, rot: 0, team: t, items: [{ id: 'hacha', n: 1, d: 120 }, { id: 'pico', n: 1, d: 120 }, { id: 'pala', n: 1, d: 200 }, { id: 'carne_cocida', n: 4 }, { id: 'agua_limpia', n: 3 }, { id: 'cuenco', n: 2 }, { id: 'polvora', n: 6 }, { id: 'bala_canon', n: 6 }, { id: 'cuerda', n: 4 }, { id: 'tabla', n: 8 }, { id: 'clavos', n: 8 }, { id: 'antorcha', n: 2 }, { id: 'mechero', n: 1, d: 25 }, null, null, null] }, true);
       G.Net.placed(c);
     }
   };

@@ -170,7 +170,7 @@
   Wx.updatePlayer = function (P, dt) {
     const S = P.stats;
     const inCave = G.Landmarks.inCave(P.pos.x, P.pos.z);
-    const roof = G.Build.hasRoof(P.pos.x, P.pos.z) || inCave;
+    const roof = G.Build.hasRoof(P.pos.x, P.pos.z) || inCave || G.Landmarks.underRoof(P.pos.x, P.pos.z);
     const fire = G.Build.nearestLitFire(P.pos.x, P.pos.z);
     const hotL = G.World.lakeAt(P.pos.x, P.pos.z);
     if (hotL && hotL.kind === 'hot' && P.swimming) { S.health = Math.min(100, S.health + 2 * dt); P.sick = Math.max(0, P.sick - dt * 2); }
