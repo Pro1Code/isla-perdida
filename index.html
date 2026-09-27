@@ -269,9 +269,13 @@
     <div id="statusIcons"></div>
   </div>
 
-  <div id="shipHud" class="hidden"></div>
+  <!-- Columna inferior derecha: barco, estilo de combate y teclas (apilados, sin solaparse) -->
+  <div id="hudRight">
+    <div id="shipHud" class="hidden"></div>
+    <div id="styleHud" class="hidden"></div>
+    <div id="keyhint"><kbd>Tab</kbd> Inventario <kbd>M</kbd> Mapa <kbd>J</kbd> Bitácora <kbd>V</kbd> Cámara <kbd>Esc</kbd> Pausa<span id="keyhintCheats" class="hidden"> <kbd>K</kbd> Trucos</span></div>
+  </div>
   <div id="powerHud" class="hidden"></div>
-  <div id="styleHud" class="hidden"></div>
   <div id="bossBar" class="hidden"><div id="bossName">🐗 Jabalí gigante</div><div class="bar"><i id="bossFill"></i></div></div>
   <div id="heldName"></div>
   <div id="bubbles"></div>
@@ -282,7 +286,6 @@
   <div id="messages"></div>
   <div id="banner"></div>
   <div id="vignette"></div>
-  <div id="keyhint"><kbd>Tab</kbd> Inventario <kbd>M</kbd> Mapa <kbd>J</kbd> Bitácora <kbd>V</kbd> Cámara <kbd>Esc</kbd> Pausa<span id="keyhintCheats" class="hidden"> <kbd>K</kbd> Trucos</span></div>
 </div>
 
 <!-- ============ DIÁLOGO ============ -->
