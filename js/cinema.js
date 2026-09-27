@@ -92,7 +92,7 @@
     const line = s ? G.LINES.cine[s[2]] : null, name = line ? G.VOICES[line[0]].name.split(',')[0] : '';
     if (s && s[2] !== subOn) G.Voice.say(line[0], line[1]);
     subOn = s ? s[2] : -1;
-    const el = $('cineSub'), html = s ? (name ? `<b>${name}</b>` : '') + `<span${name ? '' : ' class="narr"'}>${line[1]}</span>` : '';
+    const el = $('cineSub'), html = s ? (name ? `<b>${name}</b>` : '') + `<span${name ? '' : ' class="narr"'}>${G.stripMood(line[1])}</span>` : '';
     if (el.innerHTML !== html) el.innerHTML = html;
     el.classList.toggle('show', !!s);
     if (t < 24) {

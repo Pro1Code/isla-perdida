@@ -354,7 +354,7 @@
     G.Game.give(gift[0], gift[1]);
     const master = Pr.NPCS.find((n) => n.style === k);
     const done = master ? G.LINES[master.key].done : '«Buen trabajo. Ya estás listo.»';
-    G.UI.banner('¡Entrenamiento completado!', `${master ? master.name.split(',')[0] + ': ' : ''}${done}`);
+    G.UI.banner('¡Entrenamiento completado!', `${master ? master.name.split(',')[0] + ': ' : ''}${G.stripMood(done)}`);
     if (master) G.Voice.say(master.key, done);
     G.Audio.play('win');
   };

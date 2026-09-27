@@ -9,9 +9,11 @@
   const LIST = () => G.VOICE_LIST || {};
 
   // Las mismas reglas que scripts/voces.js: solo se oye lo que va entre «comillas»
-  const spoken = (text) => { const q = String(text).match(/«[^»]*»/g); return (q ? q.map((s) => s.slice(1, -1)).join(' ') : String(text)).replace(/\s+/g, ' ').trim(); };
+  const MOODS = ['neutral', 'calma', 'mando', 'grito', 'furia', 'miedo', 'susurro', 'triste', 'alegre', 'burla'];
+  const moodOf = (text) => { const m = String(text).match(/^\{(\w+)\}/); return m && MOODS.includes(m[1]) ? m[1] : 'neutral'; };
+  const spoken = (text) => { const t = String(text).replace(/^\{\w+\}/, ''), q = t.match(/«[^»]*»/g); return (q ? q.map((s) => s.slice(1, -1)).join(' ') : t).replace(/\s+/g, ' ').trim(); };
   const hash = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); };
-  V.key = (spk, text) => spk + '-' + hash(spk + '|' + spoken(text));
+  V.key = (spk, text) => spk + '-' + hash(spk + '|' + moodOf(text) + '|' + spoken(text));
   V.dur = (spk, text) => LIST()[V.key(spk, text)] || Math.max(1.6, spoken(text).length * 0.066);
 
   // Quién habla, a partir del nombre que muestra el diálogo

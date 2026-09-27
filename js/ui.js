@@ -367,7 +367,7 @@
   // ------------------------------------------------------------------ diálogos
   UI.showDialog = function (d) {
     el.dialogWho.textContent = d.who || '';
-    el.dialogText.textContent = d.text || '';
+    el.dialogText.textContent = G.stripMood(d.text);
     const opts = d.options && d.options.length ? d.options : [['Continuar', null]];
     el.dialogOpts.innerHTML = opts.map((o, i) => `<button data-o="${i}"><kbd>${i + 1}</kbd> ${G.Net.esc(o[0])}</button>`).join('');
     el.dialog.classList.remove('hidden');
