@@ -32,11 +32,9 @@
     G.World.setQuality(q);
     renderer.shadowMap.type = Q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     if (prevSoft !== undefined && prevSoft !== Q.soft) scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => (m.needsUpdate = true)); });
-    $('btnPauseQuality').textContent = 'Calidad gráfica: ' + Q.name;
     document.querySelectorAll('#setQuality button').forEach((b) => b.classList.toggle('on', b.dataset.q === q));
   }
   Main.setQuality = (q) => setQuality(q);
-  const cycleQuality = () => setQuality(Q_ORDER[(Q_ORDER.indexOf(Main.quality) + 1) % Q_ORDER.length]);
 
   // Cede el control para que se pinte el texto de carga (sin depender de requestAnimationFrame,
   // que se pausa si la pestaña está en segundo plano)
@@ -116,8 +114,7 @@
       G.UI.closeChat();
       G.Player.zoom = 0;
     }
-    $('pauseControls').classList.add('hidden');
-    $('pauseAch').classList.add('hidden');
+    if (G.Menus.inGame()) G.Menus.closeInGame(true);
     $('clickToPlay').classList.add('hidden');
     $('pauseNet').classList.toggle('hidden', !G.Net.active);
   };
@@ -184,16 +181,11 @@
 
   // ------------------------------------------------------------------ menús
   function bindMenus() {
-    $('btnPauseQuality').onclick = cycleQuality;
     $('btnResume').onclick = resume;
     $('btnSave').onclick = () => { G.UI.msg(G.Save.save() ? '💾 Partida guardada' : 'No se pudo guardar', 'info'); resume(); };
-    $('btnPauseControls').onclick = () => { $('pauseAch').classList.add('hidden'); $('pauseControls').classList.toggle('hidden'); };
-    $('btnPauseAch').onclick = () => {
-      $('pauseControls').classList.add('hidden');
-      const box = $('pauseAch');
-      box.classList.toggle('hidden');
-      if (!box.classList.contains('hidden')) G.Menus.renderAch(box.querySelector('.ach-list'), 'pending');
-    };
+    // Configuración y Logros: se abren en la misma ventana que en el menú principal
+    $('btnPauseAch').onclick = () => G.Menus.openInGame('ach');
+    $('btnPauseSettings').onclick = () => G.Menus.openInGame('settings');
     $('btnPauseCheats').onclick = () => { resume(); setTimeout(() => G.Cheats.open(), 60); };
     $('btnQuit').onclick = quitToMenu;
     $('btnRespawn').onclick = () => { G.Game.respawn(); resume(); };
@@ -454,7 +446,7 @@
       } else if (mode === 'cheats') {
         if (e.code === 'KeyK' || e.code === 'Escape') G.Cheats.close();
       } else if (mode === 'paused') {
-        if (e.code === 'Escape') resume();
+        if (e.code === 'Escape') { if (G.Menus.inGame()) G.Menus.closeInGame(); else resume(); }
       }
     });
     window.addEventListener('keyup', (e) => { Input.keys[e.code] = false; });
@@ -577,7 +569,7 @@
       if (G.state.mode === 'playing' && fps < 24) fpsLow++; else fpsLow = Math.max(0, fpsLow - 1);
       if (fpsLow >= 6 && !fpsWarned && Main.quality !== 'low') {
         fpsWarned = true;
-        G.UI.msg('⚠ El juego va lento. Baja la calidad gráfica en el menú de pausa (Esc) o en Configuración → Gráficos.', 'warn');
+        G.UI.msg('⚠ El juego va lento. Baja la calidad en Esc → Configuración → Gráficos.', 'warn');
       }
     }
   }

@@ -20,6 +20,34 @@
   };
   Menus.current = () => current;
 
+  // ------------------------------------------------------------------ ventanas del menú durante la partida
+  // Configuración y Logros se abren desde la pausa en la misma ventana que en el menú principal
+  let inGame = null;
+  Menus.inGame = () => !!inGame;
+  Menus.openInGame = function (which) {
+    const id = which === 'ach' ? 'menuAch' : 'menuSettings';
+    if (which === 'ach') openAch('game'); else openSettings();
+    $('gameMenuCard').appendChild($(id));
+    inGame = id;
+    $('pause').classList.add('hidden');
+    $('gameMenu').classList.remove('hidden');
+    if (which !== 'ach') renderSettings();
+  };
+  Menus.closeInGame = function (silent) {
+    if (!inGame) return;
+    const panel = $(inGame);
+    panel.classList.add('hidden');
+    $('menuCard').appendChild(panel);
+    inGame = null;
+    G.Shop.Preview.stop();
+    $('gameMenu').classList.add('hidden');
+    // El aspecto y el nombre nuevos se aplican al momento
+    G.Player.setLook(G.Profile.lookHex());
+    G.Player.refreshCosmetics();
+    if (G.Net.active) { G.Net.name = G.Profile.name(); G.Net.color = G.Profile.look().shirt; }
+    if (!silent && G.state.mode === 'paused') $('pause').classList.remove('hidden');
+  };
+
   // ------------------------------------------------------------------ perfil (arriba a la derecha)
   Menus.refreshChip = function () {
     const P = G.Profile;
@@ -256,10 +284,10 @@
     $('btnSettings').onclick = () => openSettings();
     $('btnShop').onclick = openShop;
     $('profileChip').onclick = () => openSettings('char');
-    document.querySelectorAll('#menu .back').forEach((b) => (b.onclick = () => { G.Net.disconnect(); Menus.show('menuMain'); }));
+    document.querySelectorAll('#menu .back').forEach((b) => (b.onclick = () => { if (inGame) { Menus.closeInGame(); return; } G.Net.disconnect(); Menus.show('menuMain'); }));
     $('spNew').onclick = () => Menus.openCreate('sp');
     $('btnAch').onclick = () => openAch('menuSP');
-    $('achBack').onclick = () => (achFrom === 'menuSP' ? openSP() : Menus.show(achFrom));
+    $('achBack').onclick = () => (inGame ? Menus.closeInGame() : achFrom === 'menuSP' ? openSP() : Menus.show(achFrom));
     $('achTabs').onclick = (e) => { const b = e.target.closest('button[data-k]'); if (!b) return; achTab = b.dataset.k; openAch(achFrom); };
     // Crear partida
     $('cwDeath').innerHTML = Object.entries(G.Modes.DEATH).filter(([k]) => k !== 'out').map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
@@ -291,7 +319,7 @@
     if (D) {
       $('btnDownloads').classList.add('hidden');
       // Botón del lanzador (la app antigua añade uno propio si no encuentra este id)
-      if (D.openLauncher) { $('btnLauncher').classList.remove('hidden'); $('btnLauncher').onclick = () => D.openLauncher(); }
+      if (D.openLauncher) { $('btnLauncher').classList.remove('hidden'); $('btnLauncher').onclick = () => { if (G.state.mode !== 'menu') G.Save.save(); D.openLauncher(); }; }
       if (D.checkUpdates) { $('btnCheckUpd').classList.remove('hidden'); $('btnCheckUpd').onclick = () => { D.checkUpdates(); $('setUpdState').textContent = 'Buscando actualizaciones…'; }; }
       const note = $('updateNote');
       D.onUpdate((u) => {

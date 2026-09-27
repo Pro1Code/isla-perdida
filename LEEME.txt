@@ -180,8 +180,7 @@ Q / Z técnicas de combate · T chat (LAN) · K trucos · Esc pausa · F11 panta
 
 RENDIMIENTO
 -----------
-Si va lento: Esc → "Calidad gráfica" (Alta / Media / Baja), o en
-Configuración → Gráficos.
+Si va lento: Esc → Configuración → Gráficos (Alta / Media / Baja).
 Los FPS aparecen bajo el minimapa.
 
 
