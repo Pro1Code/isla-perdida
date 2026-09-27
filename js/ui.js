@@ -552,7 +552,7 @@
       if (!seen || (c.opened && c.kind !== 'mono')) continue;
       const [x, y] = toPx(c.x, c.z);
       ctx.font = `${full ? 14 : 11}px sans-serif`; ctx.textAlign = 'center';
-      ctx.fillText(c.kind === 'mono' ? '🗿' : c.kind === 'bottle' ? '🍾' : c.kind === 'barrel' ? '🛢️' : '📦', x, y + 4);
+      ctx.fillText(c.kind === 'mono' ? '🗿' : c.kind === 'bottle' ? '🍾' : c.kind === 'barrel' ? '🛢️' : c.kind === 'board' ? '📋' : '📦', x, y + 4);
     }
     if (G.Prologue) G.Prologue.drawMap(ctx, toPx, full);
     if (G.Treasure) G.Treasure.drawMap(ctx, toPx, full);

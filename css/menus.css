@@ -304,3 +304,19 @@
 .poster-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px; border-radius: 14px; background: #1c140c; border: 1px solid rgba(240, 190, 80, .3); box-shadow: 0 20px 60px rgba(0, 0, 0, .6); max-height: 100%; }
 .poster-card canvas { width: min(384px, 80vw); height: auto; max-height: calc(100vh - 150px); object-fit: contain; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); transform: rotate(-1deg); }
 .poster-card p { max-width: 384px; text-align: center; margin: 0; }
+
+/* ---------- Tablón de encargos ---------- */
+.quest-card { width: min(900px, 100%); max-height: 100%; overflow: auto; padding: 16px 18px; border-radius: 16px; background: #1e1a12; border: 1px solid rgba(240, 190, 80, .25); box-shadow: 0 20px 60px rgba(0, 0, 0, .55); }
+.q-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.q-card { position: relative; padding: 12px 12px 10px; border-radius: 6px; background: linear-gradient(#f3e7c6, #e2cf9e); color: #2e2210; box-shadow: 0 4px 10px rgba(0, 0, 0, .35); transform: rotate(-.6deg); }
+.q-card:nth-child(2n) { transform: rotate(.7deg); }
+.q-card.active { outline: 2px solid #c8962a; }
+.q-card p { margin: 4px 0 6px; font-size: 12.5px; color: #5a4424 !important; }
+.q-who { font-size: 12px; font-weight: 800; color: #7a2a1a; margin-bottom: 2px; }
+.q-rw { font-size: 12.5px; font-weight: 800; margin: 4px 0 8px; }
+.q-prog { height: 6px; border-radius: 3px; background: rgba(0, 0, 0, .15); overflow: hidden; margin-top: 4px; }
+.q-prog i { display: block; height: 100%; background: #3a8a3a; }
+.q-card small { font-weight: 800; }
+.q-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+#questHud { margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--line); font-size: 12.5px; line-height: 1.6; }
+#questHud.hidden { display: none; }

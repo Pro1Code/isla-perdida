@@ -443,6 +443,7 @@
     G.Landmarks.buildSea(A.pois);
     if (G.Prologue) G.Prologue.build();
     if (G.Bounty) G.Bounty.build();
+    if (G.Quests) G.Quests.build();
     G.World.updateGrass(G.camera.position, true);
   };
 

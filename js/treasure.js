@@ -75,6 +75,7 @@
         G.UI.banner('💰 ¡Un tesoro enterrado!', items.map(([id, n]) => `${n} ${G.ITEMS[id].i}`).join('  '));
         G.Audio.play('win');
         G.Ach.add('treasureMap');
+        G.Quests.onEvent('treasure');
       });
     } else G.Net.send({ t: 'give', to: who, items, loot: true });
   }
