@@ -442,6 +442,7 @@
     for (const isl of A.islands) if (isl.id > 0) G.Landmarks.buildIsland(isl);
     G.Landmarks.buildSea(A.pois);
     if (G.Prologue) G.Prologue.build();
+    if (G.Bounty) G.Bounty.build();
     G.World.updateGrass(G.camera.position, true);
   };
 

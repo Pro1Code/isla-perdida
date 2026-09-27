@@ -185,6 +185,7 @@
     $('btnSave').onclick = () => { G.UI.msg(G.Save.save() ? '💾 Partida guardada' : 'No se pudo guardar', 'info'); resume(); };
     // Configuración y Logros: se abren en la misma ventana que en el menú principal
     $('btnPauseAch').onclick = () => G.Menus.openInGame('ach');
+    $('btnPauseBounty').onclick = () => G.Bounty.open();
     $('btnPauseSettings').onclick = () => G.Menus.openInGame('settings');
     $('btnPauseCheats').onclick = () => { resume(); setTimeout(() => G.Cheats.open(), 60); };
     $('btnQuit').onclick = quitToMenu;

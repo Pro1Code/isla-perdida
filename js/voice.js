@@ -184,7 +184,7 @@
     const P = G.Player.pos, f = flags();
     const opts = [];
     G.LINES.charlas.forEach((conv, i) => {
-      if (played.has(i) || (conv.when && !conv.when(f))) return;
+      if (played.has(i) || (conv.when && !conv.when(f, G.state))) return;
       const seq = assign(conv, cast(conv.at, P));
       if (!seq) return;
       // Todos cerca unos de otros
@@ -262,7 +262,7 @@
       if (boss && !c._rage && c.hp < c.d.hp * 0.5) { c._rage = true; say1(c, 'hiena', G.LINES.hiena.rage, true); }
       if (ag && !c._ag && barkCd <= 0 && near(c, P, 40) && (!c._barkT || performance.now() - c._barkT > 25000)) {
         c._barkT = performance.now();
-        const spk = V.speakerOfCreature(c), pool = G.LINES[spk].spot;
+        const spk = V.speakerOfCreature(c), pool = (G.Bounty.famous() && Math.random() < 0.5 && G.LINES[spk].fama) || G.LINES[spk].spot;
         say1(c, spk, pool[Math.floor(Math.random() * pool.length)]);
       }
       c._ag = ag;

@@ -395,9 +395,11 @@
       <h3>🏝️ Islas descubiertas</h3><ul>${isl || '<li class="muted">Ninguna todavía.</li>'}</ul>
       <h3>🗿 Monoglifos leídos</h3><ul>${monos || '<li class="muted">Aún no sabes leer la escritura antigua.</li>'}</ul>
       <h3>🍇 Frutas del Abismo</h3><ul>${fr}</ul>
+      <h3>📜 Tu recompensa</h3><p><b>${G.Bounty.fmt(G.Bounty.value())} doblones</b> · «${G.Bounty.title()}» <button id="jBounty" class="btn small">Ver mi cartel</button></p>
       <h3>🪶 Tribu Shandara</h3><p>${rep < -20 ? '⚔️ En guerra contigo' : rep > 10 ? '🤝 Aliados' : '😐 Neutrales'}</p>
       <h3>📖 Curiosidades de One Piece</h3><ul>${facts || '<li class="muted">Explora y lee Monoglifos para descubrirlas.</li>'}</ul>`;
     el.journal.classList.remove('hidden');
+    $('jBounty').onclick = () => G.Bounty.open();
   };
   UI.closeJournal = () => el.journal.classList.add('hidden');
 

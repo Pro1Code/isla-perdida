@@ -377,6 +377,7 @@
       for (const [id, n] of c.d.drops) G.Game.give(id, n);
       G.state.stats.kills++;
       G.Ach.onKill(c.type);
+      G.Bounty.onKill(c.type);
       G.UI.msg(`Has cazado: ${c.d.name.toLowerCase()}`, 'good');
     }
   }

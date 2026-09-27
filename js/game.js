@@ -627,6 +627,7 @@
     G.Voice.update(dt);
     G.Drops.update(dt);
     G.Pets.update(dt);
+    G.Bounty.update();
     P.cd = Math.max(0, P.cd - dt);
     if (!st.spectate) { P.update(dt, inputOn); P.updateStats(dt); }
     G.Net.update(dt);
@@ -782,7 +783,7 @@
     const teams = mode === 'versus' ? G.Modes.FORMATS[opts.cfg.format].length : 0;
     await buildWorld(seed, mode, teams);
     const W = G.World;
-    G.state = { mode: 'playing', day: 1, t: 7 / 24, diff, dayLen: 600, spawn: null, flags: {}, stats: fixStats(), obj: 0, world: Game.newWorldState(), seed, gm: mode, cfg: opts.cfg || G.Modes.DEFAULT_COOP, fruit: null };
+    G.state = { mode: 'playing', day: 1, t: 7 / 24, diff, dayLen: 600, spawn: null, flags: {}, stats: fixStats(), obj: 0, world: Game.newWorldState(), seed, gm: mode, cfg: opts.cfg || G.Modes.DEFAULT_COOP, fruit: null, bounty: 0 };
     G.Cheats.reset();
     G.Clock.init(seed, 7 / 24);
     G.Weather.set('clear', 200);
@@ -817,7 +818,7 @@
     G.state = {
       mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 600, spawn: (pdata && pdata.spawn) || null,
       flags: (pdata && pdata.flags) || {}, stats: fixStats(pdata && pdata.stats), obj: (pdata && pdata.obj) || 0,
-      world: st.world || Game.newWorldState(), seed: st.seed, gm: st.gm || 'coop', cfg: st.cfg, fruit: (pdata && pdata.fruit) || null,
+      world: st.world || Game.newWorldState(), seed: st.seed, gm: st.gm || 'coop', cfg: st.cfg, fruit: (pdata && pdata.fruit) || null, bounty: (pdata && pdata.seed === st.seed && pdata.bounty) || 0,
       styles: (pdata && pdata.seed === st.seed && pdata.styles) || {}, train: (pdata && pdata.seed === st.seed && pdata.train) || {},
     };
     if (Array.isArray(G.state.world.loot)) G.state.world.loot = Object.assign({}, G.state.world.loot);
@@ -858,7 +859,7 @@
     await buildWorld(seed, 'coop', 0);
     G.state = {
       mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 600, spawn: st.spawn, flags: st.flags || {}, stats: fixStats(st.stats), obj: st.obj || 0,
-      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null, styles: st.styles || {}, train: st.train || {},
+      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null, styles: st.styles || {}, train: st.train || {}, bounty: st.bounty || 0,
     };
     // Partidas antiguas: el botín era una lista y la balsa era una construcción
     if (Array.isArray(G.state.world.loot)) { const o = {}; G.state.world.loot.forEach((v, i) => { if (v) o[i] = 1; }); G.state.world.loot = o; }

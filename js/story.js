@@ -285,7 +285,10 @@
     if (c.type === 'npc') return G.Prologue.talk(c);
     if (c.role === 'chief') return chief(c, w);
     if (c.role === 'trader') return trader(c);
-    const pool = lineOf(c).talk;
+    // Si eres famoso, la primera vez te comentan tu cartel de "Se busca"
+    const L = lineOf(c), recog = (G.state.recog = G.state.recog || {});
+    if (L.fama && G.Bounty.famous() && !recog[c.name]) { recog[c.name] = 1; St.show({ who: c.name, text: L.fama }); return; }
+    const pool = L.talk;
     St.show({ who: c.name, text: pool[Math.floor(Math.random() * pool.length)] });
   };
   function peace() {

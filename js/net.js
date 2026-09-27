@@ -137,7 +137,7 @@
         break;
       case 'give':
         for (const [id, n] of m.items) G.Game.give(id, n);
-        if (m.kill) { G.state.stats.kills++; G.UI.msg(`Has cazado: ${esc(m.kill)}`, 'good'); if (m.kt) G.Ach.onKill(m.kt); }
+        if (m.kill) { G.state.stats.kills++; G.UI.msg(`Has cazado: ${esc(m.kill)}`, 'good'); if (m.kt) { G.Ach.onKill(m.kt); G.Bounty.onKill(m.kt); } }
         if (m.loot) { G.Ach.add('loot:' + (m.lk || 'chest'), 1, true); G.Ach.earn('loot'); }
         if (m.loot && m.items.length) { G.Audio.play('loot'); G.UI.msg('📦 ¡Encontraste un botín!', 'good'); }
         break;

@@ -163,7 +163,9 @@
   };
   // Gritos de los piratas (los tres tipos de voz dicen todas)
   const BARKS = ['{grito}«¡Eh! ¡Un intruso en el campamento!»', '{furia}«¡A por él, perros sarnosos!»', '{grito}«¡La capitana quiere su cabeza!»', '{furia}«¡Por la Hiena y por el oro!»', '{burla}«¡Arrr! ¡Nadie toca nuestra fruta!»'];
-  for (const k of ['pirata1', 'pirata2', 'pirata3']) L[k] = { spot: BARKS.slice() };
+  // Cuando tu recompensa es alta, te reconocen
+  const FAMA = ['{grito}«¡Es el del cartel! ¡Esa cabeza vale una fortuna!»', '{burla}«¡Mirad, muchachos! ¡La recompensa viene sola!»'];
+  for (const k of ['pirata1', 'pirata2', 'pirata3']) L[k] = { spot: BARKS.slice(), fama: FAMA.slice() };
 
   // ------------------------------------------------------------------ mascotas
   L.loro = { aviso: ['{grito}«¡Peligro! ¡Peligro!»', '{grito}«¡Cuidado, grumete! ¡Cuidado!»', '{grito}«¡Arrr! ¡Enemigo a la vista!»', '{grito}«¡Rrratas a babor! ¡Rrratas!»'] };
@@ -187,6 +189,12 @@
   L.laka = { talk: ['{alegre}«Con cacao y agua caliente se hace algo delicioso. Pregúntale a Kalgor.»', '{alegre}«¿Tú también vienes del mar? Hueles a sal y a madera quemada.»'] };
   L.brahan = { talk: ['{miedo}«Dicen que en la isla del volcán la tierra sangra fuego.»', '{alegre}«Algún día tendré mi propia canoa y veré el Lago Helado con mis propios ojos.»'] };
   for (const k of ['kalgor', 'genbu', 'wypar', 'kamakiro', 'aisha', 'laka', 'brahan']) L[k].hostil = '{furia}«¡Fuera de nuestra aldea, traidor!»';
+  // Cuando ven tu cartel de "Se busca"
+  L.wypar.fama = '{susurro}«Los de la Marina dejaron un cartel con tu cara en el muelle. Aquí nadie dirá nada.»';
+  L.kamakiro.fama = '{miedo}«Tu cara está en el tablón… Los forasteros de uniforme blanco preguntan por ti.»';
+  L.aisha.fama = '{alegre}«¡Eres tú, el del cartel! Mi hermano dice que vales más que diez canoas.»';
+  L.laka.fama = '{burla}«En el cartel sales más guapo que en persona.»';
+  L.brahan.fama = '{alegre}«¡El famoso del cartel! Algún día yo también tendré uno.»';
 
   // ------------------------------------------------------------------ conversaciones entre personajes
   // Suenan solas cuando pasas cerca: los personajes se paran, se miran y hablan.
@@ -242,6 +250,11 @@
       ['mara', '{triste}«Perdimos a buena gente en ese naufragio.»'],
       ['kaito', '{triste}«Que la mar les dé el descanso que merecen.»'],
       ['mara', '{furia}«Y que la Marina Blanca pague por cada uno de ellos. ¡Lo juro por mi barco!»'],
+    ] },
+    { at: 'crew', when: (f, st) => (st.bounty || 0) >= 5000, lines: [
+      ['crane', '{burla}«¿Habéis visto los carteles? El novato ya vale más que mi mosquete.»'],
+      ['bastian', '{alegre}«¡Por mil ollas! ¡Tenemos a un famoso en la tripulación!»'],
+      ['mara', '{mando}«Más fama, más enemigos. Que nadie baje la guardia.»'],
     ] },
     { at: 'crew', when: f2, lines: [
       ['bastian', '{alegre}«¡Una Fruta del Abismo de verdad! Dicen que saben a rayos.»'],
