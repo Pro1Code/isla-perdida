@@ -67,6 +67,8 @@
     return d < 30 ? `hace ${d} día${d > 1 ? 's' : ''}` : new Date(t).toLocaleDateString('es');
   };
   const dur = (s) => (s < 3600 ? `${Math.max(1, Math.round(s / 60))} min` : `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)} min`);
+  // Regla al morir de cada partida (clic en la etiqueta para cambiarla)
+  const DEATH_TAG = { half: '⚰️ Al morir: cofre', keep: '🎒 Al morir: conservas todo', all: '💀 Al morir: pierdes todo' };
   // kind: 'sp' o 'mp' · onPlay(w): qué hacer al pulsar Jugar / Hospedar
   Menus.renderWorlds = function (box, kind, onPlay) {
     const list = G.Worlds.list(kind);
@@ -76,7 +78,7 @@
     }
     box.innerHTML = list.map((w) => `<div class="world" data-id="${w.id}">
       <div class="w-main"><b class="w-name">${esc(w.name)}</b>
-        <div class="w-tags"><span class="tag d${w.diff}">${DIFF[w.diff] || 'Normal'}</span>${w.cheats ? '<span class="tag cheat">🪄 Trucos</span>' : ''}<span>${w.fresh ? 'Sin empezar' : `Día ${w.day || 1}`}</span>${w.time ? `<span>⏱️ ${dur(w.time)}</span>` : ''}<span class="muted">${ago(w.played || w.created)}</span>${w.ver && w.ver !== G.VERSION ? `<span class="muted">v${esc(w.ver)}</span>` : ''}</div></div>
+        <div class="w-tags"><span class="tag d${w.diff}">${DIFF[w.diff] || 'Normal'}</span><button class="tag death" data-a="death" title="Qué pasa al morir en esta partida · clic para cambiarlo">${DEATH_TAG[w.death] || DEATH_TAG.half}</button>${w.cheats ? '<span class="tag cheat">🪄 Trucos</span>' : ''}<span>${w.fresh ? 'Sin empezar' : `Día ${w.day || 1}`}</span>${w.time ? `<span>⏱️ ${dur(w.time)}</span>` : ''}<span class="muted">${ago(w.played || w.created)}</span>${w.ver && w.ver !== G.VERSION ? `<span class="muted">v${esc(w.ver)}</span>` : ''}</div></div>
       <div class="w-btns"><button class="btn small primary" data-a="play">${kind === 'sp' ? '▶ Jugar' : '👑 Hospedar'}</button><button class="btn small icon" data-a="ren" title="Renombrar">✏️</button><button class="btn small icon" data-a="del" title="Borrar">🗑️</button></div>
     </div>`).join('');
     box.onclick = async (e) => {
@@ -84,7 +86,11 @@
       if (!b) return;
       const card = b.closest('.world'), w = G.Worlds.get(card.dataset.id);
       if (!w) return;
-      if (b.dataset.a === 'play') { box.querySelectorAll('button').forEach((x) => (x.disabled = true)); try { await onPlay(w); } finally { box.querySelectorAll('button').forEach((x) => (x.disabled = false)); } }
+      if (b.dataset.a === 'death') {
+        const order = ['half', 'keep', 'all'], cur = order.indexOf(w.death || 'half');
+        G.Worlds.update(w.id, { death: order[(cur + 1) % order.length] });
+        Menus.renderWorlds(box, kind, onPlay);
+      } else if (b.dataset.a === 'play') { box.querySelectorAll('button').forEach((x) => (x.disabled = true)); try { await onPlay(w); } finally { box.querySelectorAll('button').forEach((x) => (x.disabled = false)); } }
       else if (b.dataset.a === 'ren') {
         const nm = card.querySelector('.w-name');
         nm.outerHTML = `<input class="mp-input w-edit" maxlength="32" value="${esc(w.name)}" />`;

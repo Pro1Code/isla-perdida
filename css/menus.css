@@ -39,6 +39,9 @@
 .tag.d1 { background: rgba(242,181,68,.16); color: var(--accent); }
 .tag.d2 { background: rgba(255,90,79,.18); color: #ff9a92; }
 .tag.cheat { background: rgba(179,110,224,.2); color: #d9b3f5; }
+button.tag { border: 0; font: inherit; font-weight: 800; cursor: pointer; }
+.tag.death { background: rgba(224,70,70,.16); color: #ffb4b4; }
+.tag.death:hover { background: rgba(224,70,70,.3); }
 .w-btns { display: flex; gap: 6px; flex: none; }
 .world-empty { padding: 26px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; }
 .world-info { padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.05); border: 1px solid var(--line); line-height: 1.5; margin: 6px 0 12px; }
