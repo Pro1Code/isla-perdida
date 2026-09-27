@@ -63,7 +63,7 @@
   Shop.shipName = { tiburon: 'Colmillo del Mar', aguila: 'Ala del Alba', ballena: 'Gran Ballena' };
   Shop.fhName = { tiburon: 'Tiburón', aguila: 'Águila', ballena: 'Ballena' };
   Shop.sailName = { rayas: 'Rayas', marea: 'Marea', sol: 'Sol', noche: 'Noche', dorada: 'Dorada' };
-  Shop.flagName = { clasica: 'Clásica', tricornio: 'Tricornio', ancla: 'Ancla y luna', espadas: 'Sables', llamas: 'Llamas', corona: 'Corona' };
+  Shop.flagName = { marina: 'Marina Blanca', clasica: 'Clásica', tricornio: 'Tricornio', ancla: 'Ancla y luna', espadas: 'Sables', llamas: 'Llamas', corona: 'Corona' };
 
   // ------------------------------------------------------------------ utilidades de modelado
   // Lámina con grosor: P(u, v) → [x, y, z]; la segunda cara se desplaza "off" y se invierte

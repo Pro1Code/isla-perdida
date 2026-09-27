@@ -267,6 +267,17 @@
     const key = String(color) + ':' + (design || '');
     if (flagTexCache[key]) return flagTexCache[key];
     const t = U.canvasTex(128, 80, (c, w, h) => {
+      if (design === 'marina') { // Marina Blanca: tela blanca, ancla azul marino y gaviota
+        const cx = w / 2, cy = h * 0.46, az = '#1e2a4a';
+        c.fillStyle = '#f4f4f0'; c.fillRect(0, 0, w, h);
+        c.fillStyle = az; c.fillRect(0, 0, w, 5); c.fillRect(0, h - 5, w, 5);
+        c.strokeStyle = az; c.lineWidth = 5; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(cx, cy - 18); c.lineTo(cx, cy + 22); c.moveTo(cx - 11, cy - 10); c.lineTo(cx + 11, cy - 10); c.stroke();
+        c.beginPath(); c.arc(cx, cy + 4, 19, 0.2, Math.PI - 0.2); c.stroke();
+        c.beginPath(); c.arc(cx, cy - 23, 5, 0, 7); c.stroke();
+        c.lineWidth = 3; c.beginPath(); c.arc(cx + 30, cy - 14, 7, Math.PI * 1.1, Math.PI * 1.9); c.arc(cx + 44, cy - 14, 7, Math.PI * 1.1, Math.PI * 1.9); c.stroke();
+        return;
+      }
       c.fillStyle = '#111'; c.fillRect(0, 0, w, h);
       c.fillStyle = color || '#ffffff'; c.fillRect(0, 0, w, 6); c.fillRect(0, h - 6, w, 6);
       if (design && G.Shop && G.Shop.drawFlag(c, w, h, design)) return;
@@ -575,7 +586,7 @@
     s.mdl = buildModel(s.type, o); s.root = s.mdl.root;
     s.root.traverse((m) => { if (m.isMesh) m.userData.ship = s; });
     for (const k in s.mdl.parts) for (const m of s.mdl.parts[k]) m.userData.realMat = m.material;
-    if (s.type === 'barco' && !s.name.startsWith('*')) s.name = shipName(s.fh);
+    if (s.type === 'barco' && !s.navy && !s.name.startsWith('*')) s.name = shipName(s.fh);
     G.scene.add(s.root);
     S.refreshPieces(s);
     placeRoot(s);
@@ -1044,7 +1055,7 @@
     P.station.aimP = U.clamp(P.station.aimP - dy * 0.002, -0.08, 0.45);
     return true;
   };
-  S.fireCannon = function (s, st) {
+  S.fireCannon = function (s, st, aim) { // aim: { aimY, aimP } cuando dispara la tripulación
     const now = performance.now() / 1000;
     if ((s.reload[st.idx] || 0) > now) { G.UI.msg('Recargando…', 'warn', 'reload'); return; }
     const useFrom = (id) => { if (G.Inv.count(id) > 0) { G.Inv.remove(id, 1); return true; } const i = s.crate.findIndex((c) => c && c.id === id); if (i >= 0) { s.crate[i].n--; if (s.crate[i].n <= 0) s.crate[i] = null; send({ t: 'shCrate', id: s.id, items: s.crate }); return true; } return false; };
@@ -1053,7 +1064,7 @@
     G.Ach.add('cannon');
     useFrom('polvora'); useFrom('bala_canon');
     s.reload[st.idx] = now + 3.5;
-    const { o, dir } = cannonWorld(s, st, G.Player.station && G.Player.station.st === st ? G.Player : null);
+    const { o, dir } = cannonWorld(s, st, aim ? { station: aim } : G.Player.station && G.Player.station.st === st ? G.Player : null);
     const v = dir.multiplyScalar(62).add(_v.set(Math.sin(s.yaw) * s.speed, 0, Math.cos(s.yaw) * s.speed));
     const m = { t: 'cannon', x: o.x, y: o.y, z: o.z, vx: v.x, vy: v.y, vz: v.z, from: G.Net.myId, ship: s.id, team: G.Net.team ?? null };
     send(m);

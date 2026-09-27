@@ -29,8 +29,8 @@
     let x = near.x + Math.cos(a) * 170, z = near.z + Math.sin(a) * 170;
     for (let k = 0; k < 12 && !deep(x, z); k++) { const b = a + k * 0.5; x = near.x + Math.cos(b) * 170; z = near.z + Math.sin(b) * 170; }
     if (!deep(x, z)) return null;
-    const name = '*' + NAMES[Math.floor(Math.random() * NAMES.length)] + ' (Marina Blanca)';
-    const s = G.Ships.create({ type: kind, x, z, yaw: Math.atan2(near.x - x, near.z - z), anchor: false, sail: 'marea', flag: 'ancla', fh: 'aguila', name, flagColor: '#f4f4f0' });
+    const name = NAMES[Math.floor(Math.random() * NAMES.length)] + ' (Marina Blanca)';
+    const s = G.Ships.create({ type: kind, x, z, yaw: Math.atan2(near.x - x, near.z - z), anchor: false, sail: 0xf6f6f2, flag: 'marina', fh: 'aguila', name, flagColor: '#f4f4f0' });
     setup(s, kind);
     // Marines en cubierta
     const T = TYPES[kind], boss = kind === 'barco' && Math.random() < 0.5;
@@ -40,7 +40,7 @@
       c.deck = { ship: s.id, slot: k };
     }
     G.Net.send({ t: 'navyNew', d: { id: s.id, type: kind, x, z, yaw: s.yaw, name } });
-    if (G.Player.ship || G.SeaWx.atSea(G.Player.pos.x, G.Player.pos.z)) G.UI.msg(`⚓ ¡Velas blancas en el horizonte! Un barco de la Marina Blanca (${name.slice(1)}) viene a por ti.`, 'bad', 'navy');
+    if (G.Player.ship || G.SeaWx.atSea(G.Player.pos.x, G.Player.pos.z)) G.UI.msg(`⚓ ¡Velas blancas en el horizonte! Un barco de la Marina Blanca (${name}) viene a por ti.`, 'bad', 'navy');
     return s;
   }
   function setup(s, kind) {
@@ -98,6 +98,8 @@
       if (dd < min && dd > 0.01) { const push = (min - dd) * 0.5; s.x -= (o.x - s.x) / dd * push; s.z -= (o.z - s.z) / dd * push; s.speed *= 0.9; }
     }
     s.nx = s.x; s.nz = s.z; s.nyaw = s.yaw;
+    // Cañones de la andanada en curso
+    if (nv.salvo) for (let i = nv.salvo.length - 1; i >= 0; i--) if ((nv.salvo[i].t -= dt) <= 0) { const g = nv.salvo[i]; nv.salvo.splice(i, 1); fireGun(s, g); }
     // Andanadas: cuando la presa está de costado y a tiro
     if (prey && pd < 75) {
       const rel = U.angDiff(s.yaw, Math.atan2(prey.x - s.x, prey.z - s.z)), side = rel > 0 ? 1 : -1;
@@ -105,23 +107,24 @@
       if (Math.abs(Math.abs(rel) - Math.PI / 2) < 0.55 && nv.cd[side] <= 0) { nv.cd[side] = 7 + Math.random() * 3; broadside(s, side, prey, pd); }
     }
   };
+  // Andanada: un cañón tras otro, con el reloj del juego (la pausa también las detiene)
   function broadside(s, side, prey, dist) {
-    const T = s.navy.T, L = s.def.L || 8, rx = Math.cos(s.yaw) * side, rz = -Math.sin(s.yaw) * side;
+    const nv = s.navy;
+    nv.salvo = nv.salvo || [];
+    for (let k = 0; k < nv.T.guns; k++) nv.salvo.push({ t: k * 0.18, k, side, prey, dist });
+  }
+  function fireGun(s, g) {
+    const T = s.navy.T, L = s.def.L || 8, rx = Math.cos(s.yaw) * g.side, rz = -Math.sin(s.yaw) * g.side, prey = g.prey;
     const tgt = prey.ship || prey, vx = prey.ship ? Math.sin(prey.ship.yaw) * prey.ship.speed : 0, vz = prey.ship ? Math.cos(prey.ship.yaw) * prey.ship.speed : 0;
-    for (let k = 0; k < T.guns; k++) {
-      setTimeout(() => {
-        if (s.sinking || !G.Ships.list.includes(s)) return;
-        const along = (k - (T.guns - 1) / 2) * L * 0.22;
-        const o = new V3(s.x + rx * 1.6 + Math.sin(s.yaw) * along, s.def.deckY + G.World.waveHeight(s.x, s.z) + 1.1, s.z + rz * 1.6 + Math.cos(s.yaw) * along);
-        const tf = dist / 55, spread = 2 + dist * 0.05;
-        const px = tgt.x + vx * tf + (Math.random() - 0.5) * spread * 2, pz = tgt.z + vz * tf + (Math.random() - 0.5) * spread * 2, py = 1.2;
-        const v = new V3((px - o.x) / tf, (py - o.y) / tf + 0.5 * 9.8 * tf, (pz - o.z) / tf);
-        const m = { t: 'cannon', x: o.x, y: o.y, z: o.z, vx: v.x, vy: v.y, vz: v.z, from: 'navy', ship: s.id, team: null };
-        G.Net.send(m);
-        G.Ships.spawnBall(m, true);
-        G.Ships.puff(o.x, o.y, o.z, 0xd0ccc4, 2.5, 1.2, 5);
-      }, k * 180);
-    }
+    const along = (g.k - (T.guns - 1) / 2) * L * 0.22;
+    const o = new V3(s.x + rx * 1.6 + Math.sin(s.yaw) * along, s.def.deckY + G.World.waveHeight(s.x, s.z) + 1.1, s.z + rz * 1.6 + Math.cos(s.yaw) * along);
+    const dist = Math.hypot(tgt.x - o.x, tgt.z - o.z) || g.dist, tf = dist / 55, spread = 2 + dist * 0.05;
+    const px = tgt.x + vx * tf + (Math.random() - 0.5) * spread * 2, pz = tgt.z + vz * tf + (Math.random() - 0.5) * spread * 2, py = 1.2;
+    const v = new V3((px - o.x) / tf, (py - o.y) / tf + 0.5 * 9.8 * tf, (pz - o.z) / tf);
+    const m = { t: 'cannon', x: o.x, y: o.y, z: o.z, vx: v.x, vy: v.y, vz: v.z, from: 'navy', ship: s.id, team: null };
+    G.Net.send(m);
+    G.Ships.spawnBall(m, true);
+    G.Ships.puff(o.x, o.y, o.z, 0xd0ccc4, 2.5, 1.2, 5);
   }
   // Crane dispara tus cañones cuando un barco de la Marina está de costado (si tienes pólvora y balas)
   function crewCannons(my, dt) {
@@ -137,7 +140,11 @@
     for (const st of my.mdl.stations) {
       if (st.kind !== 'cannon' || (my.reload[st.idx] || 0) > now) continue;
       if (st.x && Math.sign(st.x) !== Math.sign(rel)) continue; // solo los del costado donde está el enemigo
-      G.Ships.fireCannon(my, st);
+      // Apunta: giro hacia el enemigo y elevación según la distancia (tiro parabólico a 62 m/s)
+      const d = Math.hypot(enemy.x - my.x, enemy.z - my.z), yawTo = Math.atan2(enemy.x - my.x, enemy.z - my.z);
+      const aimY = U.clamp(U.angDiff(my.yaw + (st.yaw || 0), yawTo), -0.6, 0.6) + (Math.random() - 0.5) * 0.06;
+      const aimP = U.clamp(0.5 * Math.asin(Math.min(1, 9.8 * d / (62 * 62))) + (Math.random() - 0.5) * 0.03, -0.08, 0.45);
+      G.Ships.fireCannon(my, st, { aimY, aimP });
       G.Voice.say('crane', G.LINES.crane.fight, { ch: 'bark', at: crane });
       break;
     }
@@ -175,12 +182,12 @@
   // ------------------------------------------------------------------ red
   N.onNet = function (m) {
     if (m.t === 'navyNew' && !G.Ships.byId(m.d.id)) {
-      const s = G.Ships.create({ id: m.d.id, type: m.d.type, x: m.d.x, z: m.d.z, yaw: m.d.yaw, anchor: false, sail: 'marea', flag: 'ancla', fh: 'aguila', name: m.d.name, flagColor: '#f4f4f0' });
+      const s = G.Ships.create({ id: m.d.id, type: m.d.type, x: m.d.x, z: m.d.z, yaw: m.d.yaw, anchor: false, sail: 0xf6f6f2, flag: 'marina', fh: 'aguila', name: m.d.name, flagColor: '#f4f4f0' });
       setup(s, m.d.type);
     } else if (m.t === 'navyPos') {
       for (const [id, type, x, z, yaw, hp, sp] of m.l) {
         let s = G.Ships.byId(id);
-        if (!s) { s = G.Ships.create({ id, type, x, z, yaw, anchor: false, sail: 'marea', flag: 'ancla', fh: 'aguila', name: '*Marina Blanca', flagColor: '#f4f4f0' }); setup(s, type); }
+        if (!s) { s = G.Ships.create({ id, type, x, z, yaw, anchor: false, sail: 0xf6f6f2, flag: 'marina', fh: 'aguila', name: 'Marina Blanca', flagColor: '#f4f4f0' }); setup(s, type); }
         s.nx = x; s.nz = z; s.nyaw = yaw; s.hp = hp; s.speed = sp; s.lastNet = performance.now();
       }
     } else if (m.t === 'navyGone') {
