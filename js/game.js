@@ -626,6 +626,7 @@
     G.Prologue.update(dt);
     G.Voice.update(dt);
     G.Drops.update(dt);
+    G.Pets.update(dt);
     P.cd = Math.max(0, P.cd - dt);
     if (!st.spectate) { P.update(dt, inputOn); P.updateStats(dt); }
     G.Net.update(dt);

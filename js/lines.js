@@ -36,6 +36,9 @@
     brahan: { name: 'Brahan', v: 'ald', p: 1.25, l: 0.92 },
     aisha: { name: 'Aisha', v: 'claude', p: 1.02, l: 0.95 },
     laka: { name: 'Laka', v: 'daniela', p: 1.1, l: 0.92 },
+    // Mascotas
+    loro: { name: 'Loro', v: 'sharvard', s: 1, p: 1.55, l: 0.82, rudo: 0.35, lobo: true },
+    caracol: { name: 'Caracolófono', v: 'davefx', p: 0.95, l: 1.0, lobo: true },
   };
 
   const L = (G.LINES = {});
@@ -161,6 +164,10 @@
   // Gritos de los piratas (los tres tipos de voz dicen todas)
   const BARKS = ['{grito}«¡Eh! ¡Un intruso en el campamento!»', '{furia}«¡A por él, perros sarnosos!»', '{grito}«¡La capitana quiere su cabeza!»', '{furia}«¡Por la Hiena y por el oro!»', '{burla}«¡Arrr! ¡Nadie toca nuestra fruta!»'];
   for (const k of ['pirata1', 'pirata2', 'pirata3']) L[k] = { spot: BARKS.slice() };
+
+  // ------------------------------------------------------------------ mascotas
+  L.loro = { aviso: ['{grito}«¡Peligro! ¡Peligro!»', '{grito}«¡Cuidado, grumete! ¡Cuidado!»', '{grito}«¡Arrr! ¡Enemigo a la vista!»', '{grito}«¡Rrratas a babor! ¡Rrratas!»'] };
+  L.caracol = { llamada: '{susurro}«Purupurupuru… ¿Me oyes, grumete? Tengo algo para ti.»' };
 
   // ------------------------------------------------------------------ tribu Shandara (Isla Tahuri)
   L.kalgor = {
