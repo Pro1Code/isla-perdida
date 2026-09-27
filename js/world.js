@@ -282,6 +282,7 @@
     const seaGeo = new THREE.PlaneGeometry(1800, 1800, 160, 160);
     seaGeo.rotateX(-Math.PI / 2);
     const sea = new THREE.Mesh(seaGeo, W.makeWater(0, 1, 0x2fd0c0, 0x0a3f6e, 1));
+    W.seaMat = sea.material;
     sea.frustumCulled = false;
     scene.add(sea);
     W.sea = sea;

@@ -133,6 +133,7 @@
       if (Wx.nextBolt <= 0) {
         Wx.nextBolt = 5 + Math.random() * 11;
         Wx.flash = 1;
+        if (G.SeaWx) G.SeaWx.onBolt();
         const delay = 0.4 + Math.random() * 2.2;
         setTimeout(() => G.Audio.play('thunder', 1 - delay / 3.2), delay * 1000);
       }

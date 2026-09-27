@@ -68,7 +68,7 @@
       Clock.zone = z.id;
     } else Clock.zone = -1;
     Clock.mist += (mist - Clock.mist) * Math.min(1, dt * 4);
-    G.World.mist = Clock.mist;
+    G.World.mist = Math.max(Clock.mist, G.SeaWx ? G.SeaWx.fog : 0);
     st.t = t; st.day = day;
     if (day > prevDay && G.state.mode !== 'menu' && prevDay > 0) G.Game.dayBanner();
   };

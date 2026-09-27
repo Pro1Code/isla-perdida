@@ -163,6 +163,7 @@
       case 'drop': if (Net.inWorld) G.Landmarks.addDrop(m.d); break;
       case 'gdrop': case 'gtakeReq': case 'gtake': if (Net.inWorld) G.Drops.onNet(m, from); break;
       case 'trNew': case 'trDig': case 'trDone': if (Net.inWorld) G.Treasure.onNet(m, from); break;
+      case 'seaWx': if (Net.inWorld) G.SeaWx.onNet(m); break;
       case 'chest': {
         const s = G.Build.byId(m.id);
         if (s) { s.items = m.items; if (G.UI.chest === s) G.UI.refreshInv(); }
