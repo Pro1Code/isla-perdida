@@ -18,6 +18,7 @@
     sunken: [['doblon', 5, 15], ['perla', 1, 2], ['lingote', 2, 4], ['clavos', 4, 8], ['polvora', 2, 6], ['bala_canon', 3, 8], ['cuerda', 2, 4], ['casaca_capitan', 1, 1], ['bicornio', 1, 1], ['casco_buceo', 1, 1], ['aletas', 1, 1]],
     barrel: [['agua_limpia', 1, 3], ['carne_cocida', 1, 2], ['tabla', 2, 5], ['cuerda', 1, 3], ['polvora', 1, 3], ['doblon', 1, 4], ['pez_asado', 1, 3], ['sandalias', 1, 1], ['sombrero_paja', 1, 1], ['pantalon_fibra', 1, 1]],
   };
+  L.POOLS = POOLS; // el recetario dice qué hay en cada tipo de cofre
   function rollLoot(rnd, pool, n) {
     const P = POOLS[pool].slice(), out = [];
     for (let i = 0; i < n && P.length; i++) {

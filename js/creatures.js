@@ -54,6 +54,7 @@
     islote: [['crab', 3, 'beach']],
     arrecife: [],
   };
+  C.FAUNA = FAUNA; // el recetario dice en qué islas vive cada animal
   C.VILLAGERS = [
     { name: 'Anciano Kalgor', role: 'chief', shirt: 0xb08a4a, pants: 0x6a4a2a },
     { name: 'Wypar', role: 'guard', shirt: 0x8a2a2a, pants: 0x3a2a1a },

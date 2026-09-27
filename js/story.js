@@ -65,6 +65,7 @@
     roca: { item: 'fruta_roca', name: 'Roca-Roca', icon: '🪨', power: 'Golpe sísmico', desc: 'Piel de piedra: recibes mucho menos daño y golpeas más fuerte.' },
   };
   St.FRUITS = FRUITS;
+  St.TRADES = TRADES;
   // Dónde aparece cada fruta al principio
   const FRUIT_SPOTS = { llama: 'c:brasa:rim', hielo: 'c:escarcha:cave', muelle: 'c:tahuri:temple', humo: 'sub', roca: 'sw1' };
 

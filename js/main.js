@@ -393,6 +393,8 @@
   // ------------------------------------------------------------------ entrada
   function bindInput() {
     window.addEventListener('keydown', (e) => {
+      // Escribiendo en el buscador del recetario: las teclas no son atajos del juego
+      if (e.target && e.target.id === 'bookSearch') { if (e.code === 'Escape' || e.code === 'Tab') { e.preventDefault(); e.target.blur(); } return; }
       const mode = G.state.mode;
       if (mode === 'cinema') { if (['Space', 'Escape', 'Enter'].includes(e.code)) { e.preventDefault(); G.Cinema.skip(); } return; }
       if (G.chatOpen) {
@@ -441,7 +443,7 @@
         else if (/^Digit[1-8]$/.test(e.code)) { G.Inv.sel = +e.code.slice(5) - 1; G.Inv.changed(); G.Audio.play('select'); }
       } else if (mode === 'inventory') {
         if (e.code === 'Tab' || e.code === 'Escape' || e.code === 'KeyI') G.Game.closeInventory();
-        else if (e.code === 'KeyB' && G.UI.hoverSlot !== null) { G.Drops.dropSlot(G.UI.hoverSlot, e.shiftKey ? 0 : 1); G.UI.showInfo(G.UI.hoverSlot); }
+        else if (e.code === 'KeyB' && G.UI.hoverSlot !== null) { G.Drops.dropSlot(G.UI.hoverSlot, e.shiftKey ? 0 : 1); if (G.UI.infoSlot === G.UI.hoverSlot) G.UI.showInfo(G.UI.hoverSlot); }
       } else if (mode === 'map') {
         if (e.code === 'KeyM' || e.code === 'Escape') G.Game.closeMap();
       } else if (mode === 'journal') {
