@@ -177,14 +177,27 @@
   const waterFS = `
     uniform vec3 uSunDir; uniform vec3 uSunColor; uniform vec3 uSky; uniform vec3 uFog;
     uniform float uFogNear; uniform float uFogFar; uniform float uTime; uniform float uDay;
-    uniform float uLevel; uniform float uSize; uniform sampler2D uHeight;
+    uniform float uLevel; uniform float uSize; uniform sampler2D uHeight; uniform float uAmp;
     uniform vec3 uShallow; uniform vec3 uDeep; uniform float uFoam;
     varying vec3 vW; varying vec3 vN;
     void main(){
       vec2 uv = (vW.xz + uSize * 0.5) / uSize;
       float depth = uLevel - texture2D(uHeight, uv).r;
       vec2 p = vW.xz;
-      vec3 n = vN;
+      // Normal de las olas calculada en cada píxel (con la de los vértices se veía una cuadrícula en mar abierto)
+      float amp = uAmp * smoothstep(0.0, 5.0, depth);
+      vec2 dd = vec2(0.0); vec2 D; float ph;
+      D = normalize(vec2(1.0, 0.35)); ph = dot(D, p) * 0.07 + uTime * 0.9; dd += D * 0.45 * 0.07 * cos(ph);
+      D = normalize(vec2(-0.5, 1.0)); ph = dot(D, p) * 0.11 + uTime * 1.25; dd += D * 0.25 * 0.11 * cos(ph);
+      D = normalize(vec2(0.8, -0.7)); ph = dot(D, p) * 0.23 + uTime * 1.9; dd += D * 0.09 * 0.23 * cos(ph);
+      D = normalize(vec2(-0.9, -0.3)); ph = dot(D, p) * 0.41 + uTime * 2.6; dd += D * 0.045 * 0.41 * cos(ph);
+      dd *= amp;
+      // Ondas pequeñas en direcciones irregulares (rompen la repetición), más suaves a lo lejos
+      float mid = (1.0 - smoothstep(60.0, 420.0, length(cameraPosition - vW))) * (0.4 + 0.6 * amp);
+      D = normalize(vec2(0.37, 0.93)); ph = dot(D, p) * 0.93 + uTime * 1.6; dd += D * 0.03 * cos(ph + sin(p.x * 0.05)) * mid;
+      D = normalize(vec2(-0.83, 0.56)); ph = dot(D, p) * 1.37 + uTime * 2.1; dd += D * 0.022 * cos(ph + sin(p.y * 0.043)) * mid;
+      D = normalize(vec2(0.95, -0.31)); ph = dot(D, p) * 0.61 + uTime * 1.2; dd += D * 0.028 * cos(ph) * mid;
+      vec3 n = normalize(vec3(-dd.x, 1.0, -dd.y));
       float near = 1.0 - smoothstep(25.0, 140.0, length(cameraPosition - vW));
       n.x += (sin(p.x * 1.1 + uTime * 1.7 + sin(p.y * 0.7)) * 0.5 + sin(p.y * 2.3 - uTime * 2.3 + p.x * 0.6) * 0.5) * 0.05 * near;
       n.z += (sin(p.y * 1.3 + uTime * 1.5 + sin(p.x * 0.9)) * 0.5 + sin(p.x * 2.7 + uTime * 2.1 - p.y * 0.4) * 0.5) * 0.05 * near;

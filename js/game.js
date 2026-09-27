@@ -663,7 +663,7 @@
     else if (P.station && P.station.kind === 'seat') prompt = '🪑 Sentado · <kbd>E</kbd> levantarse';
     if (P.sinking) prompt = '🌀 ¡Te hundes! Un compañero puede rescatarte con <kbd>E</kbd>';
     if (st.spectate) prompt = '👁️ Estás eliminado: observando la partida';
-    G.UI.setPrompt(st.mode === 'playing' ? prompt : '');
+    G.UI.setPrompt(st.mode === 'playing' && !G.Story.dialog ? prompt : '');
     G.UI.el.crosshair.classList.toggle('active', !!Game.target);
     if (inputOn && G.Input.mouseL) Game.attack();
     G.Creatures.update(dt);

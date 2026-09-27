@@ -122,22 +122,35 @@
       Ci.expMul = 1;
       const S = G.World.spawn, sea = new V3(Math.sin(S.yaw), 0, Math.cos(S.yaw)), side = new V3(sea.z, 0, -sea.x);
       const hy = G.height(S.x, S.z);
-      const k = U.smooth(0, 1, Math.min(1, (t - 26.5) / 9));
-      // Cámara: del mar a la playa, hasta quedar junto al náufrago
-      const from = new V3(S.x + sea.x * 55, hy + 22, S.z + sea.z * 55), to = new V3(S.x + sea.x * 2.8 + side.x * 2.2, hy + 1.9, S.z + sea.z * 2.8 + side.z * 2.2);
-      cam.position.copy(from.lerp(to, k));
-      cam.lookAt(S.x, hy + 0.3 + (1 - k) * 2, S.z);
+      // Silvano llega caminando desde las palmeras (está junto al náufrago hacia los 31 s)
+      const w = U.smooth(0, 1, Math.min(1, Math.max(0, (t - 25.5) / 5.5)));
+      const hx0 = S.x - sea.x * 14 + side.x * 5, hz0 = S.z - sea.z * 14 + side.z * 5, ex = S.x + side.x * 1.6 - sea.x * 0.4, ez = S.z + side.z * 1.6 - sea.z * 0.4;
+      const sx = U.lerp(hx0, ex, w), sz = U.lerp(hz0, ez, w), sy = G.height(sx, sz);
+      if (t < 28.5) {
+        // Toma 1: del mar a la playa
+        const k = U.smooth(0, 1, Math.min(1, (t - 24) / 4.5));
+        cam.position.copy(new V3(S.x + sea.x * 55, hy + 22, S.z + sea.z * 55).lerp(new V3(S.x + sea.x * 12 - side.x * 4, hy + 4, S.z + sea.z * 12 - side.z * 4), k));
+        cam.lookAt(S.x, hy + 1 + (1 - k), S.z);
+      } else if (t < 32) {
+        // Toma 2: Silvano, de cara, mientras se acerca al náufrago
+        const dx = S.x - sx, dz = S.z - sz, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl;
+        const cx = sx + ux * 4.2 - uz * 1.6, cz = sz + uz * 4.2 + ux * 1.6;
+        cam.position.set(cx, Math.max(G.height(cx, cz), 0.3) + 1.6, cz);
+        cam.lookAt(sx, sy + 1.45, sz);
+      } else {
+        // Toma 3: los dos en el mismo plano (Silvano de pie, entero, y el náufrago en la arena)
+        const mx = (S.x + ex) / 2, mz = (S.z + ez) / 2, cx = mx + sea.x * 3.6 - side.x * 2.4, cz = mz + sea.z * 3.6 - side.z * 2.4;
+        cam.position.set(cx, Math.max(G.height(cx, cz), 0.3) + 1.5, cz);
+        cam.lookAt(mx, hy + 0.9, mz);
+      }
       if (body) {
         body.update(dt, { pos: new V3(S.x, hy, S.z), yaw: S.yaw, pitch: 0, speed: 0, onGround: true, swimming: false, swing: 0, holding: false });
         body.root.position.set(S.x, hy + 0.12, S.z);
         body.root.rotation.set(-Math.PI / 2, S.yaw + Math.PI, 0, 'YXZ');
       }
       if (hermit) {
-        // Silvano llega caminando desde las palmeras
-        const w = U.smooth(0, 1, Math.min(1, (t - 26) / 8));
-        const hx = S.x - sea.x * 14 + side.x * 5, hz = S.z - sea.z * 14 + side.z * 5, ex = S.x + side.x * 1.6 - sea.x * 0.4, ez = S.z + side.z * 1.6 - sea.z * 0.4;
-        const x = U.lerp(hx, ex, w), z = U.lerp(hz, ez, w), walking = w > 0 && w < 1;
-        hermit.model.update(dt, { pos: new V3(x, G.height(x, z), z), yaw: Math.atan2(S.x - x, S.z - z) + Math.PI, pitch: 0, speed: walking ? 1.4 : 0, onGround: true, swimming: false, swing: 0, holding: true });
+        const walking = w > 0 && w < 1;
+        hermit.model.update(dt, { pos: new V3(sx, sy, sz), yaw: Math.atan2(S.x - sx, S.z - sz) + Math.PI, pitch: 0, speed: walking ? 1.4 : 0, onGround: true, swimming: false, swing: 0, holding: true });
       }
       Ci.focus.set(S.x, 0, S.z);
     }
