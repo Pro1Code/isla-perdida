@@ -452,7 +452,14 @@
       const night = nightOf(c.isl);
       c.cd -= dt; c.aggro -= dt; c.t -= dt; c.pounce -= dt; c.rest -= dt;
       // Congelado por el poder de la Fruta Hielo-Hielo
-      if (c.frozen > 0) { c.frozen -= dt; c.speedNow = 0; animate(c, 0, night); continue; }
+      if (c.frozen > 0) {
+        c.frozen -= dt; c.speedNow = 0;
+        // El destello rojo del golpe se apaga igual y queda un tono helado mientras dura
+        if (c.flash > 0) c.flash = Math.max(0, c.flash - dt);
+        animate(c, 0, night);
+        if (!c.model && c.mat && c.mat.emissive && !(c.flash > 0)) c.mat.emissive.setRGB(0.1, 0.26, 0.4);
+        continue;
+      }
       if (c.poisoned > 0) { c.poisoned -= dt; c.hp -= 3 * dt; if (c.hp <= 0) { killCreature(c, c.aggroId !== G.Net.myId ? c.aggroId : null); continue; } }
       let tx = c.tx, tz = c.tz, speed = c.d.speed, moving = true;
       const nr = nearest(c, tg);
@@ -644,8 +651,16 @@
           else if (sh) {
             c.aggro = 3;
             const s = sh.s;
-            tx = s.x; tz = s.z; speed = sh.d > 20 ? c.d.run : c.d.speed;
-            if (sh.d < 4 && c.cd <= 0) { c.cd = 4.5; c.lunge = 0.3; Sh.hurt(s, c.d.shipDmg * G.Game.diff().dmg, 'La serpiente marina golpea el casco'); G.Audio.playAt('roar', c.x, c.z, 80); }
+            c.orbit = c.orbit || (Math.random() < 0.5 ? 1 : -1);
+            if (c.cd <= 0 && sh.d < 25) {
+              // Embestida: va hacia el casco, golpea con la cabeza y vuelve a apartarse (no lo atraviesa)
+              tx = s.x; tz = s.z; speed = c.d.run;
+              if (sh.d < 3.2) { c.cd = 4.5; c.lunge = 0.3; Sh.hurt(s, c.d.shipDmg * G.Game.diff().dmg, 'La serpiente marina golpea el casco'); G.Audio.playAt('roar', c.x, c.z, 80); }
+            } else {
+              // Mientras tanto, da vueltas alrededor del barco
+              const a = Math.atan2(c.z - s.z, c.x - s.x) + c.orbit * 0.55, R = s.def.L / 2 + 5;
+              tx = s.x + Math.cos(a) * R; tz = s.z + Math.sin(a) * R; speed = sh.d > 20 ? c.d.run : c.d.speed;
+            }
           } else { wander(40); if ((c.lonely += dt) > 30) { removeAt(i); continue; } }
           break;
         }

@@ -221,14 +221,16 @@
     if (!shopSel || !items.some((c) => c.id === shopSel)) shopSel = items[0].id;
     $('shopGrid').innerHTML = items.map((c) => {
       const own = P.owns(c.id), on = P.equipped(c.slot) === c.id;
-      return `<button class="shop-item${c.id === shopSel ? ' sel' : ''}${own ? ' own' : ''}" data-id="${c.id}"><span class="si-ic">${c.icon}</span><b>${esc(c.name)}</b><span class="si-price">${on ? '✔ Puesto' : own ? 'Tuyo' : `🪙 ${c.price}`}</span></button>`;
+      return `<button class="shop-item${c.id === shopSel ? ' sel' : ''}${own ? ' own' : ''}" data-id="${c.id}"><span class="si-ic">${c.icon}</span><b>${esc(c.name)}</b><span class="si-price">${on ? '✔ Puesto' : own ? 'Tuyo' : c.price ? `🪙 ${c.price}` : 'Gratis'}</span></button>`;
     }).join('');
     const c = S.byId(shopSel), own = P.owns(c.id), on = P.equipped(c.slot) === c.id, lack = c.price - P.coins();
-    const ship = ['sail', 'flag', 'fh'].includes(c.slot);
+    const ship = ['sail', 'flag', 'fh'].includes(c.slot), custom = c.id === 'flag_custom', drawn = !!P.customFlag();
     $('shopInfo').innerHTML = `<h4>${c.icon} ${esc(c.name)}</h4><p class="muted">${esc(c.desc)}</p>` +
       (ship ? '<p class="small-text muted">Se usa en tus barcos: los nuevos lo llevan puesto, y en uno que ya tengas pulsa <kbd>R</kbd> a bordo. También aparece al elegir el diseño en el astillero.</p>' : '') +
-      (own ? `<button id="shopEquip" class="btn ${on ? 'small' : 'primary'}">${on ? 'Quitármelo' : 'Ponérmelo'}</button>`
+      (custom ? `<button id="shopDraw" class="btn ${drawn ? '' : 'primary'}">✏️ ${drawn ? 'Editar mi bandera' : 'Abrir la pizarra (gratis)'}</button>` + (drawn ? ` <button id="shopEquip" class="btn ${on ? 'small' : 'primary'}">${on ? 'Quitármela' : 'Ponérmela'}</button>` : '')
+        : own ? `<button id="shopEquip" class="btn ${on ? 'small' : 'primary'}">${on ? 'Quitármelo' : 'Ponérmelo'}</button>`
         : `<button id="shopBuy" class="btn primary"${lack > 0 ? ' disabled' : ''}>Comprar por 🪙 ${c.price}</button>${lack > 0 ? `<p class="warn-text">Te faltan ${lack} doblones.</p>` : ''}`);
+    if (custom) $('shopDraw').onclick = () => G.FlagEditor.open(P.customFlagSrc(), (img, src) => { P.setCustomFlag(img, src); P.equip('flag', 'flag_custom'); G.Audio.init(); G.Audio.play('loot'); renderShop(); });
     // Vista previa: el personaje con el cosmético o el diseño del barco
     const flat = $('shopFlat');
     if (c.slot === 'sail' || c.slot === 'flag') {
@@ -261,7 +263,11 @@
     if (c.slot === 'flag') {
       x.save(); x.translate(32, 30); x.scale(2, 2);
       x.fillStyle = '#111'; x.fillRect(0, 0, 128, 80);
-      G.Shop.drawFlag(x, 128, 80, c.id.replace('flag_', ''));
+      if (c.id === 'flag_custom') {
+        const img = G.Profile.customFlag();
+        if (img) { const im = new Image(); im.onload = () => x.drawImage(im, 32, 30, 256, 160); im.src = img; }
+        else { x.fillStyle = '#f2f2f2'; x.font = '800 9px Nunito, sans-serif'; x.textAlign = 'center'; x.fillText('✏️ Aún no la has dibujado', 64, 44); }
+      } else G.Shop.drawFlag(x, 128, 80, c.id.replace('flag_', ''));
       x.restore();
       x.fillStyle = '#7a5230'; x.fillRect(22, 20, 10, 190);
     } else {

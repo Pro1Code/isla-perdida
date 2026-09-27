@@ -42,6 +42,7 @@
     ['sail_sol', 'sail', 'Vela del sol', 600, '🌞', 'Naranja con un sol radiante.'],
     ['sail_noche', 'sail', 'Vela nocturna', 700, '🌙', 'Azul noche con luna y estrellas.'],
     ['sail_dorada', 'sail', 'Vela dorada', 900, '🟨', 'Dorada con franja carmesí. Pura ostentación.'],
+    ['flag_custom', 'flag', 'Tu propia bandera', 0, '✏️', 'Dibújala tú en la pizarra: pinceles, formas, sellos piratas, texto y colores. ¡Nadie más tendrá una igual!'],
     ['flag_tricornio', 'flag', 'Calavera con tricornio', 350, '☠️', 'Bandera pirata con sombrero de capitán.'],
     ['flag_ancla', 'flag', 'Ancla y luna', 450, '⚓', 'Una bandera tranquila… para un barco que no lo es.'],
     ['flag_espadas', 'flag', 'Sables cruzados', 500, '⚔️', 'Calavera sobre dos sables curvos.'],
@@ -54,7 +55,11 @@
   Shop.byId = (id) => Shop.CATALOG.find((c) => c.id === id);
 
   // Diseños de barco comprados (el astillero los añade a los que ya había)
-  Shop.ownedOf = (slot) => Shop.CATALOG.filter((c) => c.slot === slot && G.Profile.owns(c.id)).map((c) => c.id.replace(/^(sail|flag|fh)_/, ''));
+  Shop.ownedOf = (slot) => Shop.CATALOG.filter((c) => c.slot === slot && G.Profile.owns(c.id)).map((c) => (c.id === 'flag_custom' ? G.Profile.customFlag() : c.id.replace(/^(sail|flag|fh)_/, ''))).filter(Boolean);
+  // Diseño que lleva el barco para una bandera de la tienda (la propia viaja como imagen)
+  Shop.flagDesign = (id) => (id === 'flag_custom' ? G.Profile.customFlag() : id && id.startsWith('flag_') ? id.slice(5) : null);
+  Shop.isCustomFlag = (d) => typeof d === 'string' && d.length < 90000 && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(d);
+  Shop.flagLabel = (d) => (Shop.isCustomFlag(d) ? 'Tu bandera' : Shop.flagName[d || 'clasica'] || 'Clásica');
   Shop.shipName = { tiburon: 'Colmillo del Mar', aguila: 'Ala del Alba', ballena: 'Gran Ballena' };
   Shop.fhName = { tiburon: 'Tiburón', aguila: 'Águila', ballena: 'Ballena' };
   Shop.sailName = { rayas: 'Rayas', marea: 'Marea', sol: 'Sol', noche: 'Noche', dorada: 'Dorada' };

@@ -77,6 +77,15 @@
   Profile.grant = (id) => { if (!Profile.owns(id)) { D.owned.push(id); Profile.save(); } };
   Profile.equipped = (slot) => D.cos[slot] || null;
   Profile.equip = (slot, id) => { if (id && !Profile.owns(id)) return; D.cos[slot] = id || null; Profile.save(); if (Profile.onLook) Profile.onLook(); };
+  // Bandera dibujada en la pizarra: img (pequeña, para los barcos) y src (grande, para seguir editándola)
+  Profile.customFlag = () => (D.flag && D.flag.img) || null;
+  Profile.customFlagSrc = () => (D.flag && D.flag.src) || null;
+  Profile.setCustomFlag = function (img, src) {
+    D.flag = { img, src };
+    if (!Profile.owns('flag_custom')) D.owned.push('flag_custom');
+    Profile.save(true);
+    if (Profile.onLook) Profile.onLook();
+  };
   // Cosméticos del personaje que se ven sobre el modelo (sombrero, rostro, espalda, mascota)
   Profile.cosIds = () => ['hat', 'face', 'back', 'pet'].map((s) => D.cos[s]).filter(Boolean);
 

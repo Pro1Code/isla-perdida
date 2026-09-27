@@ -244,7 +244,26 @@
   }
   // Bandera pirata (calavera con tibias cruzadas y un toque del color del equipo)
   const flagTexCache = {};
+  const strHash = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); };
   function flagTexture(color, design) {
+    // Bandera dibujada en la pizarra (imagen): se carga y se pinta sobre la tela
+    if (G.Shop && G.Shop.isCustomFlag(design)) {
+      const key = String(color) + ':img' + strHash(design);
+      if (flagTexCache[key]) return flagTexCache[key];
+      const t = U.canvasTex(192, 120, (c, w, h) => { c.fillStyle = '#111'; c.fillRect(0, 0, w, h); });
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      const im = new Image();
+      im.onload = () => {
+        const c = t.image.getContext('2d');
+        c.drawImage(im, 0, 0, 192, 120);
+        if (color) { c.fillStyle = color; c.fillRect(0, 0, 192, 6); c.fillRect(0, 114, 192, 6); }
+        t.needsUpdate = true;
+      };
+      im.src = design;
+      flagTexCache[key] = t;
+      return t;
+    }
+    if (typeof design === 'string' && design.startsWith('data:')) design = null;
     const key = String(color) + ':' + (design || '');
     if (flagTexCache[key]) return flagTexCache[key];
     const t = U.canvasTex(128, 80, (c, w, h) => {
@@ -902,7 +921,7 @@
       const can = canPlace(s, p);
       let extra = '';
       if (tg.piece === 'mascaron') extra = ` · <kbd>R</kbd> Diseño: ${fhName(s.fh)}`;
-      if (tg.piece === 'bandera') extra = ` · <kbd>R</kbd> Diseño: ${G.Shop.flagName[s.flag || 'clasica']}`;
+      if (tg.piece === 'bandera') extra = ` · <kbd>R</kbd> Diseño: ${G.Shop.flagLabel(s.flag)}`;
       if (tg.piece === 'vela' || tg.piece === 'vela2') extra = ' · <kbd>R</kbd> Color de las velas';
       return `🏗️ <b>${p[1]}</b> ${need} · ` + (can === true ? '<kbd>E</kbd> Colocar pieza' : `<span class="warn">${can}</span>`) + extra;
     }
@@ -992,7 +1011,7 @@
     const next = (list, cur) => list[(list.indexOf(cur) + 1) % list.length];
     if (tg.piece === 'mascaron') { s.fh = next(S.FIGUREHEADS.concat(G.Shop.ownedOf('fh')), s.fh); S.rebuild(s); G.UI.msg(`Mascarón: ${fhName(s.fh)}`, 'info', 'fh'); return true; }
     if (tg.piece === 'vela' || tg.piece === 'vela2') { s.sailColor = next(S.SAILS.concat(G.Shop.ownedOf('sail')), s.sailColor); S.rebuild(s); if (typeof s.sailColor === 'string') G.UI.msg(`Velas: ${G.Shop.sailName[s.sailColor]}`, 'info', 'sail'); return true; }
-    if (tg.piece === 'bandera') { s.flag = next(['clasica'].concat(G.Shop.ownedOf('flag')), s.flag || 'clasica'); if (s.flag === 'clasica') s.flag = null; S.rebuild(s); G.UI.msg(`Bandera: ${G.Shop.flagName[s.flag || 'clasica']}`, 'info', 'flag'); return true; }
+    if (tg.piece === 'bandera') { s.flag = next(['clasica'].concat(G.Shop.ownedOf('flag')), s.flag || 'clasica'); if (s.flag === 'clasica') s.flag = null; S.rebuild(s); G.UI.msg(`Bandera: ${G.Shop.flagLabel(s.flag)}`, 'info', 'flag'); return true; }
     return false;
   };
   // A bordo, R pone al barco los diseños que llevas equipados en la Tienda
@@ -1000,7 +1019,7 @@
     const sail = G.Profile.equipped('sail'), flag = G.Profile.equipped('flag'), fh = G.Profile.equipped('fh');
     if (!sail && !flag && !fh) { G.UI.msg('Compra y equipa velas, banderas o mascarones en la Tienda para decorar tus barcos.', 'info', 'shiplook'); return false; }
     if (sail) s.sailColor = sail.replace('sail_', '');
-    if (flag) s.flag = flag.replace('flag_', '');
+    if (flag) s.flag = G.Shop.flagDesign(flag) || s.flag;
     if (fh && s.type === 'barco') s.fh = fh.replace('fh_', '');
     S.rebuild(s);
     send({ t: 'shLook', id: s.id, fh: s.fh, sail: s.sailColor, flag: s.flag });
@@ -1163,7 +1182,7 @@
     const data = { type, x: pl.x, z: pl.z, yaw: pl.yaw, building: !!it.plano, anchor: true, team: G.Net.team ?? null, flagColor: G.Modes && G.Modes.active ? G.Modes.teamColor(G.Net.team) : null };
     const eqS = G.Profile.equipped('sail'), eqF = G.Profile.equipped('flag'), eqH = G.Profile.equipped('fh');
     if (eqS) data.sail = eqS.replace('sail_', '');
-    if (eqF) data.flag = eqF.replace('flag_', '');
+    if (eqF && G.Shop.flagDesign(eqF)) data.flag = G.Shop.flagDesign(eqF);
     if (eqH && type === 'barco') data.fh = eqH.replace('fh_', '');
     if (!it.plano) data.crate = [{ id: d.rep, n: 2 }];
     const s = S.create(data);
