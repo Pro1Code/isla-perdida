@@ -546,6 +546,13 @@
           break;
         }
         case 'npc': {
+          // Tu tripulación, si te sigue (crew.js): en tierra va contigo y pelea; en el barco va en cubierta
+          const cp = c.follow && G.Crew ? G.Crew.plan(c, dt) : null;
+          if (cp) {
+            if (cp.aboard) { moving = false; break; }
+            tx = cp.tx; tz = cp.tz; speed = cp.speed; if (cp.still) moving = false; if (cp.face) faceT = cp.face;
+            break;
+          }
           // Tripulación y ermitaño: vuelven a su sitio, se giran para hablar contigo y pasean un poco
           const hd = Math.hypot(c.hx - c.x, c.hz - c.z);
           if (hd > 7) { tx = c.hx; tz = c.hz; speed = c.d.speed * 1.5; break; }
@@ -695,6 +702,8 @@
           break;
         }
       }
+      // En cubierta de tu barco: crew.js ya lo ha colocado
+      if (c.aboard && c.follow) { c.speedNow = 0; animate(c, dt, night); continue; }
       const mx = tx - c.x, mz = tz - c.z, md = Math.hypot(mx, mz);
       if (moving && md > 0.3) {
         c.yaw += U.angDiff(c.yaw, Math.atan2(mx, mz)) * Math.min(1, dt * (c.d.sea ? 2.5 : 6));

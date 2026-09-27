@@ -310,7 +310,8 @@
       return;
     }
     const clues = Pr.clues();
-    if (f.treasure) { show(who, M.treasure); return; }
+    if (f.treasure && !G.Crew.joined()) { show(who, M.treasure, [['«¿Y la tripulación?»', () => show(who, M.crew, [['«¡A mi barco, tripulación!»', () => G.Crew.join()]])], ['«Ahora no.»', null]]); return; }
+    if (f.treasure) { show(who, M.crewAfter); return; }
     if (clues >= 3) { show(who, M.clues3); return; }
     if (!f.clue1) { show(who, M.clue1); return; }
     if (!f.clue2) { show(who, M.clue2); return; }
@@ -330,7 +331,7 @@
     }
     if (trainPending(k)) { show(who, `${T.train} (Te faltan ${trainLeft(k)}.)`); return; }
     const pool = T.tips;
-    show(who, pool[Math.floor(Math.random() * pool.length)]);
+    show(who, pool[Math.floor(Math.random() * pool.length)], G.Crew.options(c));
   }
   // Entrega un arma solo si no la tienes ya
   function giveOnce(id) { if (G.Inv.count(id) <= 0 && !G.Inv.SLOTS.some((s) => G.Inv.equip[s] && G.Inv.equip[s].id === id)) G.Game.give(id, 1); }

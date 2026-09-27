@@ -660,6 +660,8 @@
       if (s.throttle < 0) target = s.throttle * d.speed * 0.25;
     }
     if (s.hp < d.hp * 0.35) target *= 0.6;
+    // Tu tripulación a bordo ayuda a navegar
+    if (G.Crew) target *= 1 + 0.08 * G.Crew.aboardCount(s);
     const acc = s.anchor ? 2.5 : d.accel;
     s.speed += (target - s.speed) * Math.min(1, dt * acc);
     if (d.engine && s.throttle !== 0 && !s.anchor) {

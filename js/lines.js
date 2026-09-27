@@ -101,6 +101,8 @@
     clues3: '{grito}«¡Las tres pistas, por Neptuno! Mira tu mapa: Rogan marcó el sitio con una ✖. ¡A cavar, grumete!»',
     clue1: '{mando}«La primera pista está bajo el ancla oxidada, junto al viejo naufragio. Aquí mismo, en la playa.»',
     clue2: '{mando}«La segunda está en la piedra de la calavera, a la orilla del lago. El viejo Silvano vive cerca.»',
+    crew: '{mando}«Kaito, Crane, Bastián: desde hoy navegáis con el grumete. ¡Cuidad de su barco como si fuera el mío!»',
+    crewAfter: '{mando}«Tráemelos de vuelta enteros, grumete. Y a ti también.»',
     clue3: [
       '{mando}«La última la tiene la Hiena, en la costa oeste. Aprende antes a pelear con la tripulación: no quiero enterrarte en esta playa.»',
       '{mando}«La última la tiene la Hiena, en la costa oeste. Ya sabes pelear: ve con cuidado y llévate comida.»',
@@ -111,6 +113,7 @@
     how: '{mando}«Toma mi katana de repuesto. Clic para cortar, Q para el corte volador. Golpea el muñeco de paja 10 veces.»',
     train: '{calma}«Sigue con el muñeco de paja. El acero aprende a la vez que tú.»',
     done: '{alegre}«Buen trabajo. Tu acero ya respira contigo.»',
+    follow: '{calma}«Donde vaya tu barco, irá mi espada.»', wait: '{calma}«Aquí esperaré. Que el viento te sea leal.»', fight: '{grito}«¡Mi espada está contigo!»',
     tips: [
       '{calma}«Una buena espada corta hasta el viento. Literalmente: Q.»',
       '{calma}«En el nivel 3 te enseñaré el Torbellino (Z): perfecto cuando te rodean los piratas.»',
@@ -122,6 +125,7 @@
     how: '{mando}«Toma esta pistola y 15 balas. Clic para disparar: la bala va donde miras. Acierta 5 veces a la diana.»',
     train: '{burla}«Sigue disparando a la diana. Respira, apunta… y no le des a una gaviota.»',
     done: '{alegre}«¡Rayos y truenos, buen pulso! Ya estás listo para la pólvora de verdad.»',
+    follow: '{burla}«Alguien tiene que cubrirte las espaldas, marinero.»', wait: '{burla}«Esperaré. Pero no te acostumbres.»', fight: '{burla}«Quieto ahí… ¡Pum!»',
     tips: [
       '{calma}«Las balas se hacen en el horno: hierro y pólvora. La pólvora, con azufre y carbón.»',
       '{calma}«El mosquete pega fuerte y llega lejos, pero recarga despacio. Elige bien el momento.»',
@@ -133,6 +137,7 @@
     how: '{mando}«Deja las manos vacías (un hueco sin nada en la barra rápida). Clic para golpear, Q para la patada huracán. Dale 12 golpes al saco.»',
     train: '{alegre}«¡Sigue dándole al saco! Los puños se hacen a golpes, como la masa del pan.»',
     done: '{alegre}«¡Eso es, por mil ollas hirviendo! Ya pegas como un marinero de verdad.»',
+    follow: '{alegre}«¡Y la cocina viaja conmigo!»', wait: '{triste}«Vale… te guardo la cena caliente.»', fight: '{grito}«¡Hora de repartir tortas!»',
     tips: [
       '{calma}«Las manos vacías también son un arma. Deja la barra rápida en un hueco sin nada.»',
       '{alegre}«Cada tercer golpe pega más fuerte. Cuenta conmigo: uno, dos… ¡tres!»',
