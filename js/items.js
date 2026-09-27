@@ -400,6 +400,13 @@
     return g;
   }
   // El mango apunta a +Y y el agarre queda en el origen
+  // Icono del paquete de texturas oficial (img/items/<id>.png, lo genera scripts/iconos.js)
+  G.iconSrc = (id) => 'img/items/' + id + '.png';
+  G.icon = function (id, cls) {
+    const it = G.ITEMS[id];
+    if (!it) return '';
+    return `<img class="ico${cls ? ' ' + cls : ''}" src="${G.iconSrc(id)}" alt="" draggable="false" data-e="${it.i}" onerror="this.outerHTML=this.dataset.e">`;
+  };
   G.makeItemMesh = function (id) {
     if (!id) return null;
     const it = G.ITEMS[id];

@@ -37,7 +37,7 @@
   const VISIT = [['escarcha', 'Nadie ha vuelto de Isla Escarcha este invierno. Ve a ver qué pasa.', 2], ['brasa', 'El volcán de Brasa humea más que nunca. Mira qué ocurre allí.', 2], ['ruinas', 'Dicen que las ruinas de Aurea brillan de noche. Compruébalo.', 3], ['perdida', 'En la Isla Perdida hay un ermitaño brujo. Llévale nuestro saludo.', 1]];
 
   const st = () => (G.state.quests = G.state.quests || { offers: [], active: [], done: 0, seed: (Math.random() * 1e9) >>> 0 });
-  const itemName = (id) => (G.ITEMS[id] ? `${G.ITEMS[id].i} ${G.ITEMS[id].n.toLowerCase()}` : id);
+  const itemName = (id) => (G.ITEMS[id] ? G.ITEMS[id].n.toLowerCase() : id);
   function reward(tier) { return { doblon: 5 + tier * 5 + Math.floor(Math.random() * 4), coins: 15 + tier * 12, extra: tier >= 2 && Math.random() < 0.5 ? (Math.random() < 0.5 ? ['mapa_tesoro', 1] : ['perla', 2]) : null }; }
   // Encargo nuevo al azar (que no repita uno ya ofrecido o activo)
   function make() {
@@ -56,7 +56,7 @@
     return null;
   }
   function fill() { const s = st(); while (s.offers.length < 3) { const q = make(); if (!q) break; s.offers.push(q); } }
-  const rwText = (rw) => `🥇 ${rw.doblon} doblones · 🪙 ${rw.coins}${rw.extra ? ' · ' + itemName(rw.extra[0]) : ''}`;
+  const rwText = (rw) => `${G.icon('doblon', 'xs')} ${rw.doblon} doblones · 🪙 ${rw.coins}${rw.extra ? ' · ' + G.icon(rw.extra[0], 'xs') + ' ' + itemName(rw.extra[0]) : ''}`;
 
   // ------------------------------------------------------------------ progreso
   function complete(q) {
@@ -135,7 +135,7 @@
     const prog = active ? `<div class="q-prog"><i style="width:${Math.min(100, (have / q.n) * 100)}%"></i></div><small>${Math.min(have, q.n)}/${q.n}</small>` : '';
     const btn = !active ? `<button class="btn small primary" data-a="take" data-id="${q.id}">Aceptar</button>`
       : (q.kind === 'bring' ? `<button class="btn small primary" data-a="give" data-id="${q.id}"${have >= q.n ? '' : ' disabled'}>Entregar</button> ` : '') + `<button class="btn small" data-a="drop" data-id="${q.id}">Abandonar</button>`;
-    return `<div class="q-card${active ? ' active' : ''}"><div class="q-who">📌 ${esc(q.who)}</div><b>${esc(q.text)}</b><p class="muted">«${esc(q.why)}»</p>${prog}<div class="q-rw">${rwText(q.rw)}</div><div class="q-btns">${btn}</div></div>`;
+    return `<div class="q-card${active ? ' active' : ''}"><div class="q-who">📌 ${esc(q.who)}</div><b>${q.item ? G.icon(q.item, 'sm') + ' ' : ''}${esc(q.text)}</b><p class="muted">«${esc(q.why)}»</p>${prog}<div class="q-rw">${rwText(q.rw)}</div><div class="q-btns">${btn}</div></div>`;
   }
   function render() {
     if (!$('questBody') || $('questWin').classList.contains('hidden')) return;
@@ -158,7 +158,7 @@
     let el = $('questHud');
     if (!el) { el = document.createElement('div'); el.id = 'questHud'; const o = $('objective'); if (!o) return; o.appendChild(el); }
     const s = G.state && G.state.world ? st() : null;
-    el.innerHTML = s ? s.active.map((q) => { const have = q.kind === 'bring' ? Math.min(G.Inv.count(q.item), q.n) : q.got; return `<div>📋 ${esc(q.text)} <b>${have}/${q.n}</b></div>`; }).join('') : '';
+    el.innerHTML = s ? s.active.map((q) => { const have = q.kind === 'bring' ? Math.min(G.Inv.count(q.item), q.n) : q.got; return `<div>📋 ${q.item ? G.icon(q.item, 'xs') + ' ' : ''}${esc(q.text)} <b>${have}/${q.n}</b></div>`; }).join('') : '';
     el.classList.toggle('hidden', !el.innerHTML);
   }
   Q.hud = hud;

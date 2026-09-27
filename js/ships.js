@@ -917,7 +917,7 @@
     const s = tg.s, P = G.Player, hid = G.Inv.heldId();
     if (tg.kind === 'piece') {
       const p = PIECE_OF(s, tg.piece);
-      const need = Object.entries(p[2]).map(([id, n]) => `${G.ITEMS[id].i}${Math.min(G.Inv.count(id), n)}/${n}`).join(' ');
+      const need = Object.entries(p[2]).map(([id, n]) => `${G.icon(id, 'xs')}${Math.min(G.Inv.count(id), n)}/${n}`).join(' ');
       const can = canPlace(s, p);
       let extra = '';
       if (tg.piece === 'mascaron') extra = ` · <kbd>R</kbd> Diseño: ${fhName(s.fh)}`;

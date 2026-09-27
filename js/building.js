@@ -213,6 +213,7 @@
       return g;
     },
   };
+  B.BUILDERS = BUILDERS; // también los usa el generador de iconos
 
   // ------------------------------------------------------------------ utilidades de rejilla
   function cellTerrain(i, j) {

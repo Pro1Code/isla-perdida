@@ -72,7 +72,7 @@
       d.className = 'slot';
       el.invChest.appendChild(d);
       d.addEventListener('mousedown', (e) => { e.preventDefault(); UI.chestClick(i); });
-      d.addEventListener('mouseenter', () => { const s = UI.chest && UI.chest.items[i]; el.itemInfo.innerHTML = s ? `<b>${G.ITEMS[s.id].i} ${G.ITEMS[s.id].n}</b> ×${s.n}<br><span class="muted">Clic: pasar al inventario</span>` : '<span class="muted">Casilla vacía.</span>'; });
+      d.addEventListener('mouseenter', () => { const s = UI.chest && UI.chest.items[i]; el.itemInfo.innerHTML = s ? `<b>${G.icon(s.id, 'sm')} ${G.ITEMS[s.id].n}</b> ×${s.n}<br><span class="muted">Clic: pasar al inventario</span>` : '<span class="muted">Casilla vacía.</span>'; });
       d.addEventListener('contextmenu', (e) => e.preventDefault());
     }
     el.craftTabs.innerHTML = G.CRAFT_CATS.map(([k, n]) => `<button data-c="${k}">${n}</button>`).join('');
@@ -124,7 +124,7 @@
     if (!s) return h;
     const it = G.ITEMS[s.id];
     if (!it) return h;
-    h += it.i;
+    h += G.icon(s.id);
     if (s.n > 1) h += `<span class="cnt">${s.n}</span>`;
     if (s.d !== undefined && it.dur < 9999) {
       const f = U.clamp(s.d / it.dur, 0, 1);
@@ -149,7 +149,7 @@
     });
     [...el.invEquip.children].forEach((d) => {
       const e = G.Inv.equip[d.dataset.slot];
-      d.innerHTML = e ? G.ITEMS[e.id].i : `<span class="eq-ph">${G.Inv.SLOT_ICONS[d.dataset.slot]}</span>`;
+      d.innerHTML = e ? G.icon(e.id) : `<span class="eq-ph">${G.Inv.SLOT_ICONS[d.dataset.slot]}</span>`;
       d.classList.toggle('filled', !!e);
     });
     const ar = G.Inv.eqStat('armor'), co = G.Inv.eqStat('cold'), he = G.Inv.eqStat('heat');
@@ -190,7 +190,7 @@
     const e = G.Inv.equip[slot];
     if (!e) { el.itemInfo.innerHTML = `<b>${G.Inv.SLOT_ICONS[slot]} ${G.Inv.SLOT_NAMES[slot]}</b><br><span class="muted">Vacío. Selecciona una prenda en la mochila y haz clic aquí, o clic derecho sobre ella.</span>`; return; }
     const it = G.ITEMS[e.id];
-    el.itemInfo.innerHTML = `<b>${it.i} ${it.n}</b> <span class="muted">(${G.Inv.SLOT_NAMES[slot].toLowerCase()})</span><br><span class="muted">${it.d}</span><br>${eqDesc(it.eq)}<br><i>Clic: quitártelo</i>`;
+    el.itemInfo.innerHTML = `<b>${G.icon(e.id, 'sm')} ${it.n}</b> <span class="muted">(${G.Inv.SLOT_NAMES[slot].toLowerCase()})</span><br><span class="muted">${it.d}</span><br>${eqDesc(it.eq)}<br><i>Clic: quitártelo</i>`;
   };
   UI.slotClick = function (i, button) {
     const S = G.Inv.slots;
@@ -241,7 +241,7 @@
     const s = G.Inv.slots[i];
     if (!s) { el.itemInfo.innerHTML = '<span class="muted">Casilla vacía.</span>'; return; }
     const it = G.ITEMS[s.id];
-    let h = `<b>${it.i} ${it.n}</b>${s.n > 1 ? ` ×${s.n}` : ''}<br><span class="muted">${it.d || ''}</span>`;
+    let h = `<b>${G.icon(s.id, 'sm')} ${it.n}</b>${s.n > 1 ? ` ×${s.n}` : ''}<br><span class="muted">${it.d || ''}</span>`;
     if (it.use) {
       const u = it.use, parts = [];
       if (u.hunger) parts.push(`🍖 +${u.hunger}`);
@@ -272,10 +272,10 @@
       const can = G.Inv.canCraft(r) && near && learned;
       const reqs = Object.entries(r.req).map(([id, n]) => {
         const have = G.Inv.count(id);
-        return `<span class="req ${have >= n ? 'ok' : 'no'}">${G.ITEMS[id].i} ${Math.min(have, 999)}/${n}</span>`;
+        return `<span class="req ${have >= n ? 'ok' : 'no'}">${G.icon(id, 'xs')} ${Math.min(have, 999)}/${n}</span>`;
       }).join('') + (r.station ? `<span class="req ${near ? 'ok' : 'no'}">${G.STATION_NAMES[r.station]}</span>` : '') + (!learned ? `<span class="req no">🔒 ${r.learn.startsWith('style_') ? 'estilo ' + G.Styles.DEF[r.learn.slice(6)].name : 'receta shandara'}</span>` : '');
       const eqLine = it.eq ? `<div class="ds eq-line">${G.Inv.SLOT_NAMES[it.eq.slot]}: ${eqDesc(it.eq)}</div>` : '';
-      return `<div class="recipe ${can ? 'ok' : ''}"><div class="ic">${it.i}</div><div><div class="nm">${it.n}${r.n > 1 ? ' ×' + r.n : ''}</div><div class="ds">${it.d || ''}</div>${eqLine}${reqs}</div><button data-r="${idx}" ${can ? '' : 'disabled'}>Fabricar</button></div>`;
+      return `<div class="recipe ${can ? 'ok' : ''}"><div class="ic">${G.icon(r.id)}</div><div><div class="nm">${it.n}${r.n > 1 ? ' ×' + r.n : ''}</div><div class="ds">${it.d || ''}</div>${eqLine}${reqs}</div><button data-r="${idx}" ${can ? '' : 'disabled'}>Fabricar</button></div>`;
     }).join('');
   };
 
@@ -369,7 +369,7 @@
     el.dialogWho.textContent = d.who || '';
     el.dialogText.textContent = G.stripMood(d.text);
     const opts = d.options && d.options.length ? d.options : [['Continuar', null]];
-    el.dialogOpts.innerHTML = opts.map((o, i) => `<button data-o="${i}"><kbd>${i + 1}</kbd> ${G.Net.esc(o[0])}</button>`).join('');
+    el.dialogOpts.innerHTML = opts.map((o, i) => `<button data-o="${i}"><kbd>${i + 1}</kbd> ${o[2] === 'html' ? o[0] : G.Net.esc(o[0])}</button>`).join('');
     el.dialog.classList.remove('hidden');
     G.Main.releasePointer();
   };

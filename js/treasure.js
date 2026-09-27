@@ -72,7 +72,7 @@
       G.UI.fade(() => {
         for (const [id, n] of items) G.Game.give(id, n);
         G.Profile.addCoins(coins, 'Tesoro enterrado');
-        G.UI.banner('💰 ¡Un tesoro enterrado!', items.map(([id, n]) => `${n} ${G.ITEMS[id].i}`).join('  '));
+        G.UI.banner('💰 ¡Un tesoro enterrado!', items.map(([id, n]) => `${n} ${G.icon(id, 'xs')}`).join('  '));
         G.Audio.play('win');
         G.Ach.add('treasureMap');
         G.Quests.onEvent('treasure');

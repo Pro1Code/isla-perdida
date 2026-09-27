@@ -335,16 +335,16 @@
   }
   function trader(c, again) {
     const opts = TRADES.map((tr) => {
-      const give = Object.entries(tr.give).map(([id, n]) => `${n} ${G.ITEMS[id].i}`).join(' + ');
+      const give = Object.entries(tr.give).map(([id, n]) => `${n} ${G.icon(id, 'xs')}`).join(' + ');
       const ok = Object.entries(tr.give).every(([id, n]) => G.Inv.count(id) >= n);
-      return [`${ok ? '' : '✗ '}${give} → ${tr.get[1]} ${G.ITEMS[tr.get[0]].i} ${G.ITEMS[tr.get[0]].n}`, () => {
+      return [`${ok ? '' : '✗ '}${give} → ${tr.get[1]} ${G.icon(tr.get[0], 'xs')} ${G.ITEMS[tr.get[0]].n}`, () => {
         if (!Object.entries(tr.give).every(([id, n]) => G.Inv.count(id) >= n)) { G.UI.msg('No tienes lo necesario.', 'warn'); G.Audio.play('error'); return; }
         for (const [id, n] of Object.entries(tr.give)) G.Inv.remove(id, n);
         G.Game.give(tr.get[0], tr.get[1]);
         G.Ach.add('trade');
         G.Audio.play('loot');
         trader(c, true);
-      }];
+      }, 'html'];
     });
     opts.push(['Adiós', null]);
     St.show({ who: 'Genbu (comerciante)', text: again ? G.LINES.genbu.deal : G.LINES.genbu.hello, options: opts });

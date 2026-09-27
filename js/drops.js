@@ -12,17 +12,15 @@
   function iconTex(id, n) {
     const key = id + ':' + (n > 1 ? n : 1);
     if (texCache[key]) return texCache[key];
-    const t = U.canvasTex(96, 96, (c, w, h) => {
-      c.clearRect(0, 0, w, h);
-      c.font = '64px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
-      c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.shadowColor = 'rgba(0,0,0,.55)'; c.shadowBlur = 6; c.shadowOffsetY = 2;
-      c.fillText(G.ITEMS[id].i, w / 2, h / 2 + 2);
-      if (n > 1) {
-        c.shadowBlur = 0; c.font = 'bold 26px sans-serif'; c.textAlign = 'right'; c.lineWidth = 5; c.strokeStyle = '#000'; c.fillStyle = '#fff';
-        c.strokeText('×' + n, w - 2, h - 14); c.fillText('×' + n, w - 2, h - 14);
-      }
-    });
+    const count = (c, w, h) => {
+      if (n <= 1) return;
+      c.shadowBlur = 0; c.font = 'bold 26px sans-serif'; c.textAlign = 'right'; c.lineWidth = 5; c.strokeStyle = '#000'; c.fillStyle = '#fff';
+      c.strokeText('×' + n, w - 2, h - 10); c.fillText('×' + n, w - 2, h - 10);
+    };
+    const t = U.canvasTex(96, 96, (c, w, h) => { c.clearRect(0, 0, w, h); count(c, w, h); });
+    const im = new Image();
+    im.onload = () => { const c = t.image.getContext('2d'); c.clearRect(0, 0, 96, 96); c.drawImage(im, 0, 0, 96, 96); count(c, 96, 96); t.needsUpdate = true; };
+    im.src = G.iconSrc(id);
     texCache[key] = t;
     return t;
   }
@@ -124,7 +122,7 @@
     if (G.ITEMS[d.item].tool && d.dur !== undefined) {
       // Las herramientas conservan su desgaste
       const e = G.Inv.slots.findIndex((x) => !x);
-      if (e >= 0) { G.Inv.slots[e] = { id: d.item, n: 1, d: d.dur }; G.Inv.changed(); G.UI.msg(`+1 ${G.ITEMS[d.item].i} ${G.ITEMS[d.item].n}`, 'item'); }
+      if (e >= 0) { G.Inv.slots[e] = { id: d.item, n: 1, d: d.dur }; G.Inv.changed(); G.UI.msg(`+1 ${G.icon(d.item, 'xs')} ${G.ITEMS[d.item].n}`, 'item'); }
     } else G.Game.give(d.item, d.n);
     G.Audio.play('pickup');
   }

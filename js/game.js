@@ -28,7 +28,7 @@
 
   Game.give = function (id, n) {
     const added = G.Inv.add(id, n);
-    if (added > 0) G.UI.msg(`+${added} ${G.ITEMS[id].i} ${G.ITEMS[id].n}`, 'item');
+    if (added > 0) G.UI.msg(`+${added} ${G.icon(id, 'xs')} ${G.ITEMS[id].n}`, 'item');
     if (added > 0 && G.Ach) G.Ach.add('get:' + id, added, true);
     if (added > 0 && id.startsWith('pista_') && G.Prologue) G.Prologue.onItem(id);
     if (added < n) G.UI.msg('¡Inventario lleno!', 'bad', 'full');
@@ -297,7 +297,7 @@
     const held = G.Inv.held();
     if (!held) return;
     const it = G.ITEMS[held.id];
-    if (it.eq) { G.Inv.equipFrom(G.Inv.sel); G.Audio.play('select'); G.UI.msg(`Te pones: ${it.i} ${it.n}`, 'info'); return; }
+    if (it.eq) { G.Inv.equipFrom(G.Inv.sel); G.Audio.play('select'); G.UI.msg(`Te pones: ${G.icon(held.id, 'xs')} ${it.n}`, 'info'); return; }
     if (it.fruit) { G.Story.eatFruit(held.id); return; }
     if (it.read) { G.Story.readItem(it.read); return; }
     if (it.use) Game.consume(G.Inv.sel);
@@ -383,7 +383,7 @@
       return;
     }
     G.Audio.play(rec.station === 'horno' ? 'smelt' : rec.station === 'banco' ? 'hammer' : 'craft');
-    G.UI.msg(`Fabricaste: ${G.ITEMS[rec.id].i} ${G.ITEMS[rec.id].n}${n > 1 ? ' ×' + n : ''}`, 'good');
+    G.UI.msg(`Fabricaste: ${G.icon(rec.id, 'xs')} ${G.ITEMS[rec.id].n}${n > 1 ? ' ×' + n : ''}`, 'good');
     G.state.stats.crafted++;
     G.Ach.add('craft:' + rec.id, added, true);
     if (rec.cat === 'ropa') G.Ach.add('craftRopa');
