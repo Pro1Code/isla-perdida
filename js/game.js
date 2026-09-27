@@ -169,6 +169,8 @@
     if (P.station) { G.Ships.releaseStation(); return; }
     // Encima de la ✖ de un mapa del tesoro: cavar
     if (G.Treasure.dig()) return;
+    // Tu cofre flotando o ya desenterrado: recuperar las cosas
+    if (G.Grave.interact()) return;
     const tg = Game.target;
     if (!tg) {
       // Recoger agua de lluvia con el cuenco
@@ -236,6 +238,7 @@
     const P = G.Player;
     if (P.cd > 0 || P.dead) return;
     if (G.Story.dialog) return;
+    if (G.Grave.aimed()) return; // mirando a la ✖ de un cofre: el clic mantenido cava (grave.js)
     // Cañones: desde el puesto del cañón o el cañón de proa desde el timón de la lancha
     if (P.station && P.station.kind === 'cannon') { P.cd = 0.4; G.Ships.fireCannon(P.ship, P.station.st); return; }
     if (P.station && P.station.kind === 'helm' && P.ship && P.ship.type === 'lancha' && G.Ships.has(P.ship, 'canon0')) {
@@ -584,9 +587,11 @@
     G.Story.onDeath();
     G.Modes.onDeath();
     const rule = G.Modes.deathRule();
+    const grave = G.Grave.onDeath(); // regla «cofre»: todo lo que llevas se queda en un cofre (grave.js)
     document.getElementById('deadCause').textContent = cause || 'No sobreviviste';
     document.getElementById('deadRule').textContent = rule === 'out' ? 'Estás eliminado: podrás mirar a tu equipo hasta que acabe la partida.' :
-      `Reaparecerás en tu cama (o en tu playa) y ${rule === 'keep' ? 'conservarás todo' : rule === 'all' ? 'perderás todos tus objetos' : 'perderás la mitad de tus recursos'}.`;
+      rule === 'half' ? (grave ? `Reaparecerás en tu cama (o en tu playa). Tus cosas quedaron en un cofre ${grave.water ? 'flotando con una bandera roja 🚩' : 'enterrado bajo una ✖ roja'}: tienes 5 minutos para recuperarlas. En el mapa (M) verás la zona.` : 'Reaparecerás en tu cama (o en tu playa).') :
+      `Reaparecerás en tu cama (o en tu playa) y ${rule === 'keep' ? 'conservarás todo' : 'perderás todos tus objetos'}.`;
     document.getElementById('btnRespawn').textContent = rule === 'out' ? 'Mirar a mi equipo' : 'Reaparecer';
     G.Main.showScreen('dead');
   };
@@ -595,9 +600,8 @@
     if (rule === 'out') { G.state.spectate = true; G.Modes.onPlayerOut(); return; }
     for (let i = 0; i < G.Inv.slots.length; i++) {
       const s = G.Inv.slots[i];
-      if (!s || rule === 'keep') continue;
-      if (rule === 'all') { G.Inv.slots[i] = null; continue; }
-      if (!G.ITEMS[s.id].tool) { s.n = Math.floor(s.n / 2); if (s.n <= 0) G.Inv.slots[i] = null; }
+      if (!s || rule !== 'all') continue; // con «cofre» ya está todo en el cofre; con «conservar», se queda
+      G.Inv.slots[i] = null;
     }
     if (rule === 'all') for (const k of G.Inv.SLOTS) G.Inv.equip[k] = null;
     G.Inv.changed();
@@ -606,7 +610,7 @@
     const S = P.stats;
     S.health = 60; S.hunger = Math.max(S.hunger, 50); S.thirst = Math.max(S.thirst, 50); S.stamina = 100;
     if (!G.Net.active) G.Creatures.removeWolves();
-    G.UI.msg(rule === 'keep' ? 'Despiertas aturdido…' : rule === 'all' ? 'Despiertas aturdido… Lo perdiste todo.' : 'Despiertas aturdido… Perdiste la mitad de tus recursos.', 'warn');
+    G.UI.msg(rule === 'all' ? 'Despiertas aturdido… Lo perdiste todo.' : rule === 'half' && G.Grave.mineActive() ? 'Despiertas aturdido… ¡Corre a por tu cofre! Tienes 5 minutos (mira la zona en el mapa, <kbd>M</kbd>).' : 'Despiertas aturdido…', 'warn');
   };
   Game.homeSpawn = () => (G.Modes.active ? G.Modes.spawnFor(G.Net.team) : G.World.spawn);
 
@@ -638,6 +642,7 @@
     G.Crew.update(dt);
     G.Navy.update(dt);
     G.Bosses.update(dt);
+    G.Grave.update(dt);
     P.cd = Math.max(0, P.cd - dt);
     if (!st.spectate) { P.update(dt, inputOn); P.updateStats(dt); }
     G.Net.update(dt);
@@ -671,6 +676,8 @@
     if (st.sleepBed && G.Net.sleepCount) prompt = `💤 Esperando a que todos se acuesten (${G.Net.sleepCount.n}/${G.Net.sleepCount.total})`;
     if (pl) prompt = `<b>${hit.n}</b> · ` + (pl.ok ? '<kbd>Clic</kbd> Colocar' : `<span class="warn">${pl.reason}</span>`) + (placeType === 'cama' || placeType === 'fogata' || placeType === 'banco' ? ' · <kbd>R</kbd> Girar' : '');
     if (spl) prompt = `<b>${hit.n}</b> · ` + (spl.ok ? '<kbd>Clic</kbd> Colocar en el agua' : `<span class="warn">${spl.reason}</span>`) + ' · <kbd>R</kbd> Girar';
+    const gp = G.Grave.prompt();
+    if (gp && (G.Grave.aimed() || G.Grave.near() || !prompt)) prompt = gp;
     if (P.station && P.station.kind === 'cannon') prompt = '💣 <kbd>Clic</kbd> Disparar · ratón: apuntar · <kbd>E</kbd> Soltar';
     else if (P.station && P.station.kind === 'helm') prompt = P.ship.def.paddle ? '🛶 <kbd>W</kbd>/<kbd>S</kbd> remar · <kbd>A</kbd>/<kbd>D</kbd> girar · <kbd>E</kbd> levantarse' : `☸️ Al timón · <kbd>V</kbd> cámara${P.ship.type === 'lancha' ? ' · <kbd>Clic</kbd> cañón de proa' : ''} · <kbd>E</kbd> soltar`;
     else if (P.station && P.station.kind === 'seat') prompt = '🪑 Sentado · <kbd>E</kbd> levantarse';
@@ -678,7 +685,7 @@
     if (st.spectate) prompt = '👁️ Estás eliminado: observando la partida';
     G.UI.setPrompt(st.mode === 'playing' && !G.Story.dialog ? prompt : '');
     G.UI.el.crosshair.classList.toggle('active', !!Game.target);
-    if (inputOn && G.Input.mouseL) Game.attack();
+    if (inputOn && G.Input.mouseL && !G.Grave.dig(dt)) Game.attack();
     G.Creatures.update(dt);
     G.Build.update(dt);
     G.Res.update(dt);

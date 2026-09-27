@@ -27,6 +27,7 @@
     ruinas: { sand: C(0xe2cfa0), wet: C(0xa8966e), under: C(0xc4b088), grassA: C(0x587a36), grassB: C(0x7a8a48), dirt: C(0x8a7a5a), rockA: C(0xa39c8c), rockB: C(0x7e786a), rockH: 18 },
   };
   PAL.islote = PAL.perdida; PAL.arrecife = PAL.perdida;
+  A.PAL = PAL; // también lo usa el cofre de la muerte (la ✖ se funde con el suelo)
   const MAPPAL = {
     perdida: { sand: [222, 202, 150], lo1: [88, 140, 56], lo2: [70, 110, 50], hi: 20, rock1: [125, 118, 108], rock2: [190, 185, 180] },
     tahuri: { sand: [226, 206, 150], lo1: [60, 120, 40], lo2: [45, 95, 35], hi: 22, rock1: [110, 112, 100], rock2: [160, 160, 150] },

@@ -595,6 +595,7 @@
     }
     if (G.Prologue) G.Prologue.drawMap(ctx, toPx, full);
     if (G.Treasure) G.Treasure.drawMap(ctx, toPx, full);
+    if (G.Grave) G.Grave.drawMap(ctx, toPx, full, scale);
     if (G.Modes.active) for (const sd of G.Modes.stands) {
       const [x, y] = toPx(sd.x, sd.z);
       ctx.font = `${full ? 16 : 12}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🏴', x, y);

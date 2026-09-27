@@ -320,3 +320,7 @@
 .q-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 #questHud { margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--line); font-size: 12.5px; line-height: 1.6; }
 #questHud.hidden { display: none; }
+#graveHud { margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--line); font-size: 12.5px; line-height: 1.6; color: #ffb4b4; }
+#graveHud.hidden { display: none; }
+#graveHud.urgent { color: #ff6a5a; animation: gravePulse 1s ease-in-out infinite; }
+@keyframes gravePulse { 50% { opacity: .55; } }
