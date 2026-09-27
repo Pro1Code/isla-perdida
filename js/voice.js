@@ -27,6 +27,8 @@
     if (c.type === 'villager') return V.speakerOf(c.name);
     if (c.type === 'pirate_boss') return 'hiena';
     if (c.type === 'marine_boss') return 'comodoro';
+    if (c.type === 'ghost_captain') return 'holandes';
+    if (c.type === 'ghost_pirate' || c.type === 'ghost_gun') return 'fantasma';
     if (c.type === 'marine' || c.type === 'marine_gun') return 'marino';
     if (c.type === 'pirate' || c.type === 'pirate_gun') return 'pirata' + (1 + (Math.abs(c.extra | 0) % 3));
     return null;
@@ -254,11 +256,12 @@
 
   // ------------------------------------------------------------------ gritos de combate
   let barkCd = 0;
+  const BOSS_VOICE = { pirate_boss: 'hiena', marine_boss: 'comodoro', ghost_captain: 'holandes' };
   function barks() {
     const P = G.Player.pos, f = flags();
     for (const c of G.Creatures.list) {
-      if (!/^(pirate|marine)/.test(c.type)) continue;
-      const boss = c.type === 'pirate_boss' || c.type === 'marine_boss', bk = c.type === 'marine_boss' ? 'comodoro' : 'hiena', ag = c.aggro > 0;
+      if (!/^(pirate|marine|ghost)/.test(c.type)) continue;
+      const bk = BOSS_VOICE[c.type], boss = !!bk, ag = c.aggro > 0;
       if (boss && c.dead && !c._fell) { c._fell = true; say1(c, bk, G.LINES[bk].fall, true); continue; }
       if (c.dead) continue;
       if (boss && !c._rage && c.hp < c.d.hp * 0.5) { c._rage = true; say1(c, bk, G.LINES[bk].rage, true); }

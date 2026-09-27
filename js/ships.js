@@ -267,6 +267,17 @@
     const key = String(color) + ':' + (design || '');
     if (flagTexCache[key]) return flagTexCache[key];
     const t = U.canvasTex(128, 80, (c, w, h) => {
+      if (design === 'fantasma') { // Holandés de las Mareas: tela negra raída con calavera verde
+        const cx = w / 2, cy = h * 0.46, v = '#8dffc0';
+        c.fillStyle = '#0c1210'; c.fillRect(0, 0, w, h);
+        c.fillStyle = '#243a30'; for (let i = 0; i < 7; i++) { const y = 6 + i * 11; c.beginPath(); c.moveTo(w, y); c.lineTo(w - 10 - (i % 3) * 6, y + 5); c.lineTo(w, y + 10); c.fill(); }
+        c.strokeStyle = v; c.lineWidth = 6; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(cx - 24, cy + 24); c.lineTo(cx + 24, cy - 12); c.moveTo(cx - 24, cy - 12); c.lineTo(cx + 24, cy + 24); c.stroke();
+        c.fillStyle = v; c.beginPath(); c.arc(cx, cy, 15, 0, 7); c.fill(); c.fillRect(cx - 8, cy + 8, 16, 9);
+        c.fillStyle = '#0c1210'; c.beginPath(); c.arc(cx - 6, cy, 4.5, 0, 7); c.arc(cx + 6, cy, 4.5, 0, 7); c.fill();
+        c.fillRect(cx - 4, cy + 12, 2, 5); c.fillRect(cx, cy + 12, 2, 5); c.fillRect(cx + 4, cy + 12, 2, 5);
+        return;
+      }
       if (design === 'marina') { // Marina Blanca: tela blanca, ancla azul marino y gaviota
         const cx = w / 2, cy = h * 0.46, az = '#1e2a4a';
         c.fillStyle = '#f4f4f0'; c.fillRect(0, 0, w, h);
@@ -1041,7 +1052,7 @@
   };
 
   // ------------------------------------------------------------------ cañones y proyectiles
-  let ballGeo, ballMat;
+  let ballGeo, ballMat, ghostBallMat;
   function cannonWorld(s, st, P) {
     const c = st.c, o = S.toWorld(s, _lp.set(c.x + Math.sin(c.yaw) * 0.95, s.def.deckY + 0.47, c.z + Math.cos(c.yaw) * 0.95), new V3());
     const yaw = s.yaw + c.yaw + (P ? P.station.aimY : 0), pitch = P ? P.station.aimP : 0.12;
@@ -1073,7 +1084,8 @@
   };
   function spawnBall(m, mine) {
     if (!ballGeo) { ballGeo = new THREE.SphereGeometry(0.14, 10, 8); ballMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1c, metalness: 0.6, roughness: 0.4 }); }
-    const b = new THREE.Mesh(ballGeo, ballMat);
+    if (m.ghost && !ghostBallMat) ghostBallMat = new THREE.MeshBasicMaterial({ color: 0x8dffc0 });
+    const b = new THREE.Mesh(ballGeo, m.ghost ? ghostBallMat : ballMat);
     b.position.set(m.x, m.y, m.z);
     G.scene.add(b);
     S.proj.push({ m: b, v: new V3(m.vx, m.vy, m.vz), mine, from: m.from, ship: m.ship, team: m.team, t: 0 });
@@ -1092,7 +1104,7 @@
       if (pos.y < ground) hit = 'ground';
       else if (pos.y < G.World.waveHeight(pos.x, pos.z) && ground < -0.3) hit = 'water';
       if (!hit) for (const s of S.list) {
-        if (s.id === p.ship || s.sinking) continue;
+        if (s.id === p.ship || s.sinking || G.Navy.isGhostly(s)) continue;
         if (Math.abs(s.x - pos.x) > s.def.L || Math.abs(s.z - pos.z) > s.def.L) continue;
         const l = S.toLocal(s, pos.x, pos.y, pos.z, _l2);
         if (Math.abs(l.z) < s.def.L / 2 && Math.abs(l.x) < halfW(s.def, l.z) + 0.2 && l.y > -s.def.draft && l.y < s.def.deckY + s.def.rail + 2.5) { hit = 'ship'; if (p.mine) { S.hurt(s, 45, `¡Impacto de cañón en ${s.name}!`, p.from); G.Ach.add('cannonHit'); } break; }

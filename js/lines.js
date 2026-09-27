@@ -39,6 +39,9 @@
     // Marina Blanca
     marino: { name: 'Marine', v: 'sharvard', s: 0, p: 1.06, l: 0.94, lobo: true },
     comodoro: { name: 'Comodoro', v: 'davefx', p: 0.84, l: 1.05, rudo: 0.1, lobo: true },
+    // Holandés de las Mareas (voces de ultratumba)
+    holandes: { name: 'Capitán Van Bruma', v: 'davefx', p: 0.76, l: 1.12, rudo: 0.25, eco: true, lobo: true },
+    fantasma: { name: 'Pirata fantasma', v: 'sharvard', s: 0, p: 0.9, l: 1.06, eco: true, lobo: true },
     // Mascotas
     loro: { name: 'Loro', v: 'sharvard', s: 1, p: 1.55, l: 0.82, rudo: 0.35, lobo: true },
     caracol: { name: 'Caracolófono', v: 'davefx', p: 0.95, l: 1.0, lobo: true },
@@ -178,6 +181,14 @@
   // ------------------------------------------------------------------ Marina Blanca
   L.marino = { spot: ['{mando}«¡Alto en nombre de la Marina Blanca!»', '{grito}«¡Preparad los cañones!»', '{mando}«¡Rendíos y seréis juzgados!»', '{grito}«¡Es el pirata del cartel! ¡A por él!»'], rinde: '{miedo}«¡Nos rendimos! ¡No disparéis!»' };
   L.comodoro = { spot: ['{mando}«Tu recompensa acaba de subir… a precio de horca.»', '{mando}«Por la justicia de la Marina Blanca: ¡fuego a discreción!»'], rage: '{furia}«¡Nadie humilla a la Marina Blanca!»', fall: '{triste}«La justicia… volverá…»' };
+
+  // ------------------------------------------------------------------ Holandés de las Mareas
+  L.holandes = {
+    spot: ['{susurro}«Otra alma más… para mi tripulación…»', '{mando}«¡Ni la marea ni la muerte me detienen! ¡Al abordaje!»', '{burla}«Cien años sin pisar tierra, grumete… ¿y tú crees que me asustas?»'],
+    rage: '{furia}«¡Mi maldición no se rompe con balas, marinero de agua dulce!»',
+    fall: '{triste}«Al fin… podré descansar… en el fondo del mar…»',
+  };
+  L.fantasma = { spot: ['{susurro}«Únete a nosotros… abajo… en lo hondo…»', '{grito}«¡Por el capitán Van Bruma!»', '{susurro}«Frío… qué frío hace en el fondo del mar…»'] };
 
   // ------------------------------------------------------------------ mascotas
   L.loro = { aviso: ['{grito}«¡Peligro! ¡Peligro!»', '{grito}«¡Cuidado, grumete! ¡Cuidado!»', '{grito}«¡Arrr! ¡Enemigo a la vista!»', '{grito}«¡Rrratas a babor! ¡Rrratas!»'] };

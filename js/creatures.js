@@ -5,7 +5,7 @@
   'use strict';
   const G = window.G, U = G.U;
   const C = (G.Creatures = { list: [], timer: 0, nextId: 0 });
-  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss'];
+  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss', 'ghost_pirate', 'ghost_gun', 'ghost_captain'];
   const DEF = (C.DEF = {
     crab: { name: 'Cangrejo', hp: 12, speed: 0.8, run: 2.6, bodyY: 0.2, hitR: 0.5, drops: [['carne_cruda', 1]] },
     boar: { name: 'Jabalí', hp: 45, speed: 1.1, run: 4.8, bodyY: 0.7, hitR: 0.8, dmg: 10, drops: [['carne_cruda', 3], ['cuero', 1]] },
@@ -34,6 +34,9 @@
     pirate_gun: { name: 'Pirata tirador', hp: 45, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 11, human: true, drops: [['polvora', 1], ['bala', 4]] },
     marine: { name: 'Marine de la Marina Blanca', hp: 70, speed: 1.1, run: 4.3, bodyY: 1.0, hitR: 0.55, dmg: 11, human: true, drops: [['doblon', 1], ['bala', 3]] },
     marine_gun: { name: 'Tirador de la Marina', hp: 55, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 12, human: true, drops: [['polvora', 1], ['bala', 5]] },
+    ghost_pirate: { name: 'Pirata fantasma', hp: 60, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.55, dmg: 12, human: true, drops: [['doblon', 2]] },
+    ghost_gun: { name: 'Tirador fantasma', hp: 50, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 13, human: true, drops: [['doblon', 2], ['polvora', 1]] },
+    ghost_captain: { name: 'Capitán Van Bruma', hp: 380, speed: 1.1, run: 4.5, bodyY: 1.0, hitR: 0.6, dmg: 18, human: true, drops: [['doblon', 20], ['perla', 3], ['mapa_tesoro', 1]] },
     marine_boss: { name: 'Comodoro de la Marina Blanca', hp: 320, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.6, dmg: 16, human: true, drops: [['doblon', 10], ['katana', 1], ['mapa_tesoro', 1]] },
     pirate_boss: { name: 'Capitana Hiena', hp: 300, speed: 1.2, run: 4.6, bodyY: 1.0, hitR: 0.6, dmg: 15, human: true, drops: [['pista_3', 1], ['sable', 1], ['doblon', 6]] },
   });
@@ -145,7 +148,7 @@
       salamander: () => A.salamander(mat), lavacrab: () => A.crab(mat, 0x3a2a24, 0x241814, true), whale: () => A.whale(mat), dolphin: () => A.dolphin(mat),
       jelly: () => A.jelly(), serpent: () => A.serpent(mat), villager: () => villager(extra || 0),
       npc: () => G.Prologue.human('npc', extra || 0), pirate: () => G.Prologue.human('pirate', extra || 0), pirate_gun: () => G.Prologue.human('pirate_gun', extra || 0),
-      pirate_boss: () => G.Prologue.human('pirate_boss', extra || 0), marine: () => G.Prologue.human('marine', extra || 0), marine_gun: () => G.Prologue.human('marine_gun', extra || 0), marine_boss: () => G.Prologue.human('marine_boss', extra || 0), dummy: () => G.Prologue.dummy(extra || 0),
+      pirate_boss: () => G.Prologue.human('pirate_boss', extra || 0), marine: () => G.Prologue.human('marine', extra || 0), marine_gun: () => G.Prologue.human('marine_gun', extra || 0), marine_boss: () => G.Prologue.human('marine_boss', extra || 0), ghost_pirate: () => G.Prologue.human('ghost_pirate', extra || 0), ghost_gun: () => G.Prologue.human('ghost_gun', extra || 0), ghost_captain: () => G.Prologue.human('ghost_captain', extra || 0), dummy: () => G.Prologue.dummy(extra || 0),
     };
     const m = build[type]();
     const d = DEF[type];
@@ -156,6 +159,7 @@
       pounce: 0, rest: 0, circle: Math.random() * 6.28, lonely: 0, isl: s ? s.id : -1, extra: extra || 0, hx: x, hz: z, hopT: 0,
     });
     if (m.vinfo) { c.name = m.vinfo.name; c.role = m.vinfo.role; }
+    if (m.ghostMats) c.ghostMats = m.ghostMats;
     if (id !== undefined) C.nextId = Math.max(C.nextId, id);
     m.g.position.set(x, c.y, z);
     G.scene.add(m.g);
@@ -515,7 +519,7 @@
         if (tgt && !tgt.dead && dist < 60) {
           c.yaw = Math.atan2(tgt.x - c.x, tgt.z - c.z);
           c.aggro = Math.max(c.aggro, 2); c.aggroId = tgt.id;
-          if (c.type === 'marine_gun') { if (dist < 32 && c.cd <= 0) shootAt(c, tgt); }
+          if (/_gun$/.test(c.type)) { if (dist < 32 && c.cd <= 0) shootAt(c, tgt); }
           else if (dist < 2.6) attack(c, tgt, 2.7);
         }
         c.speedNow = 0; animate(c, dt, night); continue;

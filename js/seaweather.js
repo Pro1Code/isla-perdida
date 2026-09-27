@@ -84,6 +84,8 @@
     if (m.bolt) showBolt(m.bolt[0], m.bolt[1], m.bolt[2]);
   };
   function send(m) { S.onNet(m); G.Net.send(Object.assign({ t: 'seaWx' }, m)); }
+  // Banco de niebla forzado (lo usa el Holandés de las Mareas al aparecer)
+  S.fogOn = function (sec) { S.fogT = Math.max(S.fogT, sec); if (S.fogTarget < 0.5) send({ fog: 0.82 }); };
 
   // ------------------------------------------------------------------ fotograma
   let checkT = 5, hitT = 0, lastWorld = null;

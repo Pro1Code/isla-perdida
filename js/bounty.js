@@ -10,13 +10,13 @@
   // Recompensa por cada enemigo derrotado
   B.REWARD = {
     pirate: 300, pirate_gun: 300, pirate_boss: 15000, boss: 8000, serpent: 30000, bear: 500, jaguar: 400, caiman: 400,
-    marine: 900, marine_gun: 900, marine_boss: 40000, yeti: 50000, lavadragon: 80000,
+    marine: 900, marine_gun: 900, marine_boss: 40000, ghost_pirate: 1500, ghost_gun: 1500, ghost_captain: 30000, yeti: 50000, lavadragon: 80000,
     navy_ship: 6000, ghost_ship: 100000,
   };
   // Por qué sube (si no está aquí: "Derrotaste a un/una …")
   B.WHY = {
     pirate_boss: 'Derrotaste a la Capitana Hiena', boss: 'Derrotaste al Jabalí gigante', serpent: 'Venciste a la Serpiente marina',
-    marine_boss: 'Derrotaste a un comodoro de la Marina Blanca', yeti: 'Derrotaste al Rey de la Escarcha', lavadragon: 'Derrotaste al Dragón de Brasa',
+    marine_boss: 'Derrotaste a un comodoro de la Marina Blanca', ghost_captain: 'Derrotaste al capitán Van Bruma del Holandés de las Mareas', yeti: 'Derrotaste al Rey de la Escarcha', lavadragon: 'Derrotaste al Dragón de Brasa',
     navy_ship: 'Hundiste un barco de la Marina Blanca', ghost_ship: 'Hundiste el Holandés de las Mareas',
   };
   B.FAME = 5000; // a partir de aquí te reconocen

@@ -46,6 +46,9 @@
   function pirateLook(type, extra) {
     const r = U.rng(extra * 7919 + 13);
     const pick = (a) => a[Math.floor(r() * a.length)];
+    // Tripulación fantasma del Holandés de las Mareas
+    if (type === 'ghost_captain') return { name: 'Capitán Van Bruma', role: 'boss', shirt: '#24322c', skin: '#a8d8c0', pants: '#141c18', cos: ['cos_tricornio', 'cos_capa', 'cos_parche'], hold: 'sable' };
+    if (type === 'ghost_pirate' || type === 'ghost_gun') return { name: type === 'ghost_gun' ? 'Tirador fantasma' : 'Pirata fantasma', role: 'ghost', shirt: pick(['#3a4a42', '#2a3430', '#4a5a50']), skin: pick(['#a8d8c0', '#98c8b4', '#b8e4d0']), pants: '#1a2420', cos: pick([['cos_bandana'], ['cos_bandana', 'cos_parche'], ['cos_tricornio'], ['cos_parche']]), hold: type === 'ghost_gun' ? 'mosquete' : 'sable' };
     // Marines de la Marina Blanca (uniforme blanco y azul)
     if (type === 'marine_boss') return { name: 'Comodoro de la Marina Blanca', role: 'boss', shirt: '#f4f4f0', skin: pick(['#e6b48e', '#c68d67']), pants: '#1e2a4a', cos: ['cos_gorra_marina', 'cos_abrigo_alm', 'cos_bigote'], hold: 'katana' };
     if (type === 'marine' || type === 'marine_gun') return { name: type === 'marine_gun' ? 'Tirador de la Marina' : 'Marine de la Marina Blanca', role: 'marine', shirt: '#f2f2ee', skin: pick(['#f3d2b4', '#e6b48e', '#c68d67', '#a8704a']), pants: '#1e2a4a', cos: ['cos_gorra_marina'], hold: type === 'marine_gun' ? 'mosquete' : 'sable' };
@@ -62,7 +65,21 @@
     const model = G.Character.create(hx(d.shirt), { skin: hx(d.skin), pants: hx(d.pants) });
     G.Equip.apply(model, d.cos || []);
     if (d.hold) { const t = G.makeItemMesh(d.hold); if (t) { t.rotation.set(Math.PI / 2, 2.12, 0); model.hand.add(t); } }
-    return { g: model.root, legs: [], head: null, model, vinfo: { name: d.name, role: d.role }, feathers: { dispose() {} }, hold: !!d.hold };
+    const out = { g: model.root, legs: [], head: null, model, vinfo: { name: d.name, role: d.role }, feathers: { dispose() {} }, hold: !!d.hold };
+    if (/^ghost_/.test(type)) out.ghostMats = ghostly(model);
+    return out;
+  };
+  // Fantasmas: todo el cuerpo translúcido y con un brillo verdoso
+  function ghostly(model) {
+    const mats = [], tint = new THREE.Color(0xa8e8d0);
+    model.root.traverse((o) => {
+      if (!o.isMesh) return;
+      const one = (m) => { const k = m.clone(); k.transparent = true; k.opacity = 0.62; k.depthWrite = false; if (k.color) k.color.lerp(tint, 0.45); if (k.emissive) { k.emissive.setHex(0x2a8a62); k.emissiveIntensity = 0.6; } mats.push(k); return k; };
+      o.material = Array.isArray(o.material) ? o.material.map(one) : one(o.material);
+    });
+    const dispose = model.dispose && model.dispose.bind(model);
+    model.dispose = () => { if (dispose) dispose(); for (const m of mats) m.dispose(); };
+    return mats;
   };
   // Muñecos de entrenamiento
   Pr.dummy = function (extra) {
