@@ -288,8 +288,11 @@
       res.x = x; res.z = z; res.y = B.groundAt(x, z);
       res.rot = Math.round(P.yaw / (Math.PI / 2)) * (Math.PI / 2) + B.rotIdx * Math.PI / 2;
       if (res.y < 0.3 || G.World.inLakeWater(x, z)) fail('No se puede colocar en el agua.');
-      for (const s of B.list) if (['fogata', 'cama', 'balsa', 'horno', 'cofre', 'banco'].includes(s.type) && Math.hypot(s.x - x, s.z - z) < 1.6) fail('Demasiado cerca de otra construcción.');
-      G.Res.query(x, z, 3, (r) => { if (r.alive && r.k.solid && Math.hypot(r.x - x, r.z - z) < (r.k.r || 0.5) * r.s + 0.9) fail('Hay algo en medio.'); });
+      for (const s of B.list) if (s.type === 'balsa' && Math.hypot(s.x - x, s.z - z) < 2.5) fail('Demasiado cerca de la balsa.');
+      const o = clash(res, null);
+      if (o) fail(o.type === 'pared' || o.type === 'puerta' ? 'Atravesaría ' + EL[o.type] + ': apártate un poco o gíralo con R.' : o.type === 'piso' ? 'El borde del piso está en medio.' : 'Chocaría con ' + EL[o.type] + '.');
+      const r = resIn(res, false);
+      if (r) fail(resWhy(r));
     } else if (type === 'balsa') {
       const x = P.pos.x + fx * 4.5, z = P.pos.z + fz * 4.5;
       const h = G.height(x, z);
@@ -298,6 +301,12 @@
       else if (h > 0.05 || h < -3) fail('Apunta a la orilla del mar: agua poco profunda.');
     }
     if (res.ok && res.key && B.byKey.has(res.key)) fail('Ya hay algo construido ahí.');
+    if (res.ok && GRIDP.includes(type)) {
+      const o = clash(res, FURN);
+      if (o) fail('Quita primero ' + EL[o.type] + ': estorba ahí.');
+      const r = resIn(res, type === 'techo');
+      if (r) fail(resWhy(r));
+    }
     return res;
   };
 
@@ -324,6 +333,65 @@
       default: return [];
     }
   }
+  // ------------------------------------------------------------------ que nada se atraviese
+  const FURN = ['fogata', 'cama', 'horno', 'cofre', 'banco'], GRIDP = ['piso', 'pared', 'puerta', 'techo'];
+  const EL = { cama: 'la cama', fogata: 'la fogata', horno: 'el horno', cofre: 'el cofre', banco: 'el banco de trabajo', pared: 'la pared', puerta: 'la puerta', piso: 'el piso', techo: 'el techo' };
+  // Primera construcción cuyas cajas de choque se meten en las de la pieza 'pl' (solo los tipos de 'only', si se da)
+  function clash(pl, only, skip) {
+    const mine = computeBoxes(pl), pad = 0.04;
+    for (const s of B.list) {
+      if (s === skip || (only && !only.includes(s.type)) || Math.abs(s.x - pl.x) > 7 || Math.abs(s.z - pl.z) > 7) continue;
+      const step = s.type === 'piso' ? 0.35 : 0.05; // pisar el borde de un piso apenas más alto no cuenta
+      for (const a of mine) for (const b of s.boxes)
+        if (a.x0 < b.x1 - pad && a.x1 > b.x0 + pad && a.z0 < b.z1 - pad && a.z1 > b.z0 + pad && a.y0 < b.y1 - step && a.y1 > b.y0 + 0.05) return s;
+    }
+    return null;
+  }
+  // Árbol, roca o arbusto (vivo) dentro de la pieza; para el techo solo cuentan los árboles
+  function resIn(pl, treesOnly) {
+    const bx = computeBoxes(pl);
+    let hit = null;
+    G.Res.query(pl.x, pl.z, 5, (r) => {
+      if (hit || !r.alive || !r.k.solid || (treesOnly && !r.k.tree)) return;
+      const rr = (r.k.r || 0.5) * r.s * 0.8;
+      for (const b of bx) if (boxDist(b, r.x, r.z) < rr) { hit = r; return; }
+    });
+    return hit;
+  }
+  // Distancia de un punto a una caja vista desde arriba (0 si está dentro)
+  const boxDist = (b, x, z) => Math.hypot(x - Math.max(b.x0, Math.min(x, b.x1)), z - Math.max(b.z0, Math.min(z, b.z1)));
+  const resWhy = (r) => r.k.tree ? 'Hay un árbol en medio: tálalo primero.' : r.k.bush ? 'Hay un arbusto en medio: busca otro sitio.' : 'Hay una roca en medio: pícala primero.';
+  // ¿Alguna construcción ocupa este círculo? (para que un árbol no vuelva a crecer dentro de una casa)
+  B.occupied = function (x, z, rad) {
+    let hit = false;
+    B.forBoxesNear(x, z, rad, (b) => { if (!hit && boxDist(b, x, z) < rad) hit = true; });
+    return hit;
+  };
+  // Partidas guardadas antes de este arreglo: saca los muebles que quedaron metidos en una pared
+  B.unclip = function () {
+    let moved = 0;
+    for (const s of B.list) {
+      if (!FURN.includes(s.type)) continue;
+      const w = clash(s, ['pared', 'puerta'], s);
+      if (!w) continue;
+      const ox = s.x, oz = s.z, oy = s.y, thinX = Math.abs(Math.sin(w.rot)) > 0.5;
+      const b = s.boxes[0], half = thinX ? (b.x1 - b.x0) / 2 : (b.z1 - b.z0) / 2;
+      const d = thinX ? s.x - w.x : s.z - w.z, first = d >= 0 ? 1 : -1;
+      let ok = false;
+      for (const sg of [first, -first]) {
+        if (thinX) s.x = w.x + sg * (half + 0.22); else s.z = w.z + sg * (half + 0.22);
+        s.y = B.groundAt(s.x, s.z);
+        s.boxes = computeBoxes(s);
+        if (s.y > 0.3 && !clash(s, null, s)) { ok = true; break; }
+      }
+      if (!ok) { s.x = ox; s.z = oz; s.y = oy; s.boxes = computeBoxes(s); continue; }
+      s.group.position.set(s.x, s.y, s.z);
+      const sp = G.state.spawn;
+      if (s.type === 'cama' && sp && Math.hypot(sp.x - ox, sp.z - oz) < 0.5) G.state.spawn = { x: s.x, z: s.z };
+      moved++;
+    }
+    return moved;
+  };
   B.forBoxesNear = function (x, z, rad, cb) {
     for (const s of B.list) {
       if (Math.abs(s.x - x) > rad + 3 || Math.abs(s.z - z) > rad + 3) continue;

@@ -92,6 +92,11 @@
     s.speed += (speed - s.speed) * Math.min(1, dt * 0.5);
     const nx = s.x + Math.sin(s.yaw) * s.speed * dt, nz = s.z + Math.cos(s.yaw) * s.speed * dt;
     if (G.height(nx, nz) < -2.2) { s.x = nx; s.z = nz; } else s.speed *= 0.3;
+    for (const o of G.Ships.list) {
+      if (o === s || o.sinking) continue;
+      const dd = Math.hypot(o.x - s.x, o.z - s.z), min = (Math.min(o.def.L, o.def.W * 2) + Math.min(s.def.L, s.def.W * 2)) * 0.35;
+      if (dd < min && dd > 0.01) { const push = (min - dd) * 0.5; s.x -= (o.x - s.x) / dd * push; s.z -= (o.z - s.z) / dd * push; s.speed *= 0.9; }
+    }
     s.nx = s.x; s.nz = s.z; s.nyaw = s.yaw;
     // Andanadas: cuando la presa está de costado y a tiro
     if (prey && pd < 75) {

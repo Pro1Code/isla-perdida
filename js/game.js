@@ -883,6 +883,7 @@
       if (b.type === 'balsa') { G.Ships.create({ type: 'balsa', x: b.x, z: b.z, yaw: b.rot, crate: [{ id: 'rep_balsa', n: 2 }] }); G.state.flags.raft = true; continue; }
       G.Build.place(b, true);
     }
+    G.Build.unclip();
     G.Res.setState(data.r);
     for (const s of data.ships || []) G.Ships.create(s);
     for (const bl of data.drops || []) G.Landmarks.addDrop(bl);
