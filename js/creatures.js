@@ -7,32 +7,32 @@
   const C = (G.Creatures = { list: [], timer: 0, nextId: 0 });
   const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss'];
   const DEF = (C.DEF = {
-    crab: { name: 'Cangrejo', hp: 12, speed: 1.1, run: 3.2, bodyY: 0.2, hitR: 0.5, drops: [['carne_cruda', 1]] },
-    boar: { name: 'Jabalí', hp: 45, speed: 1.6, run: 5.4, bodyY: 0.7, hitR: 0.8, dmg: 10, drops: [['carne_cruda', 3], ['cuero', 1]] },
-    wolf: { name: 'Lobo', hp: 38, speed: 2.0, run: 6.3, bodyY: 0.85, hitR: 0.75, dmg: 12, drops: [['carne_cruda', 2], ['cuero', 1]] },
-    snake: { name: 'Serpiente', hp: 14, speed: 0.7, run: 2.2, bodyY: 0.1, hitR: 0.55, dmg: 6, poison: 22, drops: [['carne_cruda', 1]] },
-    jaguar: { name: 'Jaguar', hp: 60, speed: 1.8, run: 8.8, bodyY: 0.7, hitR: 0.8, dmg: 16, drops: [['cuero', 2], ['carne_cruda', 3]] },
-    shark: { name: 'Tiburón', hp: 55, speed: 3.2, run: 7.5, bodyY: -0.1, hitR: 1.0, dmg: 20, sea: true, drops: [['pez_crudo', 4]] },
-    boss: { name: 'Jabalí gigante', hp: 260, speed: 1.5, run: 6.2, bodyY: 1.3, hitR: 1.5, dmg: 26, boss: true, drops: [['cuero', 5], ['carne_cruda', 8], ['colmillo', 1]] },
-    bear: { name: 'Oso blanco', hp: 130, speed: 1.4, run: 6.8, bodyY: 1.0, hitR: 1.1, dmg: 22, drops: [['piel_gruesa', 2], ['carne_cruda', 5]] },
-    snowwolf: { name: 'Lobo de las nieves', hp: 42, speed: 2.0, run: 6.6, bodyY: 0.85, hitR: 0.75, dmg: 13, drops: [['piel_gruesa', 1], ['carne_cruda', 2]] },
-    seal: { name: 'Foca', hp: 30, speed: 0.6, run: 2.4, bodyY: 0.35, hitR: 0.8, drops: [['grasa', 2], ['carne_cruda', 2]] },
-    monkey: { name: 'Mono', hp: 18, speed: 1.8, run: 6.5, bodyY: 0.5, hitR: 0.55, drops: [['carne_cruda', 1]] },
-    caiman: { name: 'Caimán', hp: 75, speed: 1.0, run: 5.2, bodyY: 0.3, hitR: 1.0, dmg: 18, drops: [['cuero', 2], ['carne_cruda', 3]] },
-    frog: { name: 'Rana venenosa', hp: 6, speed: 0.8, run: 3.2, bodyY: 0.1, hitR: 0.4, drops: [['veneno', 1]] },
-    salamander: { name: 'Salamandra de fuego', hp: 20, speed: 1.2, run: 4.4, bodyY: 0.15, hitR: 0.55, dmg: 7, drops: [['carne_cruda', 1], ['azufre', 1]] },
-    lavacrab: { name: 'Cangrejo de lava', hp: 55, speed: 1.0, run: 3.4, bodyY: 0.35, hitR: 0.9, dmg: 12, drops: [['carne_cruda', 2], ['obsidiana', 1]] },
-    whale: { name: 'Ballena', hp: 600, speed: 2.0, run: 3.5, bodyY: -0.6, hitR: 3.6, sea: true, drops: [['grasa', 8], ['carne_cruda', 10]] },
-    dolphin: { name: 'Delfín', hp: 40, speed: 5, run: 9, bodyY: -0.1, hitR: 0.9, sea: true, drops: [['pez_crudo', 2]] },
-    jelly: { name: 'Medusa', hp: 8, speed: 0.35, run: 0.6, bodyY: -0.3, hitR: 0.6, dmg: 8, poison: 10, sea: true, drops: [] },
-    serpent: { name: 'Serpiente marina', hp: 200, speed: 3.5, run: 8.5, bodyY: 0.6, hitR: 1.8, dmg: 30, shipDmg: 26, sea: true, drops: [['cuero', 4], ['pez_crudo', 6]] },
-    villager: { name: 'Aldeano shandara', hp: 70, speed: 1.3, run: 5.2, bodyY: 1.0, hitR: 0.55, dmg: 11, npc: true, drops: [] },
+    crab: { name: 'Cangrejo', hp: 12, speed: 0.8, run: 2.6, bodyY: 0.2, hitR: 0.5, drops: [['carne_cruda', 1]] },
+    boar: { name: 'Jabalí', hp: 45, speed: 1.1, run: 4.8, bodyY: 0.7, hitR: 0.8, dmg: 10, drops: [['carne_cruda', 3], ['cuero', 1]] },
+    wolf: { name: 'Lobo', hp: 38, speed: 1.5, run: 5.8, bodyY: 0.85, hitR: 0.75, dmg: 12, drops: [['carne_cruda', 2], ['cuero', 1]] },
+    snake: { name: 'Serpiente', hp: 14, speed: 0.5, run: 1.8, bodyY: 0.1, hitR: 0.55, dmg: 6, poison: 22, drops: [['carne_cruda', 1]] },
+    jaguar: { name: 'Jaguar', hp: 60, speed: 1.4, run: 6.3, bodyY: 0.7, hitR: 0.8, dmg: 16, drops: [['cuero', 2], ['carne_cruda', 3]] },
+    shark: { name: 'Tiburón', hp: 55, speed: 2.4, run: 5.4, bodyY: -0.1, hitR: 1.0, dmg: 20, sea: true, drops: [['pez_crudo', 4]] },
+    boss: { name: 'Jabalí gigante', hp: 260, speed: 1.0, run: 5.0, bodyY: 1.3, hitR: 1.5, dmg: 26, boss: true, drops: [['cuero', 5], ['carne_cruda', 8], ['colmillo', 1]] },
+    bear: { name: 'Oso blanco', hp: 130, speed: 0.9, run: 3.8, bodyY: 1.0, hitR: 1.1, dmg: 22, drops: [['piel_gruesa', 2], ['carne_cruda', 5]] },
+    snowwolf: { name: 'Lobo de las nieves', hp: 42, speed: 1.5, run: 6.0, bodyY: 0.85, hitR: 0.75, dmg: 13, drops: [['piel_gruesa', 1], ['carne_cruda', 2]] },
+    seal: { name: 'Foca', hp: 30, speed: 0.4, run: 1.6, bodyY: 0.35, hitR: 0.8, drops: [['grasa', 2], ['carne_cruda', 2]] },
+    monkey: { name: 'Mono', hp: 18, speed: 1.5, run: 5.6, bodyY: 0.5, hitR: 0.55, drops: [['carne_cruda', 1]] },
+    caiman: { name: 'Caimán', hp: 75, speed: 0.6, run: 3.4, bodyY: 0.3, hitR: 1.0, dmg: 18, drops: [['cuero', 2], ['carne_cruda', 3]] },
+    frog: { name: 'Rana venenosa', hp: 6, speed: 0.6, run: 2.4, bodyY: 0.1, hitR: 0.4, drops: [['veneno', 1]] },
+    salamander: { name: 'Salamandra de fuego', hp: 20, speed: 0.9, run: 3.4, bodyY: 0.15, hitR: 0.55, dmg: 7, drops: [['carne_cruda', 1], ['azufre', 1]] },
+    lavacrab: { name: 'Cangrejo de lava', hp: 55, speed: 0.7, run: 2.6, bodyY: 0.35, hitR: 0.9, dmg: 12, drops: [['carne_cruda', 2], ['obsidiana', 1]] },
+    whale: { name: 'Ballena', hp: 600, speed: 1.6, run: 3.0, bodyY: -0.6, hitR: 3.6, sea: true, drops: [['grasa', 8], ['carne_cruda', 10]] },
+    dolphin: { name: 'Delfín', hp: 40, speed: 4.0, run: 7.5, bodyY: -0.1, hitR: 0.9, sea: true, drops: [['pez_crudo', 2]] },
+    jelly: { name: 'Medusa', hp: 8, speed: 0.3, run: 0.5, bodyY: -0.3, hitR: 0.6, dmg: 8, poison: 10, sea: true, drops: [] },
+    serpent: { name: 'Serpiente marina', hp: 200, speed: 3.0, run: 7.5, bodyY: 0.6, hitR: 1.8, dmg: 30, shipDmg: 26, sea: true, drops: [['cuero', 4], ['pez_crudo', 6]] },
+    villager: { name: 'Aldeano shandara', hp: 70, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.55, dmg: 11, npc: true, drops: [] },
     // Prólogo de la Isla Perdida (prologue.js): tripulación, muñecos de entrenamiento y piratas
-    npc: { name: 'Náufrago', hp: 1000, speed: 1.2, run: 3.4, bodyY: 1.0, hitR: 0.55, npc: true, friendly: true, drops: [] },
+    npc: { name: 'Náufrago', hp: 1000, speed: 1.0, run: 2.4, bodyY: 1.0, hitR: 0.55, npc: true, friendly: true, drops: [] },
     dummy: { name: 'Muñeco de entrenamiento', hp: 9999, speed: 0, run: 0, bodyY: 1.1, hitR: 0.55, dummy: true, drops: [] },
-    pirate: { name: 'Pirata de la Hiena', hp: 60, speed: 1.4, run: 5.0, bodyY: 1.0, hitR: 0.55, dmg: 9, human: true, drops: [['doblon', 1], ['cuero', 1]] },
-    pirate_gun: { name: 'Pirata tirador', hp: 45, speed: 1.3, run: 4.4, bodyY: 1.0, hitR: 0.55, dmg: 11, human: true, drops: [['polvora', 1], ['bala', 4]] },
-    pirate_boss: { name: 'Capitana Hiena', hp: 300, speed: 1.6, run: 5.4, bodyY: 1.0, hitR: 0.6, dmg: 15, human: true, drops: [['pista_3', 1], ['sable', 1], ['doblon', 6]] },
+    pirate: { name: 'Pirata de la Hiena', hp: 60, speed: 1.1, run: 4.3, bodyY: 1.0, hitR: 0.55, dmg: 9, human: true, drops: [['doblon', 1], ['cuero', 1]] },
+    pirate_gun: { name: 'Pirata tirador', hp: 45, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 11, human: true, drops: [['polvora', 1], ['bala', 4]] },
+    pirate_boss: { name: 'Capitana Hiena', hp: 300, speed: 1.2, run: 4.6, bodyY: 1.0, hitR: 0.6, dmg: 15, human: true, drops: [['pista_3', 1], ['sable', 1], ['doblon', 6]] },
   });
 
   // Fauna de cada isla: [tipo, máximo, zona, probabilidad de aparición por intento]
@@ -527,7 +527,7 @@
           const boss = c.type === 'pirate_boss';
           if (!chase(boss ? 17 : 14, boss ? 30 : 32, boss ? 2.3 : 2.0)) { wander(c.homeR || 10); speed = c.d.speed; }
           // La capitana, herida, se enfurece: corre más
-          if (boss && c.hp < c.d.hp * 0.5) speed *= 1.25;
+          if (boss && c.hp < c.d.hp * 0.5) speed *= 1.15;
           break;
         }
         case 'pirate_gun': {
@@ -580,11 +580,11 @@
             faceT = tgt; c.aggro = Math.max(c.aggro, 2);
             if (c.pounce > 0) { tx = tgt.x; tz = tgt.z; speed = c.d.run; if (dist < 2.1 && attack(c, tgt, 2.2)) { c.pounce = 0; c.rest = 3; } }
             else if (dist < 9) { c.pounce = 1.4; G.Audio.playAt('roar', c.x, c.z, 40); }
-            else { tx = tgt.x; tz = tgt.z; speed = 2.2; } // acecha agazapado
+            else { tx = tgt.x; tz = tgt.z; speed = 1.6; } // acecha agazapado
           } else if (tgt && c.rest > 0) {
             // Se aleja y vuelve a rodear a su presa
             c.circle += dt * 0.8;
-            tx = tgt.x + Math.cos(c.circle) * 12; tz = tgt.z + Math.sin(c.circle) * 12; speed = 4;
+            tx = tgt.x + Math.cos(c.circle) * 12; tz = tgt.z + Math.sin(c.circle) * 12; speed = 3;
           } else wander();
           break;
         }
