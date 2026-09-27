@@ -8,7 +8,7 @@ const path = require('path');
 
 const SRC = path.join(__dirname, '..');
 const OUT = path.join(SRC, 'docs');
-const GAME = ['index.html', 'js', 'css', 'lib', 'img'];
+const GAME = ['index.html', 'js', 'css', 'lib', 'img', 'audio'];
 
 function copyRec(from, to) {
   if (fs.statSync(from).isDirectory()) {

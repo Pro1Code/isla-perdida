@@ -462,6 +462,13 @@
         tx = c.tx; tz = c.tz;
         if (c.t > 0 && Math.hypot(c.tx - c.x, c.tz - c.z) < 0.6) moving = false;
       };
+      // Conversación entre personajes (voice.js): se acercan al corro y miran a quien habla
+      const chatting = () => {
+        if (!c.chat) return false;
+        const d = Math.hypot(c.chat.x - c.x, c.chat.z - c.z);
+        if (d > 0.6) { tx = c.chat.x; tz = c.chat.z; speed = c.d.speed; } else { moving = false; if (c.chatFace) faceT = c.chatFace; }
+        return true;
+      };
       const fleeFrom = (t, d, s) => { tx = c.x - (t.x - c.x) / d * 8; tz = c.z - (t.z - c.z) / d * 8; speed = s; };
       const fireFear = () => { const f = G.Build.nearestLitFire(c.x, c.z); return f && f.d < 9 ? f : null; };
       const chase = (range, keep, reach = 1.9) => {
@@ -506,6 +513,7 @@
         case 'villager': {
           const hostile = G.Story && G.Story.tribeHostile();
           if (hostile && c.role !== 'chief' ? chase(16, 30, 2.0) : false) break;
+          if (chatting()) break;
           if (c.role === 'chief') { moving = false; if (tgt && dist < 8) faceT = tgt; break; }
           if (tgt && dist < 3.5 && !hostile) { moving = false; faceT = tgt; break; }
           wander(G.Arch.byId(c.isl)?.feat.village?.r * 0.7 || 10);
@@ -515,6 +523,7 @@
           // Tripulación y ermitaño: vuelven a su sitio, se giran para hablar contigo y pasean un poco
           const hd = Math.hypot(c.hx - c.x, c.hz - c.z);
           if (hd > 7) { tx = c.hx; tz = c.hz; speed = c.d.speed * 1.5; break; }
+          if (chatting()) break;
           if (tgt && dist < 4.5) { moving = false; faceT = tgt; break; }
           wander(c.homeR || 3); speed = c.d.speed * 0.6;
           if (Math.random() < dt * 0.3) { c.t = 3 + Math.random() * 4; c.tx = c.x; c.tz = c.z; }
@@ -525,12 +534,14 @@
           break;
         case 'pirate': case 'pirate_boss': {
           const boss = c.type === 'pirate_boss';
+          if (!(c.aggro > 0) && !(tgt && dist < (boss ? 17 : 14)) && chatting()) break;
           if (!chase(boss ? 17 : 14, boss ? 30 : 32, boss ? 2.3 : 2.0)) { wander(c.homeR || 10); speed = c.d.speed; }
           // La capitana, herida, se enfurece: corre más
           if (boss && c.hp < c.d.hp * 0.5) speed *= 1.15;
           break;
         }
         case 'pirate_gun': {
+          if (!(c.aggro > 0) && !(tgt && dist < 22) && chatting()) break;
           let at = c.aggro > 0 ? tg.find((t) => t.id === c.aggroId && !t.dead) : null;
           if (!at && tgt && dist < 22 && !tgt.ship) { at = tgt; c.aggro = 8; c.aggroId = tgt.id; }
           if (at) {

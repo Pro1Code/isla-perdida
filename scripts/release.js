@@ -54,9 +54,9 @@ const head = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).tri
 try { execFileSync(gh, ['release', 'create', 'v' + ver, '-R', repo, '--target', head, '--title', title, '--notes-file', path.join(ROOT, 'build', 'release-notes.md')], { stdio: 'inherit' }); } catch (e) { /* ya existía */ }
 run('node scripts/build-desktop.js --publish', { GH_TOKEN: token });
 try { execFileSync(gh, ['release', 'edit', 'v' + ver, '-R', repo, '--title', title, '--notes-file', path.join(ROOT, 'build', 'release-notes.md')], { stdio: 'inherit' }); } catch (e) { /* las notas ya las pone electron-builder */ }
-// Paquete del juego para el lanzador (solo lo necesario para jugar: index.html, js, css, lib, img)
+// Paquete del juego para el lanzador (solo lo necesario para jugar: index.html, js, css, lib, img, audio)
 const zip = path.join(os.tmpdir(), `isla-perdida-juego-${ver}.zip`);
-run(`git archive --format=zip -o "${zip}" HEAD index.html js css lib img`);
+run(`git archive --format=zip -o "${zip}" HEAD index.html js css lib img audio`);
 execFileSync(gh, ['release', 'upload', 'v' + ver, zip, '--clobber', '-R', repo], { stdio: 'inherit' });
 fs.rmSync(zip, { force: true });
 console.log(`\n✅ Versión ${ver} publicada. La página de descargas la mostrará en unos minutos.`);

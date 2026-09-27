@@ -196,7 +196,8 @@
     $('setFov').value = P.set('fov'); $('setFovV').textContent = P.set('fov') + '°';
     $('setInvY').checked = !!P.set('invY');
     $('setFps').checked = !!P.set('fps');
-    for (const k of ['vol', 'sfx', 'amb']) { $('set' + k[0].toUpperCase() + k.slice(1)).value = P.set(k); $('set' + k[0].toUpperCase() + k.slice(1) + 'V').textContent = P.set(k) + '%'; }
+    $('setSubs').checked = !!P.set('subs');
+    for (const k of ['vol', 'sfx', 'amb', 'voz']) { $('set' + k[0].toUpperCase() + k.slice(1)).value = P.set(k); $('set' + k[0].toUpperCase() + k.slice(1) + 'V').textContent = P.set(k) + '%'; }
     document.querySelectorAll('#setQuality button').forEach((b) => b.classList.toggle('on', b.dataset.q === G.Main.quality));
     $('setVersion').innerHTML = `<b>Isla Perdida ${esc(G.VERSION)}</b> · ${esc(G.VERSION_NAME)}<br><small class="muted">${window.islaDesktop ? 'App de escritorio: puedes tener varias versiones y elegir cuál jugar en el lanzador.' : 'Versión para navegador: siempre es la última.'}</small>`;
   }
@@ -303,7 +304,8 @@
     const slider = (id, key, fmt, after) => { $(id).oninput = () => { G.Profile.setSetting(key, +$(id).value); $(id + 'V').textContent = fmt(+$(id).value); if (after) after(); }; };
     slider('setSens', 'sens', (v) => v.toFixed(2) + '×');
     slider('setFov', 'fov', (v) => v + '°');
-    for (const k of ['Vol', 'Sfx', 'Amb']) slider('set' + k, k.toLowerCase(), (v) => v + '%', () => G.Audio.setVolumes());
+    $('setSubs').onchange = () => G.Profile.setSetting('subs', $('setSubs').checked);
+    for (const k of ['Vol', 'Sfx', 'Amb', 'Voz']) slider('set' + k, k.toLowerCase(), (v) => v + '%', () => G.Audio.setVolumes());
     $('setInvY').onchange = () => G.Profile.setSetting('invY', $('setInvY').checked);
     $('setFps').onchange = () => G.Profile.setSetting('fps', $('setFps').checked);
     $('setQuality').onclick = (e) => { const b = e.target.closest('button[data-q]'); if (b) { G.Main.setQuality(b.dataset.q); renderSettings(); } };

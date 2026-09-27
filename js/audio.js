@@ -3,7 +3,7 @@
   'use strict';
   const G = window.G, U = G.U;
   const A = (G.Audio = { ready: false });
-  let ctx, master, sfx, amb, dest, noiseBuf, oceanGain, windGain, windFilter, crickGain;
+  let ctx, master, sfx, amb, vox, dest, noiseBuf, oceanGain, windGain, windFilter, crickGain;
   let birdT = 3, crackleT = 0, time = 0;
 
   A.init = function () {
@@ -12,6 +12,7 @@
     master = ctx.createGain(); master.gain.value = 0.8; master.connect(ctx.destination);
     sfx = ctx.createGain(); sfx.gain.value = 1; sfx.connect(master);
     amb = ctx.createGain(); amb.gain.value = 1; amb.connect(master);
+    vox = ctx.createGain(); vox.gain.value = 1; vox.connect(master);
     dest = sfx;
 
     const len = ctx.sampleRate * 2;
@@ -61,8 +62,11 @@
   A.setVolumes = function () {
     if (!A.ready) return;
     const P = G.Profile;
-    master.gain.value = (P.set('vol') / 100) * 0.8; sfx.gain.value = P.set('sfx') / 100; amb.gain.value = P.set('amb') / 100;
+    master.gain.value = (P.set('vol') / 100) * 0.8; sfx.gain.value = P.set('sfx') / 100; amb.gain.value = P.set('amb') / 100; vox.gain.value = (P.set('voz') / 100) * 1.1;
   };
+  // Para las voces de los personajes (voice.js)
+  A.ctx = () => ctx;
+  A.voiceBus = () => vox;
   A.suspend = () => { if (A.ready && ctx.state === 'running') ctx.suspend(); };
   A.resume = () => { if (A.ready && ctx.state === 'suspended') ctx.resume(); };
 

@@ -8,20 +8,14 @@
   const $ = (id) => document.getElementById(id);
   let t = 0, onEnd = null, ours = null, navy = null, body = null, hermit = null, events = [], ending = false, prevHidden = false;
 
-  const SUBS = [
-    [0.6, 4.2, '', 'Mar del Oeste. Hace tres noches…'],
-    [4.4, 8.2, 'Capitana Mara', '¡Mantened el rumbo! La isla está cerca… y la fruta de Rogan también.'],
-    [8.6, 12, 'Vigía', '¡Barco de la Marina Blanca a popa!'],
-    [12.2, 15.8, 'Capitana Mara', '¡Nos han encontrado! ¡Todos a cubierta!'],
-    [17.2, 21.5, '', 'Y el mar se lo tragó todo.'],
-    [29, 32, 'Silvano', '¡Eh, tú! ¿Sigues vivo?'],
-    [32.3, 37.2, 'Silvano', 'Tranquilo, náufrago. Estás en la Isla Perdida… y no has llegado aquí por casualidad.'],
-  ];
+  // Subtítulos (con voz): [desde, hasta, frase de G.LINES.cine]
+  const SUBS = [[0.6, 4.2, 0], [4.3, 8.9, 1], [9.0, 11.8, 2], [12.0, 15.8, 3], [17.2, 21.5, 4], [29, 31.7, 5], [32.0, 37.6, 6]];
+  let subOn = -1;
   const END = 38;
   const OURS0 = new V3(335, 0, -28), OURS_DIR = new V3(-1, 0, -0.2).normalize(), NAVY0 = new V3(405, 0, 8);
 
   Ci.play = function (done) {
-    onEnd = done; t = 0; ending = false; Ci.active = true;
+    onEnd = done; t = 0; ending = false; Ci.active = true; subOn = -1;
     G.state.mode = 'cinema';
     G.Main.showScreen(null);
     $('hud').classList.add('hidden');
@@ -95,7 +89,10 @@
     cam.fov = 55; cam.updateProjectionMatrix();
     // Subtítulos
     const s = SUBS.find((x) => t >= x[0] && t <= x[1]);
-    const el = $('cineSub'), html = s ? (s[2] ? `<b>${s[2]}</b>` : '') + `<span${s[2] ? '' : ' class="narr"'}>${s[3]}</span>` : '';
+    const line = s ? G.LINES.cine[s[2]] : null, name = line ? G.VOICES[line[0]].name.split(',')[0] : '';
+    if (s && s[2] !== subOn) G.Voice.say(line[0], line[1]);
+    subOn = s ? s[2] : -1;
+    const el = $('cineSub'), html = s ? (name ? `<b>${name}</b>` : '') + `<span${name ? '' : ' class="narr"'}>${line[1]}</span>` : '';
     if (el.innerHTML !== html) el.innerHTML = html;
     el.classList.toggle('show', !!s);
     if (t < 24) {
@@ -151,6 +148,7 @@
   Ci.skip = function () {
     if (!Ci.active || ending) return;
     ending = true;
+    G.Voice.stop('dialog');
     black(1);
     setTimeout(finish, 450);
   };

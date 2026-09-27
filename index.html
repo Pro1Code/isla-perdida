@@ -215,6 +215,8 @@
         <label class="slider-row">Volumen general <input type="range" id="setVol" min="0" max="100" step="1" /><b id="setVolV"></b></label>
         <label class="slider-row">Efectos <input type="range" id="setSfx" min="0" max="100" step="1" /><b id="setSfxV"></b></label>
         <label class="slider-row">Ambiente (mar, viento, lluvia) <input type="range" id="setAmb" min="0" max="100" step="1" /><b id="setAmbV"></b></label>
+        <label class="slider-row">Voces de los personajes <input type="range" id="setVoz" min="0" max="100" step="1" /><b id="setVozV"></b></label>
+        <label class="toggle-row"><input type="checkbox" id="setSubs" /> <span>Subtítulos de las conversaciones entre personajes</span></label>
       </div>
       <div class="set-page hidden" data-p="game">
         <p id="setVersion" class="world-info"></p>
@@ -272,6 +274,8 @@
   <div id="styleHud" class="hidden"></div>
   <div id="bossBar" class="hidden"><div id="bossName">🐗 Jabalí gigante</div><div class="bar"><i id="bossFill"></i></div></div>
   <div id="heldName"></div>
+  <div id="bubbles"></div>
+  <div id="chatSub"></div>
   <div id="hotbar"></div>
   <div id="crosshair"></div>
   <div id="prompt"></div>
@@ -440,7 +444,7 @@
   const files = [
     'js/version.js', 'js/util.js', 'js/profile.js', 'js/models.js', 'js/audio.js', 'js/net.js', 'js/items.js', 'js/islands.js', 'js/world.js', 'js/resources.js',
     'js/building.js', 'js/landmarks.js', 'js/weather.js', 'js/fishing.js', 'js/animals.js', 'js/creatures.js', 'js/character.js', 'js/equipment.js', 'js/shop.js', 'js/player.js',
-    'js/clock.js', 'js/ships.js', 'js/story.js', 'js/modes.js', 'js/achievements.js', 'js/cheats.js', 'js/styles.js', 'js/prologue.js', 'js/cinema.js', 'js/ui.js', 'js/game.js', 'js/save.js', 'js/menus.js', 'js/main.js'
+    'js/clock.js', 'js/ships.js', 'js/story.js', 'js/modes.js', 'js/achievements.js', 'js/cheats.js', 'js/styles.js', 'js/prologue.js', 'js/cinema.js', 'js/lines.js', 'js/voice-list.js', 'js/voice.js', 'js/ui.js', 'js/game.js', 'js/save.js', 'js/menus.js', 'js/main.js'
   ];
   for (const f of files) {
     await new Promise((ok, fail) => {

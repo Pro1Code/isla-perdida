@@ -12,7 +12,7 @@ const { execSync } = require('child_process');
 
 const SRC = path.join(__dirname, '..');
 const WORK = process.env.ISLA_BUILD_DIR || path.join(os.homedir(), 'isla-perdida-build');
-const COPY = ['index.html', 'js', 'css', 'lib', 'img', 'desktop', 'build', 'LEEME.txt', 'package.json'];
+const COPY = ['index.html', 'js', 'css', 'lib', 'img', 'audio', 'desktop', 'build', 'LEEME.txt', 'package.json'];
 
 function copyRec(from, to) {
   const st = fs.statSync(from);
