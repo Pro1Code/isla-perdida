@@ -70,6 +70,7 @@
     mosquete:    { n: 'Mosquete', i: '🎯', tool: true, dur: 320, dmg: 8, style: 'gun', gun: { dmg: 46, range: 75, reload: 2.2 }, fp: [0.02, 0.06, 0.02], d: 'Largo alcance y mucho daño, pero recarga despacio.' },
     bala:        { n: 'Balas de plomo', i: '⚫', stack: 60, d: 'Munición para pistolas y mosquetes.' },
     baston:      { n: 'Bastón rúnico', i: '🪄', tool: true, dur: 520, dmg: 6, style: 'magic', d: 'Canaliza la magia de las mareas. Estilo Brujo: clic Chispa arcana, <kbd>Q</kbd> Rayo, <kbd>Z</kbd> Marea curativa.' },
+    mapa_tesoro: { n: 'Mapa del tesoro', i: '🗺️', stack: 5, read: 'mapa_tesoro', d: 'Un viejo mapa con una ✖ roja. Clic derecho: leerlo y marcar el tesoro en tu mapa (M).' },
     pista_1:     { n: 'Pista de Rogan (1/3)', i: '📜', stack: 1, read: 'pista_1', d: 'Un pergamino con la letra de Rogan D. Aldor. Clic derecho: leer.' },
     pista_2:     { n: 'Pista de Rogan (2/3)', i: '📜', stack: 1, read: 'pista_2', d: 'Un pergamino con la letra de Rogan D. Aldor. Clic derecho: leer.' },
     pista_3:     { n: 'Pista de Rogan (3/3)', i: '📜', stack: 1, read: 'pista_3', d: 'El último pergamino de Rogan, robado por los piratas. Clic derecho: leer.' },

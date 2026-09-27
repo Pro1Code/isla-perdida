@@ -166,6 +166,8 @@
     if (G.Story.dialog) { G.Story.choose(-1); return; }
     // Soltar el timón, el cañón o levantarse del asiento
     if (P.station) { G.Ships.releaseStation(); return; }
+    // Encima de la ✖ de un mapa del tesoro: cavar
+    if (G.Treasure.dig()) return;
     const tg = Game.target;
     if (!tg) {
       // Recoger agua de lluvia con el cuenco
@@ -628,6 +630,7 @@
     G.Drops.update(dt);
     G.Pets.update(dt);
     G.Bounty.update();
+    G.Treasure.update(dt);
     P.cd = Math.max(0, P.cd - dt);
     if (!st.spectate) { P.update(dt, inputOn); P.updateStats(dt); }
     G.Net.update(dt);
@@ -655,6 +658,7 @@
     const spl = G.Ships.updateGhost(st.mode === 'playing' && !P.ship ? shipType || null : null);
     G.Fishing.update(dt);
     let prompt = Game.promptFor(Game.target);
+    if (!prompt && G.Treasure.near()) prompt = '✖ <b>Tesoro enterrado</b> · <kbd>E</kbd> Cavar aquí';
     if (held && hit.fishing && (!Game.target || Game.target.kind === 'water' || G.Fishing.state !== 'idle')) prompt = G.Fishing.prompt();
     if (!Game.target && held && held.id === 'cuenco' && G.Weather.intensity > 0.3 && !Game.sheltered() && G.Weather.fallKind === 'rain') prompt = '🌧️ <kbd>E</kbd> Recoger agua de lluvia';
     if (st.sleepBed && G.Net.sleepCount) prompt = `💤 Esperando a que todos se acuesten (${G.Net.sleepCount.n}/${G.Net.sleepCount.total})`;

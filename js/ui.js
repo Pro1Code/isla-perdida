@@ -555,6 +555,7 @@
       ctx.fillText(c.kind === 'mono' ? '🗿' : c.kind === 'bottle' ? '🍾' : c.kind === 'barrel' ? '🛢️' : '📦', x, y + 4);
     }
     if (G.Prologue) G.Prologue.drawMap(ctx, toPx, full);
+    if (G.Treasure) G.Treasure.drawMap(ctx, toPx, full);
     if (G.Modes.active) for (const sd of G.Modes.stands) {
       const [x, y] = toPx(sd.x, sd.z);
       ctx.font = `${full ? 16 : 12}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🏴', x, y);

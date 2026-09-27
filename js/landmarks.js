@@ -31,6 +31,7 @@
     const base = (L.LOOT[id] || []).slice();
     if (G.Story) base.push(...G.Story.lootExtra(id));
     if (G.Modes) base.push(...G.Modes.lootExtra(id));
+    if (G.Treasure) base.push(...G.Treasure.lootExtra(id));
     return base;
   };
 

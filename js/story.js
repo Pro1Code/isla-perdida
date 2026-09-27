@@ -55,6 +55,7 @@
     { give: { cuero: 3 }, get: ['dardo', 6] }, { give: { doblon: 8 }, get: ['plano_velero', 1] }, { give: { perla: 4 }, get: ['catalejo', 1] },
     { give: { piel_gruesa: 2 }, get: ['chocolate', 2] }, { give: { doblon: 5 }, get: ['tela_vela', 2] },
     { give: { perla: 3 }, get: ['tocado_shandara', 1] }, { give: { cuero: 5 }, get: ['pantalon_cuero', 1] }, { give: { doblon: 6 }, get: ['aletas', 1] },
+    { give: { doblon: 8 }, get: ['mapa_tesoro', 1] },
   ];
   const FRUITS = {
     llama: { item: 'fruta_llama', name: 'Llama-Llama', icon: '🔥', power: 'Bola de fuego', desc: 'Inmune al frío y a la lava, brillas de noche y tus golpes queman.' },
@@ -223,6 +224,7 @@
   };
   St.readItem = function (id) {
     if (id && id.startsWith('pista_')) { G.Prologue.readClue(id); return true; }
+    if (id === 'mapa_tesoro') { G.Treasure.read(); return true; }
     if (id !== 'diario') return false;
     const w = W();
     w.flags = w.flags || {};

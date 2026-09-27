@@ -378,6 +378,7 @@
       G.state.stats.kills++;
       G.Ach.onKill(c.type);
       G.Bounty.onKill(c.type);
+      G.Treasure.onKill(c.type);
       G.UI.msg(`Has cazado: ${c.d.name.toLowerCase()}`, 'good');
     }
   }

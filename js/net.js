@@ -137,7 +137,7 @@
         break;
       case 'give':
         for (const [id, n] of m.items) G.Game.give(id, n);
-        if (m.kill) { G.state.stats.kills++; G.UI.msg(`Has cazado: ${esc(m.kill)}`, 'good'); if (m.kt) { G.Ach.onKill(m.kt); G.Bounty.onKill(m.kt); } }
+        if (m.kill) { G.state.stats.kills++; G.UI.msg(`Has cazado: ${esc(m.kill)}`, 'good'); if (m.kt) { G.Ach.onKill(m.kt); G.Bounty.onKill(m.kt); G.Treasure.onKill(m.kt); } }
         if (m.loot) { G.Ach.add('loot:' + (m.lk || 'chest'), 1, true); G.Ach.earn('loot'); }
         if (m.loot && m.items.length) { G.Audio.play('loot'); G.UI.msg('📦 ¡Encontraste un botín!', 'good'); }
         break;
@@ -162,6 +162,7 @@
         break;
       case 'drop': if (Net.inWorld) G.Landmarks.addDrop(m.d); break;
       case 'gdrop': case 'gtakeReq': case 'gtake': if (Net.inWorld) G.Drops.onNet(m, from); break;
+      case 'trNew': case 'trDig': case 'trDone': if (Net.inWorld) G.Treasure.onNet(m, from); break;
       case 'chest': {
         const s = G.Build.byId(m.id);
         if (s) { s.items = m.items; if (G.UI.chest === s) G.UI.refreshInv(); }
