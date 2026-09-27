@@ -438,7 +438,7 @@
     el.dayIcon.textContent = fk === 'snow' ? '❄️' : wx === 'storm' ? '⛈️' : wx === 'rain' ? (fk === 'ash' ? '🌋' : '🌧️') : night ? '🌙' : G.Game.hour() > 17.5 || G.Game.hour() < 7 ? '🌅' : '☀️';
     const boss = G.Creatures.nearBoss();
     el.bossBar.classList.toggle('hidden', !boss);
-    if (boss) { el.bossFill.style.width = U.clamp(boss.hp / boss.d.hp, 0, 1) * 100 + '%'; el.bossName.textContent = (boss.type === 'serpent' ? '🐉 ' : boss.type === 'pirate_boss' ? '🏴‍☠️ ' : '🐗 ') + boss.d.name; }
+    if (boss) { el.bossFill.style.width = U.clamp(boss.hp / boss.d.hp, 0, 1) * 100 + '%'; el.bossName.textContent = ({ serpent: '🐉 ', pirate_boss: '🏴‍☠️ ', marine_boss: '⚓ ', ghost_captain: '👻 ', yeti: '❄️ ', lavadragon: '🐲 ' }[boss.type] || '🐗 ') + boss.d.name; }
 
     const uw = G.World.underwater && !G.state.spectate;
     if (uw !== UI._uw) { UI._uw = uw; document.getElementById('underwater').classList.toggle('hidden', !uw); }

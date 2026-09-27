@@ -5,7 +5,7 @@
   'use strict';
   const G = window.G, U = G.U;
   const C = (G.Creatures = { list: [], timer: 0, nextId: 0 });
-  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss', 'ghost_pirate', 'ghost_gun', 'ghost_captain'];
+  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss', 'ghost_pirate', 'ghost_gun', 'ghost_captain', 'yeti', 'lavadragon'];
   const DEF = (C.DEF = {
     crab: { name: 'Cangrejo', hp: 12, speed: 0.8, run: 2.6, bodyY: 0.2, hitR: 0.5, drops: [['carne_cruda', 1]] },
     boar: { name: 'Jabalí', hp: 45, speed: 1.1, run: 4.8, bodyY: 0.7, hitR: 0.8, dmg: 10, drops: [['carne_cruda', 3], ['cuero', 1]] },
@@ -34,6 +34,9 @@
     pirate_gun: { name: 'Pirata tirador', hp: 45, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 11, human: true, drops: [['polvora', 1], ['bala', 4]] },
     marine: { name: 'Marine de la Marina Blanca', hp: 70, speed: 1.1, run: 4.3, bodyY: 1.0, hitR: 0.55, dmg: 11, human: true, drops: [['doblon', 1], ['bala', 3]] },
     marine_gun: { name: 'Tirador de la Marina', hp: 55, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 12, human: true, drops: [['polvora', 1], ['bala', 5]] },
+    // Jefes de isla (bosses.js): el yeti de la cueva de hielo y el dragón del volcán
+    yeti: { name: 'Rey de la Escarcha', hp: 650, speed: 1.2, run: 4.6, bodyY: 1.9, hitR: 1.2, dmg: 26, bigBoss: true, drops: [['piel_gruesa', 6], ['cristal_hielo', 8], ['mineral_plata', 6], ['doblon', 20], ['mapa_tesoro', 1]] },
+    lavadragon: { name: 'Dragón de Brasa', hp: 850, speed: 1.3, run: 5.0, bodyY: 1.7, hitR: 1.4, dmg: 28, bigBoss: true, drops: [['obsidiana', 8], ['azufre', 8], ['carbon', 10], ['doblon', 30], ['mapa_tesoro', 1]] },
     ghost_pirate: { name: 'Pirata fantasma', hp: 60, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.55, dmg: 12, human: true, drops: [['doblon', 2]] },
     ghost_gun: { name: 'Tirador fantasma', hp: 50, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 13, human: true, drops: [['doblon', 2], ['polvora', 1]] },
     ghost_captain: { name: 'Capitán Van Bruma', hp: 380, speed: 1.1, run: 4.5, bodyY: 1.0, hitR: 0.6, dmg: 18, human: true, drops: [['doblon', 20], ['perla', 3], ['mapa_tesoro', 1]] },
@@ -146,7 +149,7 @@
       boar: () => A.boar(mat), boss: () => A.boar(mat, true), wolf: () => A.wolf(mat), jaguar: () => A.jaguar(mat), snake: () => A.snake(mat), shark: () => A.shark(mat), crab: () => A.crab(mat),
       bear: () => A.bear(mat), snowwolf: () => A.wolf(mat, 0xdfe4ea, 0xf6f8fb, 0xc4ccd6), seal: () => A.seal(mat), monkey: () => A.monkey(mat), caiman: () => A.caiman(mat), frog: () => A.frog(mat),
       salamander: () => A.salamander(mat), lavacrab: () => A.crab(mat, 0x3a2a24, 0x241814, true), whale: () => A.whale(mat), dolphin: () => A.dolphin(mat),
-      jelly: () => A.jelly(), serpent: () => A.serpent(mat), villager: () => villager(extra || 0),
+      jelly: () => A.jelly(), serpent: () => A.serpent(mat), yeti: () => G.Bosses.yeti(mat), lavadragon: () => G.Bosses.dragon(mat), villager: () => villager(extra || 0),
       npc: () => G.Prologue.human('npc', extra || 0), pirate: () => G.Prologue.human('pirate', extra || 0), pirate_gun: () => G.Prologue.human('pirate_gun', extra || 0),
       pirate_boss: () => G.Prologue.human('pirate_boss', extra || 0), marine: () => G.Prologue.human('marine', extra || 0), marine_gun: () => G.Prologue.human('marine_gun', extra || 0), marine_boss: () => G.Prologue.human('marine_boss', extra || 0), ghost_pirate: () => G.Prologue.human('ghost_pirate', extra || 0), ghost_gun: () => G.Prologue.human('ghost_gun', extra || 0), ghost_captain: () => G.Prologue.human('ghost_captain', extra || 0), dummy: () => G.Prologue.dummy(extra || 0),
     };
@@ -243,6 +246,8 @@
         const p = randomPoint(TESTS[zone], who.x, who.z, 35, 0, I);
         if (farFromAll(p, 28)) C.spawn(type, p.x, p.z);
       }
+      // Jefes de isla: el Rey de la Escarcha y el Dragón de Brasa (bosses.js)
+      G.Bosses.manage(I, list, farFromAll, dayOf(id), BH());
       if (I.type === 'perdida' && G.Prologue) G.Prologue.manage(tg, C.spawn);
       if (I.type === 'perdida') {
         // El jabalí gigante aparece a partir del día 5 hasta que alguien lo derrote
@@ -310,13 +315,14 @@
     boss: 'El jabalí gigante te aplastó', bear: 'Un oso blanco te despedazó', snowwolf: 'La manada de las nieves te cazó', caiman: 'Un caimán te arrastró al agua',
     salamander: 'Una salamandra de fuego te quemó', lavacrab: 'Un cangrejo de lava te atrapó', jelly: 'Las medusas te picaron', serpent: 'La serpiente marina te devoró', villager: 'Los guerreros shandara te derrotaron',
     pirate: 'Los piratas de la Hiena te derrotaron', pirate_gun: 'Un pirata te disparó', pirate_boss: 'La capitana Hiena te derrotó',
+    yeti: 'El Rey de la Escarcha te aplastó', lavadragon: 'El Dragón de Brasa te calcinó',
   };
-  const SOUND = { pirate: 'hit', pirate_boss: 'hit', wolf: 'bite', snowwolf: 'bite', boar: 'grunt', snake: 'hiss', jaguar: 'roar', shark: 'bite', boss: 'roar', bear: 'roar', caiman: 'bite', salamander: 'hiss', lavacrab: 'bite', jelly: 'hiss', serpent: 'roar', villager: 'hit' };
-  const CD = { pirate: 1.3, pirate_boss: 1.05, wolf: 1.2, snowwolf: 1.2, snake: 2.2, jaguar: 1.4, shark: 1.8, boss: 1.6, bear: 1.8, caiman: 2.0, salamander: 1.4, lavacrab: 1.6, jelly: 1.5, serpent: 2.5, villager: 1.3 };
+  const SOUND = { pirate: 'hit', pirate_boss: 'hit', wolf: 'bite', snowwolf: 'bite', boar: 'grunt', snake: 'hiss', jaguar: 'roar', shark: 'bite', boss: 'roar', bear: 'roar', caiman: 'bite', salamander: 'hiss', lavacrab: 'bite', jelly: 'hiss', serpent: 'roar', villager: 'hit', yeti: 'roar', lavadragon: 'roar' };
+  const CD = { pirate: 1.3, pirate_boss: 1.05, wolf: 1.2, snowwolf: 1.2, snake: 2.2, jaguar: 1.4, shark: 1.8, boss: 1.6, bear: 1.8, caiman: 2.0, salamander: 1.4, lavacrab: 1.6, jelly: 1.5, serpent: 2.5, villager: 1.3, yeti: 1.7, lavadragon: 1.9 };
   function attack(c, t, reach = 1.9) {
     c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
     if (c.cd > 0 || Math.hypot(t.x - c.x, t.z - c.z) > reach) return false;
-    if (!c.d.sea && Math.abs(t.y - c.y) > 1.6) return false;
+    if (!c.d.sea && Math.abs(t.y - c.y) > (c.d.bigBoss ? 3 : 1.6)) return false;
     c.cd = CD[c.type] || 1.6;
     c.lunge = 0.3;
     const amt = c.d.dmg * G.Game.diff().dmg, cause = CAUSE[c.type];
@@ -339,6 +345,17 @@
     if (t.local) G.Player.damage(amt, c, CAUSE[c.type]);
     else G.Net.send({ t: 'dmgP', to: t.id, amt, cause: CAUSE[c.type], sx: c.x, sz: c.z });
   }
+  // Un jefe bloqueado prueba a avanzar en diagonal (bordea el obstáculo)
+  function sidestep(c, step, speed) {
+    for (const da of [0.6, -0.6, 1.2, -1.2, 1.8, -1.8]) {
+      const ya = c.yaw + da, ax = c.x + Math.sin(ya) * step, az = c.z + Math.cos(ya) * step;
+      if (validPos(c.type, ax, az) && !G.Build.blocked(ax, az, 1.3)) { c.x = ax; c.z = az; c.speedNow = speed; return true; }
+    }
+    return false;
+  }
+  // Lo que necesitan los jefes de bosses.js
+  let _bh = null;
+  const BH = () => _bh || (_bh = { attack, spawn: C.spawn, valid: validPos });
   function poisonLocal(secs) {
     const P = G.Player;
     if (P.poison <= 0) G.UI.msg('☠️ ¡Estás envenenado! Usa una infusión o una cataplasma de hierbas.', 'bad');
@@ -357,7 +374,7 @@
     c.hp -= dmg;
     if (c.d.dummy) { c.hp = c.d.hp; c.wobble = 0.5; return; }
     if (extra && extra.poison) c.poisoned = Math.max(c.poisoned || 0, extra.poison);
-    if (src && c.type !== 'boss' && c.type !== 'whale' && c.type !== 'serpent' && c.type !== 'pirate_boss') {
+    if (src && c.type !== 'boss' && c.type !== 'whale' && c.type !== 'serpent' && c.type !== 'pirate_boss' && !c.d.bigBoss) {
       const dx = c.x - src.x, dz = c.z - src.z, d = Math.hypot(dx, dz) || 1;
       const nx = c.x + dx / d * 0.5, nz = c.z + dz / d * 0.5;
       if (validPos(c.type, nx, nz)) { c.x = nx; c.z = nz; }
@@ -365,7 +382,7 @@
     c.aggroId = fromPeer ? attackerId : G.Net.myId;
     if (c.d.human) { c.aggro = 25; G.Audio.playAt('grunt', c.x, c.z); }
     if (['boar', 'boss', 'bear', 'caiman', 'lavacrab', 'salamander', 'villager'].includes(c.type)) { c.aggro = 20; G.Audio.playAt(c.type === 'boss' || c.type === 'bear' ? 'roar' : 'grunt', c.x, c.z); }
-    if (['wolf', 'snowwolf', 'jaguar', 'snake', 'shark', 'serpent'].includes(c.type)) c.aggro = 20;
+    if (['wolf', 'snowwolf', 'jaguar', 'snake', 'shark', 'serpent'].includes(c.type) || c.d.bigBoss) c.aggro = 20;
     if (c.type === 'villager') G.Story && G.Story.tribeHurt(c, fromPeer ? attackerId : G.Net.myId);
     if (c.hp <= 0) killCreature(c, fromPeer ? attackerId : null);
   };
@@ -377,6 +394,7 @@
       G.UI.banner('¡Victoria!', 'El jabalí gigante ha caído');
     }
     if (c.type === 'villager') G.Story && G.Story.tribeKilled(c);
+    if (c.d.bigBoss) G.Bosses.onKilled(c);
     if (c.type === 'pirate_boss') { G.UI.banner('¡Capitana Hiena derrotada!', 'Los piratas huyen… y dejan caer un pergamino'); if (G.Prologue) G.Prologue.onBossKilled(); }
     if (!c.d.drops.length) return;
     if (peerId !== null && peerId !== undefined) G.Net.send({ t: 'give', to: peerId, items: c.d.drops, kill: c.d.name.toLowerCase(), kt: c.type, boss: c.type === 'boss' });
@@ -394,7 +412,7 @@
   // ------------------------------------------------------------------ animación común
   function animate(c, dt, night) {
     const T = c.type;
-    c.phase += c.speedNow * dt * (T === 'crab' || T === 'lavacrab' ? 9 : T === 'jaguar' ? 2.6 : T === 'monkey' || T === 'salamander' ? 5 : 3.2);
+    c.phase += c.speedNow * dt * (T === 'crab' || T === 'lavacrab' ? 9 : T === 'jaguar' ? 2.6 : T === 'monkey' || T === 'salamander' ? 5 : T === 'yeti' ? 1.8 : T === 'lavadragon' ? 1.5 : 3.2);
     const amp = Math.min(1, c.speedNow / 2) * 0.6;
     if (T === 'crab' || T === 'lavacrab' || T === 'seal') c.legs.forEach((l, k) => (l.rotation.x = Math.sin(c.phase + k * Math.PI) * amp));
     else { const off = [0, Math.PI, Math.PI, 0]; c.legs.forEach((l, k) => (l.rotation.x = Math.sin(c.phase + off[k]) * amp * (T === 'jaguar' ? 1.3 : 1))); }
@@ -424,6 +442,8 @@
     } else if (T === 'jelly') {
       y = G.World.waveHeight(c.x, c.z) - 0.6 + Math.sin(now / 600 + c.id) * 0.2;
       c.tail.scale.y = 1 + Math.sin(now / 300 + c.id) * 0.15;
+    } else if (c.d.bigBoss) {
+      y += G.Bosses.animate(c, dt, now);
     } else if (c.hop) {
       c.hopT = (c.hopT + dt * (c.speedNow > 0.1 ? 3 : 0)) % 1;
       y += Math.sin(c.hopT * Math.PI) * 0.25;
@@ -445,16 +465,19 @@
         if (c.flash > 0) c.mat.emissive.setRGB(0.6, 0, 0);
         else if (T === 'lavacrab') c.mat.emissive.setRGB(0.25, 0.06, 0);
         else if (T === 'salamander') c.mat.emissive.setRGB(0.23, 0.05, 0);
+        else if (T === 'lavadragon') c.mat.emissive.setRGB(0.05, 0.012, 0);
+        else if (T === 'yeti') c.mat.emissive.setRGB(0.03, 0.06, 0.1);
         else if (T !== 'jelly') c.mat.emissive.setRGB(0, 0, 0);
       }
     }
     if (c.eyeMat) c.eyeMat.emissive.setRGB(night ? 1.6 : 0, night ? 1.1 : 0, 0);
-    const cam = G.camera.position, far = c.type === 'boss' || c.d.sea ? 240 : 140;
+    const cam = G.camera.position, far = c.type === 'boss' || c.d.sea || c.d.bigBoss ? 260 : 140;
     c.g.visible = Math.abs(cam.x - c.x) < far && Math.abs(cam.z - c.z) < far;
   }
   const _vp = new THREE.Vector3(), _deck = new THREE.Vector3(), _deckW = new THREE.Vector3();
   function animateDeath(c, dt) {
     c.deadT += dt;
+    if (c.d.bigBoss) G.Bosses.death(c, dt);
     if (c.model) { c.g.rotation.x = -Math.min(Math.PI / 2, c.deadT * 3); if (c.deadT > 4) c.g.position.y -= dt * 0.8; return; }
     if (c.d.sea) { c.g.position.y -= dt * 0.8; c.g.rotation.z = Math.min(Math.PI, c.deadT * 2); return; }
     if (c.deadT < 0.5) c.g.rotation.z = (c.deadT / 0.5) * Math.PI / 2;
@@ -475,7 +498,7 @@
       c.cd -= dt; c.aggro -= dt; c.t -= dt; c.pounce -= dt; c.rest -= dt; c.calm = (c.calm || 0) - dt;
       // Congelado por el poder de la Fruta Hielo-Hielo
       if (c.frozen > 0) {
-        c.frozen -= dt; c.speedNow = 0;
+        c.frozen -= dt * (c.d.bigBoss ? 3 : 1); c.speedNow = 0; // a los jefes se les pasa antes
         // El destello rojo del golpe se apaga igual y queda un tono helado mientras dura
         if (c.flash > 0) c.flash = Math.max(0, c.flash - dt);
         animate(c, 0, night);
@@ -687,6 +710,11 @@
           if (sw && sw.d < 1.5) attack(c, sw.t, 1.6);
           break;
         }
+        case 'yeti': case 'lavadragon': {
+          const o = G.Bosses.think(c, tg, dt, BH());
+          tx = o.tx; tz = o.tz; speed = o.speed; moving = o.moving; faceT = o.face;
+          break;
+        }
         case 'serpent': {
           // Su cabeza va 7 m por delante del centro del cuerpo: alcance y mordiscos se miden desde la cabeza
           const hx = c.x + Math.sin(c.yaw) * SERP_HEAD, hz = c.z + Math.cos(c.yaw) * SERP_HEAD;
@@ -727,7 +755,9 @@
         c.yaw += U.angDiff(c.yaw, Math.atan2(mx, mz)) * Math.min(1, dt * (c.d.sea ? 2.5 : 6));
         const step = speed * dt;
         const nx = c.x + Math.sin(c.yaw) * step, nz = c.z + Math.cos(c.yaw) * step;
-        if (validPos(c.type, nx, nz) && (c.d.sea || !G.Build.blocked(nx, nz, c.type === 'boss' || c.type === 'bear' ? 0.9 : 0.4))) { c.x = nx; c.z = nz; c.speedNow = speed; c.stuck = 0; }
+        const flying = c.fly > 0.3; // el dragón en vuelo pasa por encima de todo
+        if ((flying || validPos(c.type, nx, nz)) && (c.d.sea || flying || !G.Build.blocked(nx, nz, c.type === 'boss' || c.type === 'bear' ? 0.9 : c.d.bigBoss ? 1.3 : 0.4))) { c.x = nx; c.z = nz; c.speedNow = speed; c.stuck = 0; }
+        else if (c.d.bigBoss && sidestep(c, step, speed)) { /* los jefes rodean rocas y paredes en vez de quedarse parados */ }
         else {
           c.speedNow = 0; c.t = 0;
           if (!['wolf', 'snowwolf'].includes(c.type) || !night) newWander(c, 10);
@@ -751,7 +781,7 @@
   // ------------------------------------------------------------------ red
   C.snapshot = () => C.list.map((c) => {
     const a = [c.id, TYPES.indexOf(c.type), Math.round(c.x * 10) / 10, Math.round(c.z * 10) / 10,
-      Math.round(c.yaw * 100) / 100, Math.ceil(c.hp), (c.dead ? 1 : 0) | (c.lunge > 0.25 ? 2 : 0) | (c.fear ? 4 : 0) | (c.aggro > 0 ? 8 : 0) | (c.pounce > 0 ? 16 : 0)];
+      Math.round(c.yaw * 100) / 100, Math.ceil(c.hp), (c.dead ? 1 : 0) | (c.lunge > 0.25 ? 2 : 0) | (c.fear ? 4 : 0) | (c.aggro > 0 ? 8 : 0) | (c.pounce > 0 ? 16 : 0) | (c.fly > 0.5 ? 32 : 0) | (c.special ? 64 : 0)];
     if (c.type === 'villager' || c.type === 'npc' || c.type === 'dummy' || c.d.human) a.push(c.extra);
     return a;
   });
@@ -768,6 +798,7 @@
       c.fear = !!(fl & 4);
       c.aggro = fl & 8 ? 1 : 0;
       c.pounce = fl & 16 ? 1 : 0;
+      c.flyNet = !!(fl & 32); c.special = !!(fl & 64);
     }
     for (let i = C.list.length - 1; i >= 0; i--) if (!seen.has(C.list[i].id)) removeAt(i);
   };
@@ -788,12 +819,21 @@
   }
 
   C.forEachAlive = (cb) => { for (const c of C.list) if (!c.dead) cb(c); };
+  C.targets = targets;
+  C.validPos = validPos;
+  // Daño a un jugador (local o remoto) desde una criatura o un efecto de área (bosses.js)
+  C.hitTarget = function (c, t, amt, cause) {
+    amt *= G.Game.diff().dmg;
+    if (t.local) G.Player.damage(amt, c, cause);
+    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause, sx: c.x, sz: c.z });
+  };
 
   // ------------------------------------------------------------------ zonas de impacto
   // Esferas donde se puede golpear a cada criatura: los animales marinos, a la altura del agua donde se ven
   // (no en el fondo del mar); la serpiente marina, a lo largo de su cuerpo de 14 m, con la cabeza delante
   C.spheres = function (c) {
     const vy = c.vy !== undefined ? c.vy : c.y;
+    if (c.d.bigBoss) return G.Bosses.spheres(c);
     if (c.type === 'serpent') {
       const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
       return SERP_BODY.map(([k, dy, r]) => ({ x: c.x + fx * k, y: vy + dy, z: c.z + fz * k, r }));
@@ -821,6 +861,6 @@
   // Jefe cercano para la barra de vida
   C.nearBoss = function () {
     const P0 = G.Player.pos;
-    return C.list.find((c) => (c.type === 'boss' || c.type === 'serpent' || c.type === 'pirate_boss') && !c.dead && Math.hypot(c.x - P0.x, c.z - P0.z) < 40);
+    return C.list.find((c) => (c.type === 'boss' || c.type === 'serpent' || /_boss$|_captain$/.test(c.type) || c.d.bigBoss) && !c.dead && Math.hypot(c.x - P0.x, c.z - P0.z) < (c.d.bigBoss ? 70 : 40));
   };
 })();
