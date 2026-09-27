@@ -62,7 +62,7 @@
     const held = G.Inv.held();
     const wreach = held && G.ITEMS[held.id].reach ? G.ITEMS[held.id].reach : reach;
     G.Creatures.forEachAlive((c) => {
-      const t = raySphere(o, d, c.x, c.y + c.d.bodyY, c.z, c.d.hitR);
+      const t = G.Creatures.rayHit(c, o, d);
       if (t >= 0 && t < bt && t < wreach + 0.4) { bt = t; best = { kind: 'creature', c, t }; }
     });
     for (const p of G.Net.peers.values()) {
@@ -281,7 +281,7 @@
     const P = G.Player, o = P.eyePos(new V3()), d = P.lookDir(new V3());
     G.Audio.play('swing');
     let best = null, bt = 30;
-    G.Creatures.forEachAlive((c) => { const t = raySphere(o, d, c.x, c.y + c.d.bodyY, c.z, c.d.hitR + 0.2); if (t >= 0 && t < bt) { bt = t; best = c; } });
+    G.Creatures.forEachAlive((c) => { const t = G.Creatures.rayHit(c, o, d, 0.2); if (t >= 0 && t < bt) { bt = t; best = c; } });
     if (best) { G.Creatures.hurt(best, 8, undefined, { poison: 12 }); G.UI.msg(`🎯 Dardo en el blanco: ${best.d.name} envenenado`, 'good', 'dart'); G.Ach.add('dart'); }
     for (const p of G.Net.peers.values()) {
       if (p.dead || !G.Modes.canHurtPlayer(p.team)) continue;

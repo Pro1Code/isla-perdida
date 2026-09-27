@@ -1085,7 +1085,7 @@
         if (Math.abs(l.z) < s.def.L / 2 && Math.abs(l.x) < halfW(s.def, l.z) + 0.2 && l.y > -s.def.draft && l.y < s.def.deckY + s.def.rail + 2.5) { hit = 'ship'; if (p.mine) { S.hurt(s, 45, `¡Impacto de cañón en ${s.name}!`, p.from); G.Ach.add('cannonHit'); } break; }
       }
       if (!hit && p.mine) {
-        for (const c of G.Creatures.list) if (!c.dead && Math.hypot(c.x - pos.x, c.z - pos.z) < c.d.hitR + 0.8 && Math.abs(pos.y - (c.y + c.d.bodyY)) < 2.5) { hit = 'creature'; G.Creatures.hurt(c, 70); G.Ach.add('cannonHit'); break; }
+        for (const c of G.Creatures.list) if (!c.dead && G.Creatures.near(c, pos.x, pos.y, pos.z, 0.8, 2.5)) { hit = 'creature'; G.Creatures.hurt(c, 70); G.Ach.add('cannonHit'); break; }
         if (!hit) for (const pr of G.Net.peers.values()) {
           if (pr.dead || Math.hypot(pr.x - pos.x, pr.z - pos.z) > 1.3 || Math.abs(pos.y - pr.y - 1) > 1.4) continue;
           if (G.Modes && !G.Modes.canHurtPlayer(pr.team)) continue;

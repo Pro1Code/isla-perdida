@@ -90,6 +90,17 @@
 
   // ------------------------------------------------------------------ aparición
   const isl = (x, z) => G.Arch.landOf(x, z);
+  // Serpiente marina: la cabeza va delante del centro del cuerpo; trozos del cuerpo [distancia, altura, radio]
+  const SERP_HEAD = 7.4, SERP_BODY = [[SERP_HEAD, 0.8, 1.3], [4.2, 0.45, 1.0], [1.2, 0.45, 1.0], [-1.8, 0.4, 0.95], [-4.6, 0.35, 0.9]];
+  // Punto de aguas más profundas cerca (para que un animal marino atascado se aleje de la costa)
+  function deeper(c) {
+    let best = null, bh = Infinity;
+    for (const R of [16, 28]) for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2, x = c.x + Math.cos(a) * R, z = c.z + Math.sin(a) * R, h = G.height(x, z);
+      if (h < bh && validPos(c.type, x, z)) { bh = h; best = { x, z }; }
+    }
+    return best || { x: c.x - Math.sin(c.yaw) * 20, z: c.z - Math.cos(c.yaw) * 20 };
+  }
   function validPos(type, x, z) {
     const h = G.height(x, z);
     const d = DEF[type];
@@ -410,6 +421,7 @@
       const crouch = c.pounce <= 0 && c.aggro > 0 && c.speedNow < 4 ? 1 : 0;
       c.g.children[0].position.y = U.lerp(c.g.children[0].position.y, -0.15 * crouch, Math.min(1, dt * 5));
     }
+    c.vy = y;
     if (c.model) {
       c.swing = Math.max(0, (c.swing || 0) - dt / 0.32);
       if (c.lunge > 0.29) c.swing = 1;
@@ -450,7 +462,7 @@
       const c = C.list[i];
       if (c.dead) { animateDeath(c, dt); if (c.deadT > 6) removeAt(i); continue; }
       const night = nightOf(c.isl);
-      c.cd -= dt; c.aggro -= dt; c.t -= dt; c.pounce -= dt; c.rest -= dt;
+      c.cd -= dt; c.aggro -= dt; c.t -= dt; c.pounce -= dt; c.rest -= dt; c.calm = (c.calm || 0) - dt;
       // Congelado por el poder de la Fruta Hielo-Hielo
       if (c.frozen > 0) {
         c.frozen -= dt; c.speedNow = 0;
@@ -479,6 +491,8 @@
       const fleeFrom = (t, d, s) => { tx = c.x - (t.x - c.x) / d * 8; tz = c.z - (t.z - c.z) / d * 8; speed = s; };
       const fireFear = () => { const f = G.Build.nearestLitFire(c.x, c.z); return f && f.d < 9 ? f : null; };
       const chase = (range, keep, reach = 1.9) => {
+        // Tras quedarse atascado persiguiendo (agua, paredes…), se olvida un rato de la presa
+        if (c.calm > 0) return false;
         let at = c.aggro > 0 ? tg.find((t) => t.id === c.aggroId && !t.dead) : null;
         if (!at && tgt && dist < range && !tgt.ship) { at = tgt; c.aggro = 6; c.aggroId = tgt.id; }
         if (!at) return false;
@@ -489,7 +503,9 @@
         return true;
       };
       let faceT = null;
-      switch (c.type) {
+      // Animal marino atascado contra la costa: vuelve un rato a aguas profundas (antes se quedaba quieto para siempre)
+      if (c.d.sea && c.retreat > 0) { c.retreat -= dt; c.aggro = Math.min(c.aggro, 0); tx = c.rx; tz = c.rz; speed = c.d.run * 0.85; }
+      else switch (c.type) {
         case 'crab': case 'monkey': case 'seal': case 'frog':
           if (tgt && dist < (c.type === 'monkey' ? 9 : 5)) fleeFrom(tgt, dist, c.d.run); else wander();
           break;
@@ -575,7 +591,7 @@
           if (!hunts) {
             if (tgt) fleeFrom(tgt, dist, c.d.run);
             if (dist > 50) { removeAt(i); continue; }
-          } else if (tgt && (dist < (night ? 38 : 22) || c.aggro > 0) && !tgt.ship) {
+          } else if (tgt && c.calm <= 0 && (dist < (night ? 38 : 22) || c.aggro > 0) && !tgt.ship) {
             const fire = fireFear();
             c.fear = !!fire;
             faceT = tgt;
@@ -594,7 +610,7 @@
           const fire = fireFear();
           c.fear = !!fire;
           if (fire) { tx = c.x + (c.x - fire.s.x) / fire.d * 6; tz = c.z + (c.z - fire.s.z) / fire.d * 6; speed = c.d.run * 0.4; c.pounce = 0; }
-          else if (tgt && (dist < range || c.aggro > 0) && c.rest <= 0 && !tgt.ship) {
+          else if (tgt && c.calm <= 0 && (dist < range || c.aggro > 0) && c.rest <= 0 && !tgt.ship) {
             faceT = tgt; c.aggro = Math.max(c.aggro, 2);
             if (c.pounce > 0) { tx = tgt.x; tz = tgt.z; speed = c.d.run; if (dist < 2.1 && attack(c, tgt, 2.2)) { c.pounce = 0; c.rest = 3; } }
             else if (dist < 9) { c.pounce = 1.4; G.Audio.playAt('roar', c.x, c.z, 40); }
@@ -644,24 +660,35 @@
           break;
         }
         case 'serpent': {
-          const sw = nearest(c, tg, (t) => t.swim);
-          const sh = Sh && Sh.near(c.x, c.z, 140);
+          // Su cabeza va 7 m por delante del centro del cuerpo: alcance y mordiscos se miden desde la cabeza
+          const hx = c.x + Math.sin(c.yaw) * SERP_HEAD, hz = c.z + Math.cos(c.yaw) * SERP_HEAD;
+          const headD = (t) => Math.hypot(t.x - hx, t.z - hz);
+          c.shipIgnore = Math.max(0, (c.shipIgnore || 0) - dt);
           if (c.hp < c.d.hp * 0.3) { if (tgt) fleeFrom(tgt, dist, c.d.run); if (dist > 150) { removeAt(i); continue; } break; }
-          if (sw && sw.d < 30) { c.aggro = 3; faceT = sw.t; tx = sw.t.x; tz = sw.t.z; speed = c.d.run; if (sw.d < 3) attack(c, sw.t, 3.2); }
+          // Muerde a quien esté al alcance de la cabeza: nadando, en la orilla o golpeándola desde tierra
+          let bite = null;
+          for (const t of tg) if (!t.dead && !t.ship && headD(t) < 3.4 && Math.abs((t.y || 0) - (c.vy ?? 0)) < 4) bite = t;
+          if (bite) { c.lonely = 0; c.aggro = 3; faceT = bite; moving = false; if (c.cd <= 0) attack(c, bite, SERP_HEAD + 4); break; }
+          const sw = nearest(c, tg, (t) => t.swim);
+          // Solo persigue barcos con alguien a bordo (una balsa vacía varada en la playa no le interesa)
+          const sh = c.shipIgnore > 0 ? null : Sh && Sh.near(c.x, c.z, 140, (s) => tg.some((t) => !t.dead && t.ship === s));
+          if (sw && sw.d < 30) { c.lonely = 0; c.aggro = 3; faceT = sw.t; tx = sw.t.x; tz = sw.t.z; speed = c.d.run; if (headD(sw.t) < 2.5) moving = false; }
           else if (sh) {
-            c.aggro = 3;
-            const s = sh.s;
+            c.lonely = 0; c.aggro = 3;
+            const s = sh.s, hd = Math.hypot(s.x - hx, s.z - hz);
             c.orbit = c.orbit || (Math.random() < 0.5 ? 1 : -1);
-            if (c.cd <= 0 && sh.d < 25) {
-              // Embestida: va hacia el casco, golpea con la cabeza y vuelve a apartarse (no lo atraviesa)
+            if (c.cd <= 0 && sh.d < 25 + SERP_HEAD) {
+              // Embestida: la cabeza va hacia el casco, lo golpea y vuelve a apartarse (no lo atraviesa)
               tx = s.x; tz = s.z; speed = c.d.run;
-              if (sh.d < 3.2) { c.cd = 4.5; c.lunge = 0.3; Sh.hurt(s, c.d.shipDmg * G.Game.diff().dmg, 'La serpiente marina golpea el casco'); G.Audio.playAt('roar', c.x, c.z, 80); }
+              if (hd < Math.max(2.6, s.def.L * 0.4)) { c.cd = 4.5; c.lunge = 0.3; c.fails = 0; Sh.hurt(s, c.d.shipDmg * G.Game.diff().dmg, 'La serpiente marina golpea el casco'); G.Audio.playAt('roar', c.x, c.z, 80); }
             } else {
               // Mientras tanto, da vueltas alrededor del barco
               const a = Math.atan2(c.z - s.z, c.x - s.x) + c.orbit * 0.55, R = s.def.L / 2 + 5;
               tx = s.x + Math.cos(a) * R; tz = s.z + Math.sin(a) * R; speed = sh.d > 20 ? c.d.run : c.d.speed;
             }
-          } else { wander(40); if ((c.lonely += dt) > 30) { removeAt(i); continue; } }
+            // Si el barco está en aguas donde no puede llegar (varado en la orilla), se cansa y lo deja
+            if ((c.fails || 0) >= 3) { c.fails = 0; c.shipIgnore = 45; c.orbit = -c.orbit; }
+          } else { c.aggro = 0; wander(40); if ((c.lonely += dt) > 30) { removeAt(i); continue; } }
           break;
         }
       }
@@ -670,8 +697,18 @@
         c.yaw += U.angDiff(c.yaw, Math.atan2(mx, mz)) * Math.min(1, dt * (c.d.sea ? 2.5 : 6));
         const step = speed * dt;
         const nx = c.x + Math.sin(c.yaw) * step, nz = c.z + Math.cos(c.yaw) * step;
-        if (validPos(c.type, nx, nz) && (c.d.sea || !G.Build.blocked(nx, nz, c.type === 'boss' || c.type === 'bear' ? 0.9 : 0.4))) { c.x = nx; c.z = nz; c.speedNow = speed; }
-        else { c.speedNow = 0; c.t = 0; if (!['wolf', 'snowwolf'].includes(c.type) || !night) newWander(c, 10); }
+        if (validPos(c.type, nx, nz) && (c.d.sea || !G.Build.blocked(nx, nz, c.type === 'boss' || c.type === 'bear' ? 0.9 : 0.4))) { c.x = nx; c.z = nz; c.speedNow = speed; c.stuck = 0; }
+        else {
+          c.speedNow = 0; c.t = 0;
+          if (!['wolf', 'snowwolf'].includes(c.type) || !night) newWander(c, 10);
+          if (c.d.sea && (c.stuck = (c.stuck || 0) + dt) > 1.2) {
+            const p = deeper(c);
+            c.stuck = 0; c.retreat = 5 + Math.random() * 3; c.rx = p.x; c.rz = p.z; c.fails = (c.fails || 0) + 1;
+          } else if (!c.d.sea && !c.d.npc && faceT && tg.includes(faceT) && (c.stuck = (c.stuck || 0) + dt) > 2.5) {
+            // Animal de tierra que no puede llegar (te metiste al agua o en casa): deja de perseguirte y se va
+            c.stuck = 0; c.aggro = 0; c.calm = 6 + Math.random() * 4; newWander(c, 14);
+          }
+        }
       } else {
         c.speedNow = 0;
         if (faceT && Math.hypot(faceT.x - c.x, faceT.z - c.z) < 12) c.yaw += U.angDiff(c.yaw, Math.atan2(faceT.x - c.x, faceT.z - c.z)) * Math.min(1, dt * 6);
@@ -719,6 +756,36 @@
   }
 
   C.forEachAlive = (cb) => { for (const c of C.list) if (!c.dead) cb(c); };
+
+  // ------------------------------------------------------------------ zonas de impacto
+  // Esferas donde se puede golpear a cada criatura: los animales marinos, a la altura del agua donde se ven
+  // (no en el fondo del mar); la serpiente marina, a lo largo de su cuerpo de 14 m, con la cabeza delante
+  C.spheres = function (c) {
+    const vy = c.vy !== undefined ? c.vy : c.y;
+    if (c.type === 'serpent') {
+      const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
+      return SERP_BODY.map(([k, dy, r]) => ({ x: c.x + fx * k, y: vy + dy, z: c.z + fz * k, r }));
+    }
+    return [{ x: c.x, y: c.d.sea ? vy + (c.type === 'whale' ? 0.9 : 0.1) : c.y + c.d.bodyY, z: c.z, r: c.d.hitR }];
+  };
+  // Distancia del rayo (o -1) a la criatura
+  C.rayHit = function (c, o, d, pad = 0) {
+    let best = -1;
+    for (const s of C.spheres(c)) {
+      const r = s.r + pad, ox = s.x - o.x, oy = s.y - o.y, oz = s.z - o.z, t = ox * d.x + oy * d.y + oz * d.z, c2 = ox * ox + oy * oy + oz * oz;
+      let h = -1;
+      if (c2 < r * r) h = 0;
+      else if (t >= 0) { const d2 = c2 - t * t; if (d2 <= r * r) h = t - Math.sqrt(r * r - d2); }
+      if (h >= 0 && (best < 0 || h < best)) best = h;
+    }
+    return best;
+  };
+  // Punto al que apuntar (chispas, rayos…): la cabeza en la serpiente
+  C.aimPoint = (c) => C.spheres(c)[0];
+  // ¿Algún trozo de la criatura está cerca de este punto?
+  C.near = (c, x, y, z, extra, dy) => C.spheres(c).some((s) => Math.hypot(s.x - x, s.z - z) < s.r + extra && Math.abs(s.y - y) < dy);
+  // Distancia horizontal al trozo más cercano (para los poderes de área)
+  C.distTo = (c, x, z) => Math.min(...C.spheres(c).map((s) => Math.hypot(s.x - x, s.z - z)));
   // Jefe cercano para la barra de vida
   C.nearBoss = function () {
     const P0 = G.Player.pos;

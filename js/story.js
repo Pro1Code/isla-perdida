@@ -408,12 +408,12 @@
     const k = St.fruitOf(), P = G.Player;
     if (!k) { G.UI.msg('No tienes ningún poder. Las Frutas del Abismo están escondidas en cofres del archipiélago.', 'info', 'power'); return; }
     if (St.powerCd > 0) { G.UI.msg(`Poder recargando (${Math.ceil(St.powerCd)} s)`, 'warn', 'power'); return; }
-    const near = (r) => { const out = []; G.Creatures.forEachAlive((c) => { if (Math.hypot(c.x - P.pos.x, c.z - P.pos.z) < r && !c.d.npc) out.push(c); }); return out; };
+    const near = (r) => { const out = []; G.Creatures.forEachAlive((c) => { if (G.Creatures.distTo(c, P.pos.x, P.pos.z) < r && !c.d.npc) out.push(c); }); return out; };
     G.Ach.add('power');
     if (k === 'llama') {
       St.powerCd = 3;
       const d = P.lookDir(new THREE.Vector3()), o = P.eyePos(new THREE.Vector3());
-      G.Creatures.forEachAlive((c) => { const v = new THREE.Vector3(c.x - o.x, c.y + c.d.bodyY - o.y, c.z - o.z), t = v.dot(d); if (t > 0 && t < 16 && v.addScaledVector(d, -t).length() < c.d.hitR + 1 && !c.d.npc) G.Creatures.hurt(c, 35); });
+      G.Creatures.forEachAlive((c) => { if (c.d.npc) return; const t = G.Creatures.rayHit(c, o, d, 1); if (t >= 0 && t < 16) G.Creatures.hurt(c, 35); });
       for (let i = 1; i < 8; i++) setTimeout(() => G.Ships && G.Ships.puff(o.x + d.x * i * 2, o.y + d.y * i * 2, o.z + d.z * i * 2, 0xff7a20, 1.2, 0.5, 1), i * 30);
       G.Audio.play('ignite');
     } else if (k === 'hielo') {
