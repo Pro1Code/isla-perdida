@@ -277,8 +277,19 @@
   St.tribeKilled = function () { const w = W(); w.rep = -100; G.Net.send({ t: 'story', w }); };
   // Frases de cada aldeano (js/lines.js): cada uno dice las suyas, con su voz
   const lineOf = (c) => G.LINES[G.Voice.speakerOf(c.name)] || G.LINES.wypar;
+  // Aldeanos de los Kyrr (Escarcha) y de Ceniza (Brasa): frases cortas y te mandan al tablón de encargos
+  const ALDEANO_LINES = {
+    escarcha: ['El frío no perdona, forastero. Acércate a la hoguera.', 'Si quieres ayudar a los Kyrr, mira el tablón de encargos.', 'Cuando la ventisca aprieta, el Rey de la Escarcha baja de la montaña.', 'Aquí vivimos del hielo y de la foca. Nada se desperdicia.'],
+    brasa: ['Cuidado con las coladas: aquí la tierra quema.', '¿Buscas trabajo? En el tablón hay encargos para ti.', 'El dragón duerme junto a la lava… cuando despierta, tiembla toda la isla.', 'En Ceniza forjamos el mejor hierro del archipiélago.'],
+  };
+  function aldeanoTalk(c) {
+    const v = G.Creatures.ALDEANOS[c.extra] || {}, L = ALDEANO_LINES[v.tribe] || ALDEANO_LINES.escarcha;
+    c.talkI = ((c.talkI ?? -1) + 1) % L.length;
+    St.show({ who: c.name, text: L[c.talkI] });
+  }
   St.talk = function (c) {
     if (c.type === 'npc') return G.Prologue.talk(c);
+    if (c.type === 'aldeano') return aldeanoTalk(c);
     const w = W();
     w.flags = w.flags || {};
     G.Audio.play('talk');

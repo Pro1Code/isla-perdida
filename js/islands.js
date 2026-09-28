@@ -166,7 +166,7 @@
     const land = (lo, hi) => (h) => h > lo && h < hi;
     const lake = (p, rad, depth, lo, hi) => p && Object.assign(p, { r: rad, depth, lo, hi });
     if (T === 'tahuri') {
-      F.lake = lake(tryPick(rnd, base, r, 0.15, 0.4, land(4, 13)), 13, 4, 4.2, 9);
+      F.lake = lake(tryPick(rnd, base, r, 0.15, 0.4, land(4, 13)), 17, 4.5, 4.2, 9); // guarida del Gran Caimán del río
       F.village = tryPick(rnd, base, r, 0.5, 0.62, (h, x, z) => h > 2.6 && h < 8 && (!F.lake || Math.hypot(x - F.lake.x, z - F.lake.z) > 55));
       if (F.village) F.village.r = 24;
       F.temple = tryPick(rnd, base, r, 0.2, 0.38, (h, x, z) => h > 6 && h < 20 && (!F.lake || Math.hypot(x - F.lake.x, z - F.lake.z) > 30) && (!F.village || Math.hypot(x - F.village.x, z - F.village.z) > 50));
@@ -185,7 +185,19 @@
         const p = tryPick(rnd, base, r, 0.3, 0.5, (h, x, z) => h > 8 && h < 26 && F.lava.every((o) => Math.hypot(o.x - x, o.z - z) > 30));
         if (p) F.lava.push(Object.assign(p, { r: 3.5 + rnd() * 1.5 }));
       }
-    } else if (T === 'ruinas') {
+    }
+    // Aldea de las islas con jefe (Kyrr en Escarcha, Ceniza en Brasa): en tierra baja, lejos de la guarida del jefe.
+    // Usa su propio generador para no mover nada de lo que ya había en las partidas guardadas.
+    if (T === 'escarcha' || T === 'brasa') {
+      const vr = U.rng(isl.seed * 17 + 3);
+      const far = (x, z, f, d) => !f || Math.hypot(x - f.x, z - f.z) > d;
+      const ok = (k) => (h, x, z) => h > 2.4 && h < 8 && (T === 'escarcha'
+        ? far(x, z, F.cave, 75 * k) && far(x, z, F.ice, 40 * k) && far(x, z, F.spring, 30 * k)
+        : F.lava.every((o) => Math.hypot(o.x - x, o.z - z) > 50 * k) && far(x, z, F.spring, 25 * k));
+      F.village = tryPick(vr, base, r, 0.45, 0.72, ok(1), 240) || tryPick(vr, base, r, 0.4, 0.8, ok(0.7), 240);
+      if (F.village) F.village.r = 19;
+    }
+    if (T === 'ruinas') {
       F.plaza = { x: 0, z: 0, r: 30 };
       F.pond = lake(tryPick(rnd, base, r, 0.45, 0.6, land(3, 12)), 8, 2.5, 3.5, 10);
     }

@@ -4,6 +4,9 @@
 //    Con media vida ruge y llama a los lobos de las nieves.
 //  - El Dragón de Brasa: vive junto a las coladas de lava del volcán. Mordisco, aliento de fuego en cono y,
 //    malherido, alza el vuelo: da vueltas y escupe bolas de fuego (arriba solo lo alcanzan armas de fuego y poderes).
+//  - El Gran Caimán del río: acecha en el lago de la selva de Tahuri con solo los ojos fuera del agua. Embestida
+//    con las fauces abiertas, coletazo girando sobre sí mismo y, malherido, se sumerge, se cura y sale de golpe.
+//    Con media vida llama a otros caimanes.
 // Aparecen desde el día 3 mientras nadie los haya derrotado. El anfitrión decide la IA y el daño; los demás
 // reciben los efectos (bossFx) y el estado (vuelo, ataque especial) en la instantánea de criaturas.
 (function () {
@@ -11,9 +14,9 @@
   const G = window.G, U = G.U, M = G.Mdl, T = M.table, V3 = THREE.Vector3, Col = THREE.Color;
   const B = (G.Bosses = { proj: [], parts: [], rings: [], breaths: [] });
   const FLY = 9; // altura de vuelo del dragón
-  const KINDS = ['yeti', 'lavadragon'];
+  const KINDS = ['yeti', 'lavadragon', 'bigcaiman'];
   B.is = (type) => KINDS.includes(type);
-  B.NAMES = { yeti: 'Rey de la Escarcha', lavadragon: 'Dragón de Brasa' };
+  B.NAMES = { yeti: 'Rey de la Escarcha', lavadragon: 'Dragón de Brasa', bigcaiman: 'Gran Caimán del río' };
 
   // ------------------------------------------------------------------ utilidades de modelado (como en animals.js)
   function grad(top, side, bot, k = 0.3) {
@@ -153,11 +156,58 @@
     return { g, legs, head, headZ: 2.75, tail, tailYaw: true, wings, jaw, glow: glowMat };
   };
 
+  // ------------------------------------------------------------------ el Gran Caimán del río
+  B.caiman = function (mat) {
+    const g = new THREE.Group(), rnd = U.rng(515);
+    const back = 0x2e3a22, side = 0x55663a, belly = 0xcfc39a, scute = 0x222a18, claw = 0x1a1a14, tooth = 0xf0ead8, mouthC = 0xb86a5a;
+    // Cuerpo bajo y ancho (de la cadera a los hombros) con filas de escamas óseas en el lomo
+    const bp = tb([[0, 0.72], [0.3, 1.0], [0.72, 0.98], [1, 0.62]], [[0, 0.4], [0.3, 0.5], [0.72, 0.48], [1, 0.36]], 0.6);
+    const body = [M.loft({ z0: -2.4, z1: 1.7, n: 20, m: 16, prof: bp, color: grad(back, side, belly, 0.1) })];
+    for (let i = 0; i < 13; i++) {
+      const t = 0.05 + i * 0.072, p = bp(t), z = U.lerp(-2.4, 1.7, t);
+      for (const [x, s] of [[-0.22, 1], [0.22, 1], [-0.52, 0.7], [0.52, 0.7]]) body.push(cone(0.09 * s, 0.2 * s, scute, x * p.rx, p.y + p.ry * (1 - Math.abs(x) * 0.5) + 0.02, z, 0, 0, 0, 4));
+    }
+    g.add(mk(body, mat));
+    // Cabeza larga: hocico, ojos saltones que brillan (lo único que asoma del agua) y dientes de arriba
+    const hp = [M.loft({ z0: 0, z1: 2.3, n: 16, m: 14, prof: tb([[0, 0.55], [0.35, 0.44], [0.8, 0.3], [1, 0.2]], [[0, 0.3], [0.4, 0.22], [1, 0.14]], [[0, 0.05], [1, -0.02]]), color: grad(back, side, mouthC, 0.3) })];
+    for (const s of [-1, 1]) {
+      hp.push(M.ball(0.15, side, s * 0.27, 0.24, 0.35, [1, 0.8, 1.2]));
+      hp.push(M.ball(0.07, back, s * 0.08, 0.13, 2.18, [1, 0.7, 1.1]));
+      for (let k = 0; k < 9; k++) hp.push(cone(0.035, 0.14, tooth, s * U.lerp(0.44, 0.16, k / 8), -0.14, 0.35 + k * 0.21, Math.PI));
+    }
+    const head = mk(hp, mat, 0, 0.66, 1.6);
+    const glowMat = new THREE.MeshStandardMaterial({ color: 0xffe070, emissive: 0xffa020, emissiveIntensity: 1.2, roughness: 0.3 });
+    for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), glowMat); e.position.set(s * 0.29, 0.3, 0.44); head.add(e); }
+    // Mandíbula de abajo (se abre al morder) con sus dientes
+    const jp = [M.loft({ z0: 0, z1: 2.2, n: 12, m: 10, prof: tb([[0, 0.5], [0.5, 0.36], [1, 0.18]], [[0, 0.16], [1, 0.08]], -0.12), color: grad(mouthC, side, belly, 0.2) })];
+    for (const s of [-1, 1]) for (let k = 0; k < 8; k++) jp.push(cone(0.03, 0.12, tooth, s * U.lerp(0.4, 0.15, k / 7), -0.02, 0.4 + k * 0.22));
+    const jaw = piv(0, -0.1, 0.05, mk(jp, mat));
+    head.add(jaw);
+    g.add(head);
+    // Cola larga con la cresta de escamas
+    const tailPts = [[0, 0, 0], [0, -0.08, -1.6], [0.15, -0.18, -3.2], [0.45, -0.28, -4.6]];
+    const tp = [M.tube(tailPts, (t) => U.lerp(0.62, 0.08, t), 10, (t, a) => (Math.sin(a) < -0.3 ? belly : side), 22)];
+    const curve = new THREE.CatmullRomCurve3(tailPts.map((p) => new V3(...p)));
+    for (let i = 1; i < 14; i++) { const P = curve.getPointAt(i / 15); tp.push(M.xf(M.fin([[0, 0], [0.12, 0.26 * (1 - i / 16)], [0.24, 0]], 0.04, scute), P.x - 0.12, P.y + U.lerp(0.5, 0.1, i / 14), P.z, 0, Math.PI / 2, 0)); }
+    const tail = piv(0, 0.6, -2.3, mk(tp, mat));
+    g.add(tail);
+    // Patas cortas y abiertas hacia los lados, con garras
+    const legs = [[-1, 1], [1, 1], [-1, 0], [1, 0]].map(([s, f]) => {
+      const lp = M.leg([0, 0, 0], [s * 0.42, -0.2, f ? 0.12 : -0.1], [s * 0.55, -0.45, f ? 0.2 : -0.05], [s * 0.6, -0.58, f ? 0.38 : 0.15], f ? 0.24 : 0.3, 0.13, side, claw);
+      for (let k = 0; k < 4; k++) lp.push(cone(0.03, 0.14, claw, s * 0.6 + (k - 1.5) * 0.07, -0.6, (f ? 0.38 : 0.15) + 0.14, Math.PI / 2));
+      return piv(s * 0.78, 0.6, f ? 1.15 : -1.75, mk(lp, mat));
+    });
+    legs.forEach((l) => g.add(l));
+    void rnd;
+    return { g, legs, head, headZ: 1.6, tail, tailYaw: true, jaw, glow: glowMat };
+  };
+
   // ------------------------------------------------------------------ zonas de impacto (lo usa creatures.js)
   B.spheres = function (c) {
     const vy = c.vy !== undefined ? c.vy : c.y, fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
     const at = (k, dy, r) => ({ x: c.x + fx * k, y: vy + dy, z: c.z + fz * k, r });
     if (c.type === 'yeti') return [at(0.1, 2.0, 1.0), at(0.45, 3.0, 0.55), at(0, 0.8, 0.7)];
+    if (c.type === 'bigcaiman') return [at(3.0, 0.7, 0.6), at(1.8, 0.7, 0.75), at(0.4, 0.6, 1.0), at(-1.4, 0.6, 1.0), at(-3.6, 0.45, 0.6), at(-5.4, 0.3, 0.4)];
     return [at(0.2, 1.75, 1.3), at(2.9, 4.1, 0.65), at(2.2, 3.1, 0.6), at(1.4, 1.9, 1.0), at(-1.3, 1.6, 1.05), at(-3.2, 0.9, 0.6)];
   };
 
@@ -170,6 +220,14 @@
       c.armUp = U.lerp(c.armUp || 0, c.special ? 1 : 0, Math.min(1, dt * 8));
       if (c.armUp > 0.02) for (const a of c.arms) a.rotation.x = U.lerp(a.rotation.x, -2.6, c.armUp);
       c.bodyMesh.scale.set(1, 1 + Math.sin(now / 700) * 0.012, 1);
+    } else if (c.type === 'bigcaiman') {
+      // En el lago asoman solo los ojos y el lomo; al esconderse se sumerge del todo
+      const wl = G.World.inLakeWater(c.x, c.z) ? G.World.waterLevelAt(c.x, c.z) : null;
+      const dive = G.Net.authority() ? !!c.flyTarget : !!c.flyNet;
+      c.swimOff = U.lerp(c.swimOff || 0, wl === null ? 0 : Math.max(0, wl - (dive ? 2.6 : 0.78) - c.y), Math.min(1, dt * 3));
+      off += c.swimOff;
+      const open = c.special ? 0.62 : c.lunge > 0 ? 0.55 * Math.sin((c.lunge / 0.3) * Math.PI) : 0.03 + Math.max(0, Math.sin(now / 2200 + c.id)) * 0.05;
+      c.jaw.rotation.x = U.lerp(c.jaw.rotation.x, open, Math.min(1, dt * 10));
     } else {
       const want = G.Net.authority() ? (c.flyTarget || 0) : (c.flyNet ? 1 : 0);
       c.fly = U.lerp(c.fly || 0, want, Math.min(1, dt * 0.9));
@@ -318,7 +376,7 @@
     // Objetivo: quien le haya atacado o quien entre en su territorio (no persigue barcos)
     let at = c.aggro > 0 ? tgtById(tg, c.aggroId) : null;
     if (!at) {
-      let bd = c.type === 'yeti' ? 20 : 24;
+      let bd = c.type === 'yeti' ? 20 : c.type === 'bigcaiman' ? 18 : 24;
       for (const t of tg) {
         if (t.dead || t.ship) continue;
         const d = Math.hypot(t.x - c.x, t.z - c.z);
@@ -329,8 +387,94 @@
     // Si la presa se aleja demasiado de su guarida, la deja y vuelve
     if (at && Math.hypot(at.x - home.x, at.z - home.z) > R + 24) at = null;
     if (at) c.aggro = 5; else c.aggro = Math.min(c.aggro, 0);
-    return c.type === 'yeti' ? yeti(c, S, at, home, R, tg, dt, H, out) : dragon(c, S, at, home, R, tg, dt, H, out);
+    const o = c.type === 'yeti' ? yeti(c, S, at, home, R, tg, dt, H, out) : c.type === 'bigcaiman' ? caiman(c, S, at, home, R, tg, dt, H, out) : dragon(c, S, at, home, R, tg, dt, H, out);
+    if (!c.special) route(c, o, dt, H); // rodea rocas, árboles, agua y paredes por el camino más corto
+    return o;
   };
+
+  // ------------------------------------------------------------------ camino más corto (A* en una rejilla alrededor del jefe y su destino)
+  const CELL = 1.6, BODY = 1.2;
+  // Casillas por las que no cabe: agua, mar, cuevas, chozas, construcciones, rocas y árboles
+  function walkGrid(c, cx, cz, half, H) {
+    const n = Math.ceil((half * 2) / CELL), x0 = cx - half, z0 = cz - half, blk = new Uint8Array(n * n), hgt = new Float32Array(n * n);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const x = x0 + (i + 0.5) * CELL, z = z0 + (j + 0.5) * CELL, k = j * n + i;
+      hgt[k] = G.height(x, z);
+      if (!H.valid(c.type, x, z) || G.Build.blocked(x, z, BODY)) blk[k] = 1;
+    }
+    G.Res.query(cx, cz, half * 1.45, (r) => {
+      if (!r.alive || !r.k.solid) return;
+      const rr = (r.k.r || 0.5) * r.s + BODY;
+      const i0 = Math.max(0, Math.floor((r.x - rr - x0) / CELL)), i1 = Math.min(n - 1, Math.floor((r.x + rr - x0) / CELL));
+      const j0 = Math.max(0, Math.floor((r.z - rr - z0) / CELL)), j1 = Math.min(n - 1, Math.floor((r.z + rr - z0) / CELL));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (Math.hypot(x0 + (i + 0.5) * CELL - r.x, z0 + (j + 0.5) * CELL - r.z) < rr) blk[j * n + i] = 1;
+    });
+    return { n, x0, z0, blk, hgt };
+  }
+  const cellOf = (g, x, z) => { const i = Math.floor((x - g.x0) / CELL), j = Math.floor((z - g.z0) / CELL); return i < 0 || j < 0 || i >= g.n || j >= g.n ? -1 : j * g.n + i; };
+  // ¿Se puede ir en línea recta? (lo que queda fuera de la rejilla cuenta como libre)
+  function lineClear(g, ax, az, bx, bz) {
+    const d = Math.hypot(bx - ax, bz - az), steps = Math.ceil(d / (CELL * 0.5));
+    for (let s = 1; s <= steps; s++) { const k = cellOf(g, ax + ((bx - ax) * s) / steps, az + ((bz - az) * s) / steps); if (k >= 0 && g.blk[k]) return false; }
+    return true;
+  }
+  const NB8 = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, Math.SQRT2], [1, -1, Math.SQRT2], [-1, 1, Math.SQRT2], [-1, -1, Math.SQRT2]];
+  function astar(g, sx, sz, tx, tz) {
+    const { n, blk, hgt } = g, N = n * n, s = cellOf(g, sx, sz);
+    if (s < 0) return null;
+    blk[s] = 0; // donde está ahora siempre vale (aunque roce una roca)
+    const ti = U.clamp(Math.floor((tx - g.x0) / CELL), 0, n - 1), tj = U.clamp(Math.floor((tz - g.z0) / CELL), 0, n - 1), t = tj * n + ti;
+    const hf = (k) => { const dx = Math.abs((k % n) - ti), dz = Math.abs(((k / n) | 0) - tj); return dx + dz + (Math.SQRT2 - 2) * Math.min(dx, dz); };
+    const gS = new Float32Array(N).fill(Infinity), from = new Int32Array(N).fill(-1), closed = new Uint8Array(N);
+    // Montículo binario de [coste estimado, casilla]
+    const hk = [], hv = [];
+    const push = (k, f) => { let i = hk.length; hk.push(k); hv.push(f); while (i > 0) { const p = (i - 1) >> 1; if (hv[p] <= hv[i]) break; [hk[p], hk[i]] = [hk[i], hk[p]]; [hv[p], hv[i]] = [hv[i], hv[p]]; i = p; } };
+    const pop = () => { const k = hk[0], lk = hk.pop(), lv = hv.pop(); if (hk.length) { hk[0] = lk; hv[0] = lv; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < hk.length && hv[l] < hv[m]) m = l; if (r < hk.length && hv[r] < hv[m]) m = r; if (m === i) break; [hk[m], hk[i]] = [hk[i], hk[m]]; [hv[m], hv[i]] = [hv[i], hv[m]]; i = m; } } return k; };
+    gS[s] = 0; push(s, hf(s));
+    let best = s, bh = hf(s), it = 0;
+    while (hk.length && it++ < 6000) {
+      const k = pop();
+      if (closed[k]) continue;
+      closed[k] = 1;
+      if (k === t) { best = k; break; }
+      const h = hf(k);
+      if (h < bh) { bh = h; best = k; }
+      const i = k % n, j = (k / n) | 0;
+      for (const [di, dj, cost] of NB8) {
+        const ii = i + di, jj = j + dj;
+        if (ii < 0 || jj < 0 || ii >= n || jj >= n) continue;
+        const kk = jj * n + ii;
+        if (blk[kk] || closed[kk] || (di && dj && (blk[j * n + ii] || blk[jj * n + i]))) continue; // sin cortar esquinas
+        if (Math.abs(hgt[kk] - hgt[k]) > 1.25 * cost) continue; // demasiado empinado para él
+        const ng = gS[k] + cost;
+        if (ng < gS[kk]) { gS[kk] = ng; from[kk] = k; push(kk, ng + hf(kk)); }
+      }
+    }
+    // Hasta el destino o, si no se puede llegar, hasta la casilla más cercana a él
+    const pts = [];
+    for (let k = best; k !== -1 && k !== s; k = from[k]) pts.push({ x: g.x0 + ((k % n) + 0.5) * CELL, z: g.z0 + (((k / n) | 0) + 0.5) * CELL });
+    return pts.reverse();
+  }
+  // Cambia el destino de este fotograma por el siguiente punto del camino (se recalcula cada poco o si su presa se mueve)
+  function route(c, out, dt, H) {
+    const P = c.path || (c.path = { t: 0, pts: null, tx: 1e9, tz: 1e9, g: null });
+    if (!out.moving || c.fly > 0.3) { P.pts = null; return; }
+    const d = Math.hypot(out.tx - c.x, out.tz - c.z);
+    if (d < 2) return;
+    P.t -= dt;
+    if (P.t <= 0 || Math.hypot(out.tx - P.tx, out.tz - P.tz) > 3) {
+      P.t = 0.7; P.tx = out.tx; P.tz = out.tz;
+      const half = U.clamp(d / 2 + 10, 16, 46);
+      P.g = walkGrid(c, (c.x + out.tx) / 2, (c.z + out.tz) / 2, half, H);
+      P.pts = lineClear(P.g, c.x, c.z, out.tx, out.tz) ? null : astar(P.g, c.x, c.z, out.tx, out.tz);
+    }
+    const pts = P.pts;
+    if (!pts || !pts.length) return; // en línea recta
+    while (pts.length > 1 && Math.hypot(pts[0].x - c.x, pts[0].z - c.z) < 1.3) pts.shift();
+    // Atajo: el punto más lejano del camino que ya se ve en línea recta
+    for (let q = Math.min(pts.length - 1, 10); q > 0; q--) if (lineClear(P.g, c.x, c.z, pts[q].x, pts[q].z)) { pts.splice(0, q); break; }
+    out.tx = pts[0].x; out.tz = pts[0].z;
+  }
   function goHome(c, S, home, R, dt, out) {
     c.special = false; c.flyTarget = 0;
     const d = Math.hypot(c.x - home.x, c.z - home.z);
@@ -356,6 +500,14 @@
         const w = H.spawn('snowwolf', x, z); w.aggro = 20; w.aggroId = at.id; called++;
         G.Audio.playAt('howl', x, z, 120);
       }
+    }
+    // Carga: corre hacia ti (rodeando lo que haya en medio) y, al llegar, da el pisotón
+    if (S.st === 'charge') {
+      const t = tgtById(tg, S.tid);
+      const dc = t ? Math.hypot(t.x - c.x, t.z - c.z) : 99;
+      if (t && dc < 6.5 && dc > 1.5) { startSlam(c, S, t); return out; }
+      if (!t || S.t > 6 || dc > 32) { S.st = 'chase'; S.t = 0; S.b = 3; }
+      else { out.face = t; out.tx = t.x; out.tz = t.z; out.speed = c.d.run * (enr ? 1.3 : 1.15); out.moving = true; return out; }
     }
     // Golpe de tierra: se agacha, salta hacia ti y al caer levanta una onda de hielo
     if (S.st === 'slam') {
@@ -386,16 +538,130 @@
     if (!at) return goHome(c, S, home, R, dt, out);
     const d = Math.hypot(at.x - c.x, at.z - c.z);
     out.face = at;
-    if (d < 7 && d > 1.5 && S.b <= 0) {
-      S.st = 'slam'; S.t = 0; S.tid = at.id; S.jumped = false;
-      const k = Math.max(0, d - 1.6) / d;
-      S.lx = c.x + (at.x - c.x) * k; S.lz = c.z + (at.z - c.z) * k; S.jd = Math.hypot(S.lx - c.x, S.lz - c.z);
+    if (d < 6.5 && d > 1.5 && S.b <= 0) { startSlam(c, S, at); return out; }
+    // Listo para el pisotón pero lejos: ruge y corre hacia ti
+    if (S.b <= 0 && d < 24) {
+      S.st = 'charge'; S.t = 0; S.tid = at.id; roar(c);
+      nearMsg(c, '❄️ ¡El Rey de la Escarcha carga hacia ti para aplastarte!', 'bad', 'yeticharge');
       return out;
     }
     if (d > 9 && d < 34 && S.cc <= 0) { S.st = 'throw'; S.t = 0; S.tid = at.id; return out; }
-    out.tx = at.x; out.tz = at.z; out.speed = c.d.run * (enr ? 1.25 : 1); out.moving = true;
+    // El resto del tiempo camina despacio hacia ti (es enorme y pesado)
+    out.tx = at.x; out.tz = at.z; out.speed = enr ? 2.6 : 2.1; out.moving = true;
     if (d < 3.4) { out.moving = false; faceTo(c, at, dt, 8); H.attack(c, at, 3.6); }
     return out;
+  }
+  // El Gran Caimán del río: rápido en el agua, lento en tierra; embestida, coletazo y emboscada desde el lago
+  function lakeSpot(c, x, z, k = 0.7) {
+    const dx = x - c.hx, dz = z - c.hz, d = Math.hypot(dx, dz), r = (c.lakeR || 12) * k;
+    return d <= r ? { x, z } : { x: c.hx + (dx / d) * r, z: c.hz + (dz / d) * r };
+  }
+  function caiman(c, S, at, home, R, tg, dt, H, out) {
+    const enr = c.hp < c.d.hp * 0.5, inWater = G.World.inLakeWater(c.x, c.z);
+    c.flyTarget = S.st === 'dive' && S.under > 0 ? 1 : 0; // (se envía en la instantánea: los demás lo ven sumergido)
+    S.dv = (S.dv ?? 15) - dt;
+    if (enr && !S.enr && at) {
+      S.enr = true; roar(c, true);
+      nearMsg(c, '🐊 ¡El Gran Caimán del río ruge y llama a los suyos!', 'bad');
+      let called = 0;
+      for (let k = 0; k < 30 && called < 2; k++) {
+        const a = Math.random() * Math.PI * 2, r = 5 + Math.random() * 8, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
+        if (!H.valid('caiman', x, z)) continue;
+        const w = H.spawn('caiman', x, z); w.aggro = 20; w.aggroId = at.id; called++;
+      }
+    }
+    // Embestida: abre las fauces, se lanza en línea recta y muerde lo que pille
+    if (S.st === 'lunge') {
+      const t = tgtById(tg, S.tid);
+      if (S.t < 0.5) { c.special = true; if (t) faceTo(c, t, dt, 6); return out; }
+      const hx = c.x + Math.sin(c.yaw) * 3.3, hz = c.z + Math.cos(c.yaw) * 3.3;
+      if (!S.bit && t && Math.hypot(t.x - hx, t.z - hz) < 2.6 && Math.abs((t.y || 0) - (c.vy ?? c.y)) < 3) {
+        S.bit = true; c.lunge = 0.3;
+        G.Creatures.hitTarget(c, t, 34, 'El Gran Caimán del río te arrastró bajo el agua');
+        G.Audio.playAt('bite', c.x, c.z, 100);
+      }
+      if (S.t < 1.35 && !S.bit) { c.special = true; out.tx = c.x + Math.sin(c.yaw) * 6; out.tz = c.z + Math.cos(c.yaw) * 6; out.speed = 11; out.moving = true; return out; }
+      S.st = 'chase'; S.t = 0; S.b = enr ? 4.5 : 6.5; c.special = false;
+      return out;
+    }
+    // Coletazo: gira sobre sí mismo y barre todo lo que tiene alrededor
+    if (S.st === 'tail') {
+      c.special = true;
+      if (S.t < 0.35) return out;
+      if (S.t < 0.95) {
+        c.yaw += dt * ((Math.PI * 2) / 0.6) * S.dir;
+        if (!S.hit && S.t > 0.62) {
+          S.hit = true;
+          for (const p of tg) {
+            if (p.dead || p.ship) continue;
+            const d = Math.hypot(p.x - c.x, p.z - c.z);
+            if (d < 7.5 && Math.abs((p.y || 0) - (c.vy ?? c.y)) < 2.5) G.Creatures.hitTarget(c, p, 20, 'Un coletazo del Gran Caimán del río te lanzó por los aires');
+          }
+          G.Audio.playAt('rockbreak', c.x, c.z, 90);
+          G.Ships.puff(c.x, (c.vy ?? c.y) + 0.4, c.z, inWater ? 0xdff4ff : 0x8a7a5a, 5, 1.2, 10);
+          const P = G.Player.pos; if (Math.hypot(P.x - c.x, P.z - c.z) < 14) G.Player.shake = 0.4;
+        }
+        return out;
+      }
+      S.st = 'chase'; S.t = 0; S.cc = enr ? 4 : 6; c.special = false;
+      return out;
+    }
+    // Malherido: vuelve al lago, se sumerge, se cura y sale de golpe a por quien se acerque a la orilla
+    if (S.st === 'dive') {
+      c.special = false;
+      // Primero nada hasta lo hondo (el centro del lago) y allí se hunde del todo
+      if (!S.under && (!inWater || Math.hypot(c.x - home.x, c.z - home.z) > (c.lakeR || 12) * 0.35)) {
+        out.tx = home.x; out.tz = home.z; out.speed = 4.2; out.moving = true;
+        if (S.t > 14) { S.st = 'chase'; S.t = 0; S.dv = 20; }
+        return out;
+      }
+      S.under = (S.under || 0) + dt;
+      c.hp = Math.min(c.d.hp, c.hp + c.d.hp * 0.02 * dt);
+      if (at && S.under > 2.5 && (Math.hypot(at.x - c.x, at.z - c.z) < 14 || S.under > 9)) {
+        S.st = 'lunge'; S.t = 0; S.tid = at.id; S.bit = false; S.under = 0; S.dv = 28; roar(c);
+        nearMsg(c, '🐊 ¡El Gran Caimán sale del agua de golpe!', 'bad', 'caimanout');
+        return out;
+      }
+      if (S.under > 12) { S.st = 'chase'; S.t = 0; S.under = 0; S.dv = 20; }
+      if (at) { const p = lakeSpot(c, at.x, at.z); out.tx = p.x; out.tz = p.z; out.speed = 2.5; out.moving = Math.hypot(p.x - c.x, p.z - c.z) > 1.5; }
+      return out;
+    }
+    // Tranquilo: nada despacio por el lago
+    if (!at) {
+      c.special = false;
+      if (!S.wx || S.t > S.wt || Math.hypot(S.wx - c.x, S.wz - c.z) < 1.5) { const a = Math.random() * Math.PI * 2, p = lakeSpot(c, c.hx + Math.cos(a) * 20, c.hz + Math.sin(a) * 20, Math.random() * 0.6); S.wx = p.x; S.wz = p.z; S.wt = S.t + 8 + Math.random() * 8; }
+      out.tx = S.wx; out.tz = S.wz; out.speed = inWater ? 1.6 : 2.4; out.moving = true;
+      if (c.hp < c.d.hp) c.hp = Math.min(c.d.hp, c.hp + c.d.hp * 0.025 * dt);
+      S.seen = false; S.enr = S.enr && c.hp < c.d.hp * 0.5;
+      return out;
+    }
+    const d = Math.hypot(at.x - c.x, at.z - c.z), ang = U.angDiff(c.yaw, Math.atan2(at.x - c.x, at.z - c.z));
+    out.face = at;
+    if (c.hp < c.d.hp * 0.45 && S.dv <= 0) {
+      S.st = 'dive'; S.t = 0; S.under = 0;
+      nearMsg(c, '🐊 El Gran Caimán se esconde en el lago… ¡cuidado con la orilla!', 'warn', 'caimandive');
+      return out;
+    }
+    if (d < 6.5 && Math.abs(ang) > 1.3 && S.cc <= 0) { S.st = 'tail'; S.t = 0; S.hit = false; S.dir = ang > 0 ? -1 : 1; return out; }
+    if (d > 6 && d < 16 && S.b <= 0 && Math.abs(ang) < 0.6) { S.st = 'lunge'; S.t = 0; S.tid = at.id; S.bit = false; G.Audio.playAt('hiss', c.x, c.z, 90); return out; }
+    // Se acerca: rápido nadando, despacio en tierra
+    out.tx = at.x; out.tz = at.z; out.speed = inWater ? 4.2 : enr ? 2.4 : 1.9; out.moving = true;
+    const hx = c.x + Math.sin(c.yaw) * 3.3, hz = c.z + Math.cos(c.yaw) * 3.3;
+    if (Math.hypot(at.x - hx, at.z - hz) < 2.3 || d < 2.8) {
+      out.moving = false; faceTo(c, at, dt, 5);
+      if (c.cd <= 0 && Math.abs((at.y || 0) - (c.vy ?? c.y)) < 3) {
+        c.cd = 1.9; c.lunge = 0.3;
+        G.Creatures.hitTarget(c, at, c.d.dmg, 'El Gran Caimán del río te hizo pedazos');
+        G.Audio.playAt('bite', c.x, c.z, 90);
+      }
+    }
+    return out;
+  }
+  function startSlam(c, S, at) {
+    const d = Math.hypot(at.x - c.x, at.z - c.z) || 1;
+    S.st = 'slam'; S.t = 0; S.tid = at.id; S.jumped = false;
+    const k = Math.max(0, d - 1.6) / d;
+    S.lx = c.x + (at.x - c.x) * k; S.lz = c.z + (at.z - c.z) * k; S.jd = Math.hypot(S.lx - c.x, S.lz - c.z);
   }
   function dragon(c, S, at, home, R, tg, dt, H, out) {
     const enr = c.hp < c.d.hp * 0.35;
@@ -474,6 +740,7 @@
       }
       return (F.yetiLair = { x: Cv.wx + Math.sin(Cv.ent) * (Cv.r + 14), z: Cv.wz + Math.cos(Cv.ent) * (Cv.r + 14), r: 20 });
     }
+    if (type === 'bigcaiman' && F.lake && F.lake.wx !== undefined) return { x: F.lake.wx, z: F.lake.wz, r: F.lake.r + 18, lakeR: F.lake.r };
     if (type === 'lavadragon' && F.crater && F.crater.wx !== undefined) {
       const c = F.crater;
       let best = null, bd = -1;
@@ -485,7 +752,7 @@
     return null;
   };
   B.manage = function (I, players, farFromAll, day, H) {
-    const type = I.type === 'escarcha' ? 'yeti' : I.type === 'brasa' ? 'lavadragon' : null;
+    const type = I.type === 'escarcha' ? 'yeti' : I.type === 'brasa' ? 'lavadragon' : I.type === 'tahuri' ? 'bigcaiman' : null;
     const w = G.state.world;
     if (!type || !w || day < 3 || (w.bossesKilled && w.bossesKilled[type])) return;
     if (G.Creatures.list.some((c) => c.type === type && !c.dead)) return;
@@ -500,20 +767,22 @@
     }
     if (!p || !farFromAll(p, 40)) return;
     const c = H.spawn(type, p.x, p.z);
-    c.hx = L.x; c.hz = L.z; c.homeR = L.r;
+    c.hx = L.x; c.hz = L.z; c.homeR = L.r; if (L.lakeR) c.lakeR = L.lakeR;
     w.bossSeen = w.bossSeen || {};
     const P = G.Player.pos, here = G.Arch.landOf(P.x, P.z) === I;
     if (!w.bossSeen[type] && here) {
       w.bossSeen[type] = 1;
       if (type === 'yeti') G.UI.banner('❄️ El Rey de la Escarcha', 'Un rugido helado baja de la montaña… algo enorme vive en la cueva de hielo');
+      else if (type === 'bigcaiman') G.UI.banner('🐊 El Gran Caimán del río', 'Algo enorme se mueve bajo el agua del lago… los Shandara no se acercan a la orilla');
       else G.UI.banner('🐲 El Dragón de Brasa', 'El volcán retumba y un rugido de fuego sale de las coladas de lava');
       G.Audio.play('roar');
-    } else if (here) G.UI.msg(type === 'yeti' ? '❄️ Se oye al Rey de la Escarcha rugir junto a la cueva de hielo…' : '🐲 El Dragón de Brasa ha vuelto a las coladas de lava…', 'warn', 'bossback');
+    } else if (here) G.UI.msg(type === 'yeti' ? '❄️ Se oye al Rey de la Escarcha rugir junto a la cueva de hielo…' : type === 'bigcaiman' ? '🐊 Unos ojos amarillos vigilan desde el lago de la selva…' : '🐲 El Dragón de Brasa ha vuelto a las coladas de lava…', 'warn', 'bossback');
   };
   B.onKilled = function (c) {
     const w = G.state.world;
     if (w) { w.bossesKilled = w.bossesKilled || {}; w.bossesKilled[c.type] = true; }
     if (c.type === 'yeti') G.UI.banner('¡El Rey de la Escarcha ha caído!', 'La montaña queda en silencio… y su cueva de hielo es tuya');
+    else if (c.type === 'bigcaiman') G.UI.banner('¡El Gran Caimán del río ha caído!', 'El lago de Tahuri vuelve a ser seguro para los Shandara');
     else G.UI.banner('¡El Dragón de Brasa ha caído!', 'El volcán se calma por fin. Nadie volverá a temer sus llamas');
     G.Audio.play('win');
     B.breaths = B.breaths.filter((b) => b.c !== c);
@@ -592,6 +861,7 @@
     const P = G.Player.pos, a = G.Player.yaw;
     const c = G.Creatures.spawn(type, P.x - Math.sin(a) * 18, P.z - Math.cos(a) * 18);
     c.hx = c.x; c.hz = c.z; c.homeR = 24;
+    if (type === 'bigcaiman') { const L = B.lair(G.Arch.landOf(P.x, P.z) || {}, type); if (L) { c.hx = L.x; c.hz = L.z; c.homeR = L.r; c.lakeR = L.lakeR; } }
     return c;
   };
 })();

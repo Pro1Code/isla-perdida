@@ -71,11 +71,14 @@
       if (t >= 0 && t < bt && t < wreach + 0.4) { bt = t; best = { kind: 'peer', p, t }; }
     }
     for (const c of G.Landmarks.loot) {
-      if (c.opened && (c.kind === 'barrel' || c.kind === 'bottle' || c.kind === 'bag')) continue;
+      if (c.noTarget || (c.opened && (c.kind === 'barrel' || c.kind === 'bottle' || c.kind === 'bag'))) continue;
       if (c.kind === 'clue' && !G.Prologue.visible(c)) continue;
       const t = raySphere(o, d, c.x, c.y + 0.35, c.z, c.hitR || 0.65);
       if (t >= 0 && t < bt && t < reach + (c.kind === 'mono' ? 0.8 : 0)) { bt = t; best = { kind: 'loot', c, t }; }
     }
+    // Hojas de encargos clavadas en los tablones de las aldeas
+    const qp = G.Quests.findTarget(o, d);
+    if (qp && qp.t < bt) { bt = qp.t; best = qp; }
     if (G.Build.list.length) {
       _rc.set(o, d); _rc.far = 4.2; _rc.camera = G.camera;
       const groups = [];
@@ -151,13 +154,13 @@
       const c = tg.c;
       if (c.kind === 'clue') return c.prompt ? c.prompt() : '';
       if (c.kind === 'mono') return `🗿 <b>${c.name}</b> · <kbd>E</kbd> Examinar`;
-      if (c.kind === 'board') return '📋 <b>Tablón de encargos</b> · <kbd>E</kbd> Ver encargos';
       if (c.kind === 'bottle') return '🍾 <b>Botella con mensaje</b> · <kbd>E</kbd> Leer';
       if (c.kind === 'barrel') return `🛢️ <b>${c.name}</b> · <kbd>E</kbd> Abrir`;
       if (c.kind === 'bag') return '🎒 <b>Bolsa caída</b> · <kbd>E</kbd> Recoger';
       if (c.kind === 'chest') return `<b>${c.name}</b> · <kbd>E</kbd> Abrir${c.opened ? ' <span class="muted">(puedes guardar objetos)</span>' : ''}`;
       return c.opened ? `<b>${c.name}</b> · vacío` : `<b>${c.name}</b> · <kbd>E</kbd> Abrir`;
     }
+    if (tg.kind === 'qpaper') return G.Quests.prompt(tg);
     if (['station', 'piece', 'ship'].includes(tg.kind)) return G.Ships.promptFor(tg);
     if (tg.kind.startsWith('vs')) return G.Modes.promptFor(tg);
     if (tg.kind === 'water') {
@@ -187,6 +190,7 @@
       }
       return;
     }
+    if (tg.kind === 'qpaper') { G.Quests.click(tg); return; }
     if (tg.kind === 'loot') { Game.openLoot(tg.c); return; }
     if (tg.kind === 'res') { if (!tg.r.k.tool) G.Res.interact(tg.r); return; }
     if (tg.kind === 'creature') { if (tg.c.d.npc) G.Story.talk(tg.c); return; }
@@ -248,6 +252,8 @@
     if (P.cd > 0 || P.dead) return;
     if (G.Story.dialog) return;
     if (G.Grave.aimed()) return; // mirando a la ✖ de un cofre: el clic mantenido cava (grave.js)
+    // Clic en una hoja del tablón de encargos: aceptar o entregar
+    if (Game.target && Game.target.kind === 'qpaper') { P.cd = 0.4; G.Quests.click(Game.target); return; }
     // Cañones: desde el puesto del cañón o el cañón de proa desde el timón de la lancha
     if (P.station && P.station.kind === 'cannon') { P.cd = 0.4; G.Ships.fireCannon(P.ship, P.station.st); return; }
     if (P.station && P.station.kind === 'helm' && P.ship && P.ship.type === 'lancha' && G.Ships.has(P.ship, 'canon0')) {
@@ -274,7 +280,7 @@
     P.swingCount++;
     G.Audio.play('swing');
     const mul = G.Story.meleeMul();
-    if (tg && tg.kind === 'creature' && tg.c.d.friendly) { G.UI.msg('No vas a atacar a tu propia gente.', 'warn', 'npcatk'); return; }
+    if (tg && tg.kind === 'creature' && tg.c.d.friendly) { G.UI.msg(tg.c.type === 'aldeano' ? 'Los aldeanos son gente de paz: no les hagas daño.' : 'No vas a atacar a tu propia gente.', 'warn', 'npcatk'); return; }
     if (tg && tg.kind === 'creature') {
       if (tg.c.d.npc && !G.Story.tribeHostile() && !G.Input.keys.ShiftLeft) { G.UI.msg('Mantén <kbd>Shift</kbd> para atacar a un aldeano (¡la tribu se enfadará!).', 'warn', 'npcatk'); return; }
       G.Creatures.hurt(tg.c, (it && it.dmg ? it.dmg : 5) * mul);
@@ -472,7 +478,6 @@
   // ------------------------------------------------------------------ cofres, barriles, botellas y Monoglifos
   Game.openLoot = function (c) {
     if (c.kind === 'clue') { G.Prologue.interact(c); return; }
-    if (c.kind === 'board') { G.Quests.open(); return; }
     if (c.kind === 'mono') { G.Story.readMono(c); return; }
     if (c.kind === 'bottle') {
       if (c.opened) return;

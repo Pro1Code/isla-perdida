@@ -5,7 +5,7 @@
   'use strict';
   const G = window.G, U = G.U;
   const C = (G.Creatures = { list: [], timer: 0, nextId: 0 });
-  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss', 'ghost_pirate', 'ghost_gun', 'ghost_captain', 'yeti', 'lavadragon'];
+  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss', 'ghost_pirate', 'ghost_gun', 'ghost_captain', 'yeti', 'lavadragon', 'aldeano', 'bigcaiman'];
   const DEF = (C.DEF = {
     crab: { name: 'Cangrejo', hp: 12, speed: 0.8, run: 2.6, bodyY: 0.2, hitR: 0.5, drops: [['carne_cruda', 1]] },
     boar: { name: 'Jabalí', hp: 45, speed: 1.1, run: 4.8, bodyY: 0.7, hitR: 0.8, dmg: 10, drops: [['carne_cruda', 3], ['cuero', 1]] },
@@ -27,6 +27,8 @@
     jelly: { name: 'Medusa', hp: 8, speed: 0.3, run: 0.5, bodyY: -0.3, hitR: 0.6, dmg: 8, poison: 10, sea: true, drops: [] },
     serpent: { name: 'Serpiente marina', hp: 200, speed: 3.0, run: 7.5, bodyY: 0.6, hitR: 1.8, dmg: 30, shipDmg: 26, sea: true, drops: [['cuero', 4], ['pez_crudo', 6]] },
     villager: { name: 'Aldeano shandara', hp: 70, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.55, dmg: 11, npc: true, drops: [] },
+    // Aldeanos de los Kyrr (Escarcha) y de Ceniza (Brasa): gente de paz
+    aldeano: { name: 'Aldeano', hp: 70, speed: 1.0, run: 3.0, bodyY: 1.0, hitR: 0.55, npc: true, friendly: true, drops: [] },
     // Prólogo de la Isla Perdida (prologue.js): tripulación, muñecos de entrenamiento y piratas
     npc: { name: 'Náufrago', hp: 1000, speed: 1.0, run: 2.4, bodyY: 1.0, hitR: 0.55, npc: true, friendly: true, drops: [] },
     dummy: { name: 'Muñeco de entrenamiento', hp: 9999, speed: 0, run: 0, bodyY: 1.1, hitR: 0.55, dummy: true, drops: [] },
@@ -37,6 +39,7 @@
     // Jefes de isla (bosses.js): el yeti de la cueva de hielo y el dragón del volcán
     yeti: { name: 'Rey de la Escarcha', hp: 650, speed: 1.2, run: 4.6, bodyY: 1.9, hitR: 1.2, dmg: 26, bigBoss: true, drops: [['piel_gruesa', 6], ['cristal_hielo', 8], ['mineral_plata', 6], ['doblon', 20], ['mapa_tesoro', 1]] },
     lavadragon: { name: 'Dragón de Brasa', hp: 850, speed: 1.3, run: 5.0, bodyY: 1.7, hitR: 1.4, dmg: 28, bigBoss: true, drops: [['obsidiana', 8], ['azufre', 8], ['carbon', 10], ['doblon', 30], ['mapa_tesoro', 1]] },
+    bigcaiman: { name: 'Gran Caimán del río', hp: 720, speed: 1.2, run: 4.2, bodyY: 0.7, hitR: 1.2, dmg: 26, bigBoss: true, drops: [['cuero', 8], ['carne_cruda', 10], ['colmillo', 2], ['doblon', 25], ['mapa_tesoro', 1]] },
     ghost_pirate: { name: 'Pirata fantasma', hp: 60, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.55, dmg: 12, human: true, drops: [['doblon', 2]] },
     ghost_gun: { name: 'Tirador fantasma', hp: 50, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 13, human: true, drops: [['doblon', 2], ['polvora', 1]] },
     ghost_captain: { name: 'Capitán Van Bruma', hp: 380, speed: 1.1, run: 4.5, bodyY: 1.0, hitR: 0.6, dmg: 18, human: true, drops: [['doblon', 20], ['perla', 3], ['mapa_tesoro', 1]] },
@@ -63,6 +66,18 @@
     { name: 'Genbu', role: 'trader', shirt: 0xc8962a, pants: 0x4a3620 },
     { name: 'Laka', role: 'villager', shirt: 0x3a6aa0, pants: 0x5a4028 },
     { name: 'Brahan', role: 'villager', shirt: 0x6a8a2a, pants: 0x3a2a1a },
+  ];
+
+  // Aldeanos de las otras aldeas (extra = posición en esta lista)
+  C.ALDEANOS = [
+    { tribe: 'escarcha', name: 'Anciana Hild', role: 'elder', shirt: 0x6a7a8a, pants: 0x4a4a52, skin: 0xe6c2a0 },
+    { tribe: 'escarcha', name: 'Sigrun', role: 'villager', shirt: 0x8a3a3a, pants: 0x4a4038, skin: 0xf0d0b0 },
+    { tribe: 'escarcha', name: 'Toke', role: 'villager', shirt: 0x3a5a7a, pants: 0x3a3430, skin: 0xe8c4a0 },
+    { tribe: 'escarcha', name: 'Bram', role: 'villager', shirt: 0x5a6a3a, pants: 0x3a3430, skin: 0xdcb48e },
+    { tribe: 'brasa', name: 'Maestro Hollín', role: 'elder', shirt: 0x3a3230, pants: 0x2a2220, skin: 0xa8704a },
+    { tribe: 'brasa', name: 'Tizón', role: 'villager', shirt: 0x8a2a1a, pants: 0x2a2220, skin: 0xb07a50 },
+    { tribe: 'brasa', name: 'Ascua', role: 'villager', shirt: 0xc86a2a, pants: 0x3a2a20, skin: 0x9a6440 },
+    { tribe: 'brasa', name: 'Chispa', role: 'villager', shirt: 0xd8a030, pants: 0x3a2a20, skin: 0xb88660 },
   ];
 
   // ------------------------------------------------------------------ modelos (ver animals.js)
@@ -97,6 +112,24 @@
     }
     return { g: model.root, legs: [], head: null, model, vinfo: v, feathers: fm };
   }
+  // Aldeano Kyrr (gorro de piel) o de Ceniza (pañuelo rojo tiznado); los ancianos llevan bastón
+  function aldeano(extra) {
+    const v = C.ALDEANOS[extra % C.ALDEANOS.length] || C.ALDEANOS[0];
+    const model = G.Character.create(v.shirt, { skin: v.skin, pants: v.pants });
+    const fm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+    const parts = v.tribe === 'escarcha'
+      ? [P(new THREE.SphereGeometry(0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), 0xd8d0c0, 0, 0.1, 0), P(new THREE.TorusGeometry(0.13, 0.035, 6, 14), 0xf0ece4, 0, 0.1, 0, [Math.PI / 2, 0, 0])]
+      : [P(new THREE.TorusGeometry(0.115, 0.022, 6, 16), 0xa82a1a, 0, 0.12, 0, [Math.PI / 2, 0, 0]), P(new THREE.ConeGeometry(0.035, 0.18, 4), 0xa82a1a, 0, 0.08, 0.13, [0.9, 0, 0])];
+    const hd = new THREE.Mesh(U.merge(parts), fm);
+    hd.castShadow = true;
+    model.bones[4].add(hd);
+    if (v.role === 'elder') {
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 1.5, 6), new THREE.MeshStandardMaterial({ color: 0x5a4028 }));
+      st.rotation.x = Math.PI / 2; st.position.y = 0.2;
+      model.hand.add(st);
+    }
+    return { g: model.root, legs: [], head: null, model, vinfo: v, feathers: fm };
+  }
 
   // ------------------------------------------------------------------ aparición
   const isl = (x, z) => G.Arch.landOf(x, z);
@@ -115,7 +148,7 @@
     const h = G.height(x, z);
     const d = DEF[type];
     if (d.sea) return h < (type === 'whale' ? -7 : type === 'serpent' ? -5 : type === 'jelly' ? -1.5 : -2.2);
-    if (G.World.inLakeWater(x, z) || G.Landmarks.blocks(x, z)) return type === 'caiman' && G.World.inLakeWater(x, z);
+    if (G.World.inLakeWater(x, z) || G.Landmarks.blocks(x, z)) return (type === 'caiman' || type === 'bigcaiman') && G.World.inLakeWater(x, z) && !G.Landmarks.blocks(x, z);
     if (type === 'crab' || type === 'seal') return h > -0.3 && h < 3.2;
     if (type === 'caiman') return h > -0.6;
     return h > 0.6;
@@ -150,7 +183,7 @@
       boar: () => A.boar(mat), boss: () => A.boar(mat, true), wolf: () => A.wolf(mat), jaguar: () => A.jaguar(mat), snake: () => A.snake(mat), shark: () => A.shark(mat), crab: () => A.crab(mat),
       bear: () => A.bear(mat), snowwolf: () => A.wolf(mat, 0xdfe4ea, 0xf6f8fb, 0xc4ccd6), seal: () => A.seal(mat), monkey: () => A.monkey(mat), caiman: () => A.caiman(mat), frog: () => A.frog(mat),
       salamander: () => A.salamander(mat), lavacrab: () => A.crab(mat, 0x3a2a24, 0x241814, true), whale: () => A.whale(mat), dolphin: () => A.dolphin(mat),
-      jelly: () => A.jelly(), serpent: () => A.serpent(mat), yeti: () => G.Bosses.yeti(mat), lavadragon: () => G.Bosses.dragon(mat), villager: () => villager(extra || 0),
+      jelly: () => A.jelly(), serpent: () => A.serpent(mat), yeti: () => G.Bosses.yeti(mat), lavadragon: () => G.Bosses.dragon(mat), bigcaiman: () => G.Bosses.caiman(mat), villager: () => villager(extra || 0), aldeano: () => aldeano(extra || 0),
       npc: () => G.Prologue.human('npc', extra || 0), pirate: () => G.Prologue.human('pirate', extra || 0), pirate_gun: () => G.Prologue.human('pirate_gun', extra || 0),
       pirate_boss: () => G.Prologue.human('pirate_boss', extra || 0), marine: () => G.Prologue.human('marine', extra || 0), marine_gun: () => G.Prologue.human('marine_gun', extra || 0), marine_boss: () => G.Prologue.human('marine_boss', extra || 0), ghost_pirate: () => G.Prologue.human('ghost_pirate', extra || 0), ghost_gun: () => G.Prologue.human('ghost_gun', extra || 0), ghost_captain: () => G.Prologue.human('ghost_captain', extra || 0), dummy: () => G.Prologue.dummy(extra || 0),
     };
@@ -278,6 +311,16 @@
           c.hx = V.wx; c.hz = V.wz;
         });
       }
+      // Aldeanos de los Kyrr (Escarcha) y de Ceniza (Brasa)
+      if ((I.type === 'escarcha' || I.type === 'brasa') && I.feat.village) {
+        const V = I.feat.village, have = new Set(C.list.filter((c) => c.type === 'aldeano').map((c) => c.extra));
+        C.ALDEANOS.forEach((v, k) => {
+          if (v.tribe !== I.type || have.has(k)) return;
+          const a = (k % 4) * 1.6 + 0.5, d = V.r * 0.35;
+          const c = C.spawn('aldeano', V.wx + Math.cos(a) * d, V.wz + Math.sin(a) * d, undefined, k);
+          c.hx = V.wx; c.hz = V.wz; c.homeR = V.r * 0.55;
+        });
+      }
     }
     // Mar: tiburones con los nadadores, delfines y ballenas junto a los barcos, medusas y la serpiente marina
     const seaCount = (type) => C.list.reduce((a, c) => a + (!c.dead && c.type === type ? 1 : 0), 0);
@@ -305,7 +348,7 @@
     for (let i = 0; i < 8; i++) {
       const a = Math.random() * Math.PI * 2, d = 2 + Math.random() * rad;
       let x = c.x + Math.cos(a) * d, z = c.z + Math.sin(a) * d;
-      if (c.type === 'villager' || c.homeR) { x = c.hx + Math.cos(a) * d * 0.9; z = c.hz + Math.sin(a) * d * 0.9; }
+      if (c.type === 'villager' || c.type === 'aldeano' || c.homeR) { x = c.hx + Math.cos(a) * d * 0.9; z = c.hz + Math.sin(a) * d * 0.9; }
       if (validPos(c.type, x, z)) { c.tx = x; c.tz = z; c.t = 4 + Math.random() * 8; return; }
     }
     c.tx = c.x; c.tz = c.z; c.t = 2;
@@ -316,9 +359,9 @@
     boss: 'El jabalí gigante te aplastó', bear: 'Un oso blanco te despedazó', snowwolf: 'La manada de las nieves te cazó', caiman: 'Un caimán te arrastró al agua',
     salamander: 'Una salamandra de fuego te quemó', lavacrab: 'Un cangrejo de lava te atrapó', jelly: 'Las medusas te picaron', serpent: 'La serpiente marina te devoró', villager: 'Los guerreros shandara te derrotaron',
     pirate: 'Los piratas de la Hiena te derrotaron', pirate_gun: 'Un pirata te disparó', pirate_boss: 'La capitana Hiena te derrotó',
-    yeti: 'El Rey de la Escarcha te aplastó', lavadragon: 'El Dragón de Brasa te calcinó',
+    yeti: 'El Rey de la Escarcha te aplastó', lavadragon: 'El Dragón de Brasa te calcinó', bigcaiman: 'El Gran Caimán del río te hizo pedazos',
   };
-  const SOUND = { pirate: 'hit', pirate_boss: 'hit', wolf: 'bite', snowwolf: 'bite', boar: 'grunt', snake: 'hiss', jaguar: 'roar', shark: 'bite', boss: 'roar', bear: 'roar', caiman: 'bite', salamander: 'hiss', lavacrab: 'bite', jelly: 'hiss', serpent: 'roar', villager: 'hit', yeti: 'roar', lavadragon: 'roar' };
+  const SOUND = { pirate: 'hit', pirate_boss: 'hit', wolf: 'bite', snowwolf: 'bite', boar: 'grunt', snake: 'hiss', jaguar: 'roar', shark: 'bite', boss: 'roar', bear: 'roar', caiman: 'bite', salamander: 'hiss', lavacrab: 'bite', jelly: 'hiss', serpent: 'roar', villager: 'hit', yeti: 'roar', lavadragon: 'roar', bigcaiman: 'bite' };
   const CD = { pirate: 1.3, pirate_boss: 1.05, wolf: 1.2, snowwolf: 1.2, snake: 2.2, jaguar: 1.4, shark: 1.8, boss: 1.6, bear: 1.8, caiman: 2.0, salamander: 1.4, lavacrab: 1.6, jelly: 1.5, serpent: 2.5, villager: 1.3, yeti: 1.7, lavadragon: 1.9 };
   function attack(c, t, reach = 1.9) {
     c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
@@ -350,10 +393,17 @@
   function sidestep(c, step, speed) {
     for (const da of [0.6, -0.6, 1.2, -1.2, 1.8, -1.8]) {
       const ya = c.yaw + da, ax = c.x + Math.sin(ya) * step, az = c.z + Math.cos(ya) * step;
-      if (validPos(c.type, ax, az) && !G.Build.blocked(ax, az, 1.3)) { c.x = ax; c.z = az; c.speedNow = speed; return true; }
+      if (validPos(c.type, ax, az) && !G.Build.blocked(ax, az, 1.3) && !intoRock(c, ax, az)) { c.x = ax; c.z = az; c.speedNow = speed; return true; }
     }
     return false;
   }
+  // ¿Un jefe se metería en una roca o un árbol? (si ya está rozando uno, puede salir de él)
+  function rockAt(x, z, rad) {
+    let hit = false;
+    G.Res.query(x, z, rad + 4, (r) => { if (!hit && r.alive && r.k.solid && Math.hypot(x - r.x, z - r.z) < (r.k.r || 0.5) * r.s + rad) hit = true; });
+    return hit;
+  }
+  const intoRock = (c, x, z) => rockAt(x, z, 0.9) && !rockAt(c.x, c.z, 0.9);
   // Lo que necesitan los jefes de bosses.js
   let _bh = null;
   const BH = () => _bh || (_bh = { attack, spawn: C.spawn, valid: validPos });
@@ -413,7 +463,7 @@
   // ------------------------------------------------------------------ animación común
   function animate(c, dt, night) {
     const T = c.type;
-    c.phase += c.speedNow * dt * (T === 'crab' || T === 'lavacrab' ? 9 : T === 'jaguar' ? 2.6 : T === 'monkey' || T === 'salamander' ? 5 : T === 'yeti' ? 1.8 : T === 'lavadragon' ? 1.5 : 3.2);
+    c.phase += c.speedNow * dt * (T === 'crab' || T === 'lavacrab' ? 9 : T === 'jaguar' ? 2.6 : T === 'monkey' || T === 'salamander' ? 5 : T === 'yeti' ? 1.8 : T === 'lavadragon' ? 1.5 : T === 'bigcaiman' ? 2.4 : 3.2);
     const amp = Math.min(1, c.speedNow / 2) * 0.6;
     if (T === 'crab' || T === 'lavacrab' || T === 'seal') c.legs.forEach((l, k) => (l.rotation.x = Math.sin(c.phase + k * Math.PI) * amp));
     else { const off = [0, Math.PI, Math.PI, 0]; c.legs.forEach((l, k) => (l.rotation.x = Math.sin(c.phase + off[k]) * amp * (T === 'jaguar' ? 1.3 : 1))); }
@@ -587,6 +637,13 @@
           wander(G.Arch.byId(c.isl)?.feat.village?.r * 0.7 || 10);
           break;
         }
+        case 'aldeano': {
+          // Pasean por su aldea y se giran para hablar contigo
+          if (chatting()) break;
+          if (tgt && dist < 3.5) { moving = false; faceT = tgt; break; }
+          wander(c.homeR || 9); speed = c.d.speed * 0.7;
+          break;
+        }
         case 'npc': {
           // Tu tripulación, si te sigue (crew.js): en tierra va contigo y pelea; en el barco va en cubierta
           const cp = c.follow && G.Crew ? G.Crew.plan(c, dt) : null;
@@ -711,7 +768,7 @@
           if (sw && sw.d < 1.5) attack(c, sw.t, 1.6);
           break;
         }
-        case 'yeti': case 'lavadragon': {
+        case 'yeti': case 'lavadragon': case 'bigcaiman': {
           const o = G.Bosses.think(c, tg, dt, BH());
           tx = o.tx; tz = o.tz; speed = o.speed; moving = o.moving; faceT = o.face;
           break;
@@ -757,7 +814,7 @@
         const step = speed * dt;
         const nx = c.x + Math.sin(c.yaw) * step, nz = c.z + Math.cos(c.yaw) * step;
         const flying = c.fly > 0.3; // el dragón en vuelo pasa por encima de todo
-        if ((flying || validPos(c.type, nx, nz)) && (c.d.sea || flying || !G.Build.blocked(nx, nz, c.type === 'boss' || c.type === 'bear' ? 0.9 : c.d.bigBoss ? 1.3 : 0.4))) { c.x = nx; c.z = nz; c.speedNow = speed; c.stuck = 0; }
+        if ((flying || validPos(c.type, nx, nz)) && (c.d.sea || flying || (!G.Build.blocked(nx, nz, c.type === 'boss' || c.type === 'bear' ? 0.9 : c.d.bigBoss ? 1.3 : 0.4) && !(c.d.bigBoss && intoRock(c, nx, nz))))) { c.x = nx; c.z = nz; c.speedNow = speed; c.stuck = 0; }
         else if (c.d.bigBoss && sidestep(c, step, speed)) { /* los jefes rodean rocas y paredes en vez de quedarse parados */ }
         else {
           c.speedNow = 0; c.t = 0;
@@ -782,7 +839,7 @@
   // ------------------------------------------------------------------ red
   C.snapshot = () => C.list.map((c) => {
     const a = [c.id, TYPES.indexOf(c.type), Math.round(c.x * 10) / 10, Math.round(c.z * 10) / 10,
-      Math.round(c.yaw * 100) / 100, Math.ceil(c.hp), (c.dead ? 1 : 0) | (c.lunge > 0.25 ? 2 : 0) | (c.fear ? 4 : 0) | (c.aggro > 0 ? 8 : 0) | (c.pounce > 0 ? 16 : 0) | (c.fly > 0.5 ? 32 : 0) | (c.special ? 64 : 0)];
+      Math.round(c.yaw * 100) / 100, Math.ceil(c.hp), (c.dead ? 1 : 0) | (c.lunge > 0.25 ? 2 : 0) | (c.fear ? 4 : 0) | (c.aggro > 0 ? 8 : 0) | (c.pounce > 0 ? 16 : 0) | (c.fly > 0.5 || (c.type === 'bigcaiman' && c.flyTarget) ? 32 : 0) | (c.special ? 64 : 0)];
     if (c.type === 'villager' || c.type === 'npc' || c.type === 'dummy' || c.d.human) a.push(c.extra);
     return a;
   });

@@ -39,6 +39,7 @@
     pirate_boss: 'campamento pirata de la Isla Perdida', marine: 'barcos de la Marina Blanca, en alta mar', marine_gun: 'barcos de la Marina Blanca, en alta mar',
     marine_boss: 'barcos grandes de la Marina Blanca', ghost_pirate: 'el Holandés de las Mareas (de noche, en alta mar)', ghost_gun: 'el Holandés de las Mareas (de noche, en alta mar)',
     ghost_captain: 'el Holandés de las Mareas (de noche, en alta mar)', yeti: 'frente a la cueva de hielo de Isla Escarcha, desde el día 3', lavadragon: 'junto a las coladas de lava de Isla Brasa, desde el día 3',
+    bigcaiman: 'en el lago de la selva de Isla Tahuri, desde el día 3',
   };
   const POOL = {
     supplies: 'cofres de suministros (campamentos abandonados)', treasure: 'cofres del tesoro (templo, cueva de hielo, cráter, altar de las ruinas e islotes)',

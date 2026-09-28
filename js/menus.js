@@ -51,8 +51,8 @@
   // ------------------------------------------------------------------ perfil (arriba a la derecha)
   Menus.refreshChip = function () {
     const P = G.Profile;
-    $('profileChip').innerHTML = `<i style="background:${esc(P.look().shirt)}"></i><b>${esc(P.name())}</b><span>🏆 ${G.Ach.count()}/100</span><span>🪙 ${P.coins()}</span>`;
-    $('achCount').textContent = `${G.Ach.count()}/100`;
+    $('profileChip').innerHTML = `<i style="background:${esc(P.look().shirt)}"></i><b>${esc(P.name())}</b><span>🏆 ${G.Ach.count()}/${G.Ach.LIST.length}</span><span>🪙 ${P.coins()}</span>`;
+    $('achCount').textContent = `${G.Ach.count()}/${G.Ach.LIST.length}`;
     $('shopCoins').textContent = `🪙 ${P.coins()} doblones`;
   };
 
@@ -147,7 +147,7 @@
     achFrom = from || 'menuSP';
     Menus.show('menuAch');
     const A = G.Ach, n = A.count();
-    $('achSummary').textContent = `${n}/100 conseguidos · ${G.Profile.data.earned || 0} 🪙 ganados en total`;
+    $('achSummary').textContent = `${n}/${G.Ach.LIST.length} conseguidos · ${G.Profile.data.earned || 0} 🪙 ganados en total`;
     $('achTiers').innerHTML = Object.entries(A.TIERS).map(([k, T]) => {
       const all = A.LIST.filter((a) => a.t === k), got = all.filter((a) => G.Profile.hasAch(a.id)).length;
       return `<div class="tier" style="--tc:${T.color}"><b>${got}/${all.length}</b><span>${T.plural}</span><div class="bar"><i style="width:${(got / all.length) * 100}%"></i></div></div>`;
