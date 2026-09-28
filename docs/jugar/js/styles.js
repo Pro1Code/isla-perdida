@@ -73,7 +73,7 @@
   // Primer objetivo en la línea de tiro: criaturas y (en versus) jugadores rivales
   function rayHit(o, d, range, pad = 0.3) {
     let best = null, bt = range;
-    G.Creatures.forEachAlive((c) => { if (!hostile(c)) return; const t = raySphere(o, d, c.x, c.y + c.d.bodyY, c.z, c.d.hitR + pad); if (t >= 0 && t < bt) { bt = t; best = { c, t }; } });
+    G.Creatures.forEachAlive((c) => { if (!hostile(c)) return; const t = G.Creatures.rayHit(c, o, d, pad); if (t >= 0 && t < bt) { bt = t; best = { c, t }; } });
     for (const p of G.Net.peers.values()) {
       if (p.dead || !G.Modes.canHurtPlayer(p.team)) continue;
       const t = raySphere(o, d, p.x, p.y + 1, p.z, 0.6 + pad);
@@ -122,7 +122,7 @@
       P.cd = 0.34; P.swing = 1; P.swingCount++;
       G.Audio.play('swing');
       const base = (it && it.dmg) || 14;
-      if (tg && tg.kind === 'creature' && hostile(tg.c)) { hitC(tg.c, base * mul, 'sword'); G.Inv.wear(1); spark(tg.c.x, tg.c.y + tg.c.d.bodyY, tg.c.z, 0xdff4ff); }
+      if (tg && tg.kind === 'creature' && hostile(tg.c)) { hitC(tg.c, base * mul, 'sword'); G.Inv.wear(1); { const a = G.Creatures.aimPoint(tg.c); spark(a.x, a.y, a.z, 0xdff4ff); } }
       else if (tg && tg.kind === 'peer' && G.Modes.canHurtPlayer(tg.p.team)) { hitP(tg.p, base * mul * 0.8, `${G.Net.name} te derrotó con su espada`); S.addXp('sword', 1); }
       else if (tg && tg.kind === 'res' && tg.r.k.tree) G.Res.hit(tg.r, { id: 'hacha', n: 1 }); // corta árboles (como un hacha de piedra)
       return true;
@@ -136,7 +136,7 @@
       if (tg && tg.kind === 'creature' && hostile(tg.c)) {
         hitC(tg.c, dmg, 'fist');
         if (S.combo === 0) knock(tg.c, 1.4);
-        spark(tg.c.x, tg.c.y + tg.c.d.bodyY, tg.c.z, 0xffc090);
+        { const a = G.Creatures.aimPoint(tg.c); spark(a.x, a.y, a.z, 0xffc090); }
       } else if (tg && tg.kind === 'peer' && G.Modes.canHurtPlayer(tg.p.team)) { hitP(tg.p, dmg * 0.8, `${G.Net.name} te noqueó`); S.addXp('fist', 1); }
       return true;
     }
@@ -197,8 +197,9 @@
       }, 380);
     } else if (k === 'magic' && i === 0) {
       const h = rayHit(o, d, 28, 1.2);
-      const x = h.c ? h.c.x : h.p ? h.p.x : o.x + d.x * h.t, z = h.c ? h.c.z : h.p ? h.p.z : o.z + d.z * h.t;
-      const y = h.c ? h.c.y + h.c.d.bodyY : h.p ? h.p.y + 1 : G.height(x, z);
+      const ap = h.c ? G.Creatures.aimPoint(h.c) : null;
+      const x = ap ? ap.x : h.p ? h.p.x : o.x + d.x * h.t, z = ap ? ap.z : h.p ? h.p.z : o.z + d.z * h.t;
+      const y = ap ? ap.y : h.p ? h.p.y + 1 : G.height(x, z);
       bolt(x, y, z);
       if (h.c) { hitC(h.c, 38 * mul, 'magic'); h.c.frozen = Math.max(h.c.frozen || 0, 0.8); }
       if (h.p) hitP(h.p, 28 * mul, `Un rayo de ${G.Net.name}`);
@@ -282,7 +283,7 @@
       p.o.scale.setScalar(1 + p.t * 1.2);
       G.Creatures.forEachAlive((c) => {
         if (!hostile(c) || hit.has(c)) return;
-        if (Math.hypot(c.x - p.pos.x, c.z - p.pos.z) < c.d.hitR + 1.3 && Math.abs(c.y + c.d.bodyY - p.pos.y) < 2.2) { hit.add(c); hitC(c, dmg, 'sword'); spark(c.x, c.y + c.d.bodyY, c.z, 0xdff4ff); }
+        if (G.Creatures.near(c, p.pos.x, p.pos.y, p.pos.z, 1.3, 2.2)) { hit.add(c); hitC(c, dmg, 'sword'); spark(p.pos.x, p.pos.y, p.pos.z, 0xdff4ff); }
       });
       for (const pr of G.Net.peers.values()) if (!hit.has(pr) && !pr.dead && G.Modes.canHurtPlayer(pr.team) && Math.hypot(pr.x - p.pos.x, pr.z - p.pos.z) < 1.4) { hit.add(pr); hitP(pr, dmg * 0.8, `El corte volador de ${G.Net.name}`); }
       if (p.pos.y < G.height(p.pos.x, p.pos.z) - 0.3) p.t = p.life;
@@ -304,7 +305,7 @@
     S.proj.push({ o: s, pos, vel: d.clone().multiplyScalar(28), life: 1.2, t: 0, upd(p) {
       p.o.material.rotation += 0.3;
       let hitAny = null;
-      G.Creatures.forEachAlive((c) => { if (!hitAny && hostile(c) && Math.hypot(c.x - p.pos.x, c.z - p.pos.z) < c.d.hitR + 0.4 && Math.abs(c.y + c.d.bodyY - p.pos.y) < c.d.hitR + 0.8) hitAny = c; });
+      G.Creatures.forEachAlive((c) => { if (!hitAny && hostile(c) && G.Creatures.near(c, p.pos.x, p.pos.y, p.pos.z, 0.4, c.d.hitR + 0.8)) hitAny = c; });
       if (hitAny) { hitC(hitAny, dmg, 'magic'); spark(p.pos.x, p.pos.y, p.pos.z, 0xb88aff); p.t = p.life; return; }
       for (const pr of G.Net.peers.values()) if (!pr.dead && G.Modes.canHurtPlayer(pr.team) && Math.hypot(pr.x - p.pos.x, pr.z - p.pos.z) < 0.8 && Math.abs(pr.y + 1 - p.pos.y) < 1.2) { hitP(pr, dmg * 0.8, `La magia de ${G.Net.name}`); p.t = p.life; return; }
       if (p.pos.y < G.height(p.pos.x, p.pos.z)) { spark(p.pos.x, p.pos.y + 0.2, p.pos.z, 0xb88aff); p.t = p.life; }

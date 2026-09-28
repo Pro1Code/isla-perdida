@@ -209,7 +209,7 @@ kbd {
 }
 .inv-wrap {
   position: relative; display: grid; grid-template-columns: auto 1fr; gap: 22px;
-  width: min(1060px, calc(100vw - 32px)); max-height: calc(100vh - 40px);
+  width: min(1200px, calc(100vw - 32px)); max-height: calc(100vh - 40px);
   padding: 24px; border-radius: 18px; background: rgba(14,20,24,.94); border: 1px solid var(--line);
   box-shadow: 0 30px 80px rgba(0,0,0,.6);
 }
@@ -224,13 +224,49 @@ kbd {
 #itemInfo b { font-size: 15px; }
 #itemInfo button { margin-top: 6px; }
 .craft-col { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-#craftTabs { display: flex; gap: 6px; margin: 8px 0 12px; flex-wrap: wrap; }
+#craftTabs { display: flex; gap: 6px; margin: 12px 0 6px; flex-wrap: wrap; max-width: 506px; }
 #craftTabs button {
   cursor: pointer; font: 700 13.5px 'Nunito', sans-serif; padding: 7px 13px; border-radius: 9px;
   border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--text);
 }
 #craftTabs button.on { background: var(--accent); color: #1d1406; border-color: transparent; }
-#recipes { overflow-y: auto; display: flex; flex-direction: column; gap: 7px; padding-right: 6px; max-height: calc(100vh - 170px); }
+/* Recetario (libro de todos los objetos) */
+#craftTabs button.book-tab { border-color: rgba(60,196,166,.55); }
+#craftTabs button.book-tab.on { background: var(--accent-2); color: #06201a; }
+.req[data-book], .recipe .ic[data-book] { cursor: pointer; }
+.req[data-book]:hover { background: rgba(255,255,255,.15); }
+.bk-head { position: sticky; top: 0; z-index: 2; background: rgb(14,20,24); padding-bottom: 8px; }
+#bookSearch { width: 100%; box-sizing: border-box; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--text); font: 600 14px 'Nunito', sans-serif; outline: none; }
+#bookSearch:focus { border-color: var(--accent-2); }
+.bk-cats { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.bk-cats button { cursor: pointer; font: 700 12px 'Nunito', sans-serif; padding: 4px 9px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--text); }
+.bk-cats button.on { background: var(--accent-2); color: #06201a; border-color: transparent; }
+#bookList { display: flex; flex-direction: column; gap: 7px; }
+.bk-item { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 10px 12px; border-radius: 11px; background: rgba(255,255,255,.04); border: 1px solid transparent; }
+.bk-item.focus { border-color: var(--accent-2); background: rgba(60,196,166,.09); }
+.bk-ic { font-size: 34px; text-align: center; }
+.bk-ic img.ico { width: 48px; height: 48px; }
+.bk-nm { font-weight: 800; font-size: 15px; }
+.bk-have { font-size: 11.5px; font-weight: 700; color: var(--good); background: rgba(127,220,111,.12); padding: 1px 7px; border-radius: 6px; margin-left: 4px; }
+.bk-ds { color: var(--muted); font-size: 12.5px; margin: 1px 0 3px; }
+.bk-h { font-size: 10.5px; letter-spacing: 1px; font-weight: 800; color: var(--muted); text-transform: uppercase; margin: 7px 0 2px; }
+.bk-src { margin: 0; padding-left: 16px; font-size: 13px; line-height: 1.5; }
+.bk-src li { margin: 1px 0; }
+.bk-lock { color: #f2b544; font-size: 12px; }
+.bk-link { cursor: pointer; color: #9fe0d0; font-weight: 700; white-space: nowrap; }
+.bk-link:hover { text-decoration: underline; }
+.bk-uses { display: flex; flex-wrap: wrap; gap: 3px 12px; font-size: 13px; }
+.bk-trade { font-size: 12.5px; color: var(--muted); }
+.bk-empty { padding: 20px; text-align: center; }
+.bk-act { margin: 6px 0 4px; padding: 8px 10px; border-radius: 9px; background: rgba(60,196,166,.1); border: 1px solid rgba(60,196,166,.3); font-size: 13px; line-height: 1.5; }
+.bk-act .btn { margin: 6px 6px 0 0; }
+.bk-act .small-text { font-size: 11.5px; }
+#hoverTip { position: fixed; z-index: 90; pointer-events: none; padding: 5px 10px; border-radius: 8px; background: rgba(10,14,18,.96); border: 1px solid var(--line); font-size: 13px; color: var(--text); white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+#hoverTip small { display: block; color: var(--muted); font-size: 11px; }
+#recipes { overflow-y: auto; display: flex; flex-direction: column; gap: 7px; padding-right: 6px; max-height: calc(100vh - 90px); }
+.inv-label.inv-first { margin-top: 26px; }
+.inv-col .inv-label { margin-top: 16px; }
+.inv-col .inv-label.inv-first { margin-top: 26px; }
 .recipe {
   display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center;
   padding: 9px 12px; border-radius: 11px; background: rgba(255,255,255,.04); border: 1px solid transparent;
@@ -299,6 +335,7 @@ kbd {
 @media (max-width: 900px) {
   .inv-wrap { grid-template-columns: 1fr; overflow-y: auto; }
   .inv-grid { grid-template-columns: repeat(8, 44px); }
+  #craftTabs { max-width: 394px; }
   .inv-grid .slot { width: 44px; height: 44px; font-size: 22px; }
   #objective { max-width: 220px; font-size: 12.5px; }
   .diff-cards { grid-template-columns: 1fr; }
@@ -399,3 +436,10 @@ kbd {
 .eq-ph { opacity: .28; filter: grayscale(1); }
 .eq-line { color: #b8a4ff; }
 #eqStats { letter-spacing: 0; text-transform: none; font-weight: 700; margin-left: 8px; }
+
+/* ---------- Iconos del paquete de texturas (img/items) ---------- */
+img.ico { width: 1.3em; height: 1.3em; vertical-align: -0.3em; object-fit: contain; pointer-events: none; user-select: none; }
+img.ico.xs { width: 1.25em; height: 1.25em; vertical-align: -0.32em; }
+img.ico.sm { width: 1.6em; height: 1.6em; vertical-align: -0.45em; }
+.slot img.ico { width: 78%; height: 78%; vertical-align: middle; filter: drop-shadow(0 2px 2px rgba(0,0,0,.45)); }
+.recipe .ic img.ico { width: 44px; height: 44px; }

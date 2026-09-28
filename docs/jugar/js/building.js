@@ -1,4 +1,4 @@
-// Construcción: pisos, paredes, puertas, techos, cama, fogata y balsa
+// Construcción: pisos, paredes, puertas, techos, cama, fogata, antorchas clavadas y balsa
 (function () {
   'use strict';
   const G = window.G, U = G.U;
@@ -55,9 +55,16 @@
       flame: new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending, depthWrite: false }),
       ghostOk: new THREE.MeshBasicMaterial({ color: 0x55ff88, transparent: true, opacity: 0.35, depthWrite: false }),
       ghostBad: new THREE.MeshBasicMaterial({ color: 0xff5555, transparent: true, opacity: 0.35, depthWrite: false }),
+      iron: MSM({ vertexColors: true, metalness: 0.35, roughness: 0.55 }),
     };
-    // Reserva fija de luces para las fogatas (evita recompilar sombreadores)
-    for (let i = 0; i < 3; i++) {
+    // Halo de la llama de las antorchas (se ve de lejos aunque no le toque una luz)
+    B.glowTex = U.canvasTex(64, 64, (c) => {
+      const g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(255,200,110,0.9)'); g.addColorStop(0.35, 'rgba(255,140,50,0.35)'); g.addColorStop(1, 'rgba(255,110,30,0)');
+      c.fillStyle = g; c.fillRect(0, 0, 64, 64);
+    });
+    // Reserva fija de luces para fogatas y antorchas (evita recompilar sombreadores)
+    for (let i = 0; i < 4; i++) {
       const l = new THREE.PointLight(0xff8a3a, 0, 22, 1.7);
       scene.add(l);
       B.lights.push(l);
@@ -195,6 +202,49 @@
       g.add(mesh(new THREE.BoxGeometry(0.1, 0.12, 0.05), mats.fireBase, 0, 0.45, 0.32));
       return g;
     },
+    // Antorcha clavada: de pie en el suelo (con piedras al pie) o en la pared, metida en un
+    // soporte de hierro anclado al muro e inclinada 45° hacia fuera (el +Z local sale de la pared)
+    antorcha(pl) {
+      const g = new THREE.Group(), wall = !!pl && pl.mount === 'wall', wood = [], iron = [];
+      const tilt = wall ? Math.PI / 4 : 0, len = wall ? 0.62 : 1.45;
+      const base = wall ? new THREE.Vector3(0, -0.07, 0.1) : new THREE.Vector3(0, -0.2, 0);
+      const dir = new THREE.Vector3(0, Math.cos(tilt), Math.sin(tilt));
+      const at = (t) => base.clone().addScaledVector(dir, t);
+      const along = (geo, t) => { geo.rotateX(tilt); const p = at(t); geo.translate(p.x, p.y, p.z); return geo; };
+      // Palo, atadura de fibra y cabeza de trapo con brea
+      wood.push(U.colored(along(new THREE.CylinderGeometry(0.026, 0.034, len, 7), len / 2), 0x6a4a2c, 0.06));
+      wood.push(U.colored(along(new THREE.CylinderGeometry(0.04, 0.04, 0.05, 8), len - 0.2), 0xb9a060, 0.05));
+      wood.push(U.colored(along(new THREE.CylinderGeometry(0.062, 0.05, 0.17, 8), len - 0.05), 0x2a2018, 0.06));
+      if (wall) {
+        // Placa con dos remaches, brazo, tirante y el recipiente (vaso de hierro con su borde)
+        iron.push(U.colored(new THREE.BoxGeometry(0.15, 0.24, 0.025).translate(0, 0, 0.0125), 0x4a4642, 0.04));
+        for (const y of [-0.085, 0.085]) iron.push(U.colored(new THREE.CylinderGeometry(0.014, 0.014, 0.02, 6).rotateX(Math.PI / 2).translate(0, y, 0.03), 0x6e6760, 0.03));
+        iron.push(U.colored(new THREE.BoxGeometry(0.03, 0.03, 0.12).translate(0, 0.015, 0.085), 0x4a4642, 0.04));
+        const lo = new THREE.Vector3(0, -0.1, 0.025), hi = at(0.05), mid = lo.clone().add(hi).multiplyScalar(0.5), v = hi.clone().sub(lo);
+        iron.push(U.colored(new THREE.BoxGeometry(0.02, 0.02, v.length()).rotateX(-Math.atan2(v.y, v.z)).translate(mid.x, mid.y, mid.z), 0x4a4642, 0.04));
+        iron.push(U.colored(along(new THREE.CylinderGeometry(0.058, 0.044, 0.14, 10), 0.12), 0x3e3a36, 0.05));
+        iron.push(U.colored(along(new THREE.TorusGeometry(0.058, 0.01, 5, 12).rotateX(Math.PI / 2), 0.19), 0x5a544e, 0.04));
+      } else {
+        for (let i = 0; i < 4; i++) { const a = i * 1.7; wood.push(U.colored(new THREE.DodecahedronGeometry(0.06 + (i % 2) * 0.02).translate(Math.cos(a) * 0.1, 0.03, Math.sin(a) * 0.1), 0x7d786f, 0.12)); }
+      }
+      g.add(mesh(U.merge(wood), mats.fireBase));
+      if (iron.length) g.add(mesh(U.merge(iron), mats.iron));
+      // Llama (siempre hacia arriba) y halo
+      const fl = new THREE.Group(), fp = at(len + 0.02);
+      fl.position.copy(fp);
+      const flames = [0, 1].map((i) => {
+        const h = i ? 0.2 : 0.34, c = new THREE.ConeGeometry(i ? 0.05 : 0.085, h, 7, 1, true);
+        c.rotateY(i); c.translate(0, h / 2 - 0.03, 0);
+        return U.colored(c, i ? 0xffd060 : 0xff8a2a, 0);
+      });
+      fl.add(mesh(U.merge(flames), mats.flame, 0, 0, 0, false));
+      g.add(fl);
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: B.glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.75 }));
+      glow.position.set(fp.x, fp.y + 0.12, fp.z); glow.scale.setScalar(0.95); glow.raycast = () => {};
+      g.add(glow);
+      g.userData.flames = fl; g.userData.glow = glow;
+      return g;
+    },
     balsa() {
       const g = new THREE.Group();
       for (let i = 0; i < 7; i++) {
@@ -213,6 +263,7 @@
       return g;
     },
   };
+  B.BUILDERS = BUILDERS; // también los usa el generador de iconos
 
   // ------------------------------------------------------------------ utilidades de rejilla
   function cellTerrain(i, j) {
@@ -287,8 +338,11 @@
       res.x = x; res.z = z; res.y = B.groundAt(x, z);
       res.rot = Math.round(P.yaw / (Math.PI / 2)) * (Math.PI / 2) + B.rotIdx * Math.PI / 2;
       if (res.y < 0.3 || G.World.inLakeWater(x, z)) fail('No se puede colocar en el agua.');
-      for (const s of B.list) if (['fogata', 'cama', 'balsa', 'horno', 'cofre', 'banco'].includes(s.type) && Math.hypot(s.x - x, s.z - z) < 1.6) fail('Demasiado cerca de otra construcción.');
-      G.Res.query(x, z, 3, (r) => { if (r.alive && r.k.solid && Math.hypot(r.x - x, r.z - z) < (r.k.r || 0.5) * r.s + 0.9) fail('Hay algo en medio.'); });
+      for (const s of B.list) if (s.type === 'balsa' && Math.hypot(s.x - x, s.z - z) < 2.5) fail('Demasiado cerca de la balsa.');
+      const o = clash(res, null);
+      if (o) fail(o.type === 'pared' || o.type === 'puerta' ? 'Atravesaría ' + EL[o.type] + ': apártate un poco o gíralo con R.' : o.type === 'piso' ? 'El borde del piso está en medio.' : 'Chocaría con ' + EL[o.type] + '.');
+      const r = resIn(res, false);
+      if (r) fail(resWhy(r));
     } else if (type === 'balsa') {
       const x = P.pos.x + fx * 4.5, z = P.pos.z + fz * 4.5;
       const h = G.height(x, z);
@@ -297,6 +351,12 @@
       else if (h > 0.05 || h < -3) fail('Apunta a la orilla del mar: agua poco profunda.');
     }
     if (res.ok && res.key && B.byKey.has(res.key)) fail('Ya hay algo construido ahí.');
+    if (res.ok && GRIDP.includes(type)) {
+      const o = clash(res, FURN);
+      if (o) fail('Quita primero ' + EL[o.type] + ': estorba ahí.');
+      const r = resIn(res, type === 'techo');
+      if (r) fail(resWhy(r));
+    }
     return res;
   };
 
@@ -323,6 +383,65 @@
       default: return [];
     }
   }
+  // ------------------------------------------------------------------ que nada se atraviese
+  const FURN = ['fogata', 'cama', 'horno', 'cofre', 'banco'], GRIDP = ['piso', 'pared', 'puerta', 'techo'];
+  const EL = { cama: 'la cama', fogata: 'la fogata', horno: 'el horno', cofre: 'el cofre', banco: 'el banco de trabajo', pared: 'la pared', puerta: 'la puerta', piso: 'el piso', techo: 'el techo' };
+  // Primera construcción cuyas cajas de choque se meten en las de la pieza 'pl' (solo los tipos de 'only', si se da)
+  function clash(pl, only, skip) {
+    const mine = computeBoxes(pl), pad = 0.04;
+    for (const s of B.list) {
+      if (s === skip || (only && !only.includes(s.type)) || Math.abs(s.x - pl.x) > 7 || Math.abs(s.z - pl.z) > 7) continue;
+      const step = s.type === 'piso' ? 0.35 : 0.05; // pisar el borde de un piso apenas más alto no cuenta
+      for (const a of mine) for (const b of s.boxes)
+        if (a.x0 < b.x1 - pad && a.x1 > b.x0 + pad && a.z0 < b.z1 - pad && a.z1 > b.z0 + pad && a.y0 < b.y1 - step && a.y1 > b.y0 + 0.05) return s;
+    }
+    return null;
+  }
+  // Árbol, roca o arbusto (vivo) dentro de la pieza; para el techo solo cuentan los árboles
+  function resIn(pl, treesOnly) {
+    const bx = computeBoxes(pl);
+    let hit = null;
+    G.Res.query(pl.x, pl.z, 5, (r) => {
+      if (hit || !r.alive || !r.k.solid || (treesOnly && !r.k.tree)) return;
+      const rr = (r.k.r || 0.5) * r.s * 0.8;
+      for (const b of bx) if (boxDist(b, r.x, r.z) < rr) { hit = r; return; }
+    });
+    return hit;
+  }
+  // Distancia de un punto a una caja vista desde arriba (0 si está dentro)
+  const boxDist = (b, x, z) => Math.hypot(x - Math.max(b.x0, Math.min(x, b.x1)), z - Math.max(b.z0, Math.min(z, b.z1)));
+  const resWhy = (r) => r.k.tree ? 'Hay un árbol en medio: tálalo primero.' : r.k.bush ? 'Hay un arbusto en medio: busca otro sitio.' : 'Hay una roca en medio: pícala primero.';
+  // ¿Alguna construcción ocupa este círculo? (para que un árbol no vuelva a crecer dentro de una casa)
+  B.occupied = function (x, z, rad) {
+    let hit = false;
+    B.forBoxesNear(x, z, rad, (b) => { if (!hit && boxDist(b, x, z) < rad) hit = true; });
+    return hit;
+  };
+  // Partidas guardadas antes de este arreglo: saca los muebles que quedaron metidos en una pared
+  B.unclip = function () {
+    let moved = 0;
+    for (const s of B.list) {
+      if (!FURN.includes(s.type)) continue;
+      const w = clash(s, ['pared', 'puerta'], s);
+      if (!w) continue;
+      const ox = s.x, oz = s.z, oy = s.y, thinX = Math.abs(Math.sin(w.rot)) > 0.5;
+      const b = s.boxes[0], half = thinX ? (b.x1 - b.x0) / 2 : (b.z1 - b.z0) / 2;
+      const d = thinX ? s.x - w.x : s.z - w.z, first = d >= 0 ? 1 : -1;
+      let ok = false;
+      for (const sg of [first, -first]) {
+        if (thinX) s.x = w.x + sg * (half + 0.22); else s.z = w.z + sg * (half + 0.22);
+        s.y = B.groundAt(s.x, s.z);
+        s.boxes = computeBoxes(s);
+        if (s.y > 0.3 && !clash(s, null, s)) { ok = true; break; }
+      }
+      if (!ok) { s.x = ox; s.z = oz; s.y = oy; s.boxes = computeBoxes(s); continue; }
+      s.group.position.set(s.x, s.y, s.z);
+      const sp = G.state.spawn;
+      if (s.type === 'cama' && sp && Math.hypot(sp.x - ox, sp.z - oz) < 0.5) G.state.spawn = { x: s.x, z: s.z };
+      moved++;
+    }
+    return moved;
+  };
   B.forBoxesNear = function (x, z, rad, cb) {
     for (const s of B.list) {
       if (Math.abs(s.x - x) > rad + 3 || Math.abs(s.z - z) > rad + 3) continue;
@@ -338,33 +457,42 @@
   };
 
   // ------------------------------------------------------------------ colocar / quitar
+  // Fuego: la fogata guarda su leña en 'fuel' (segundos; negativo = apagada con leña dentro, espera un mechero).
+  // Antorcha clavada: 'fuel' son los segundos que aguanta bajo la lluvia (3 min); con buen tiempo arde sin gastarse.
+  B.TORCH_RAIN = 180;
+  const burning = (s) => (s.type === 'fogata' || s.type === 'antorcha') && s.fuel > 0;
   B.place = function (pl, fromSave) {
-    const g = BUILDERS[pl.type]();
+    const g = BUILDERS[pl.type](pl);
     g.position.set(pl.x, pl.y, pl.z);
     g.rotation.y = pl.rot;
     G.scene.add(g);
     g.updateMatrixWorld(true);
     const id = pl.id || (G.Net.myId || 0) + '-' + Date.now().toString(36) + '-' + (++B.counter);
-    const s = { id, type: pl.type, x: pl.x, y: pl.y, z: pl.z, rot: pl.rot, key: pl.key || null, group: g, boxes: [], fuel: pl.fuel ?? (pl.type === 'fogata' ? 150 : 0),
+    const s = { id, type: pl.type, x: pl.x, y: pl.y, z: pl.z, rot: pl.rot, key: pl.key || null, group: g, boxes: [], fuel: pl.fuel ?? (pl.type === 'fogata' ? 150 : pl.type === 'antorcha' ? B.TORCH_RAIN : 0),
       hp: pl.hp ?? B.MAXHP[pl.type] ?? 100, team: pl.team ?? (G.Net.team ?? null) };
     if (pl.type === 'cofre') s.items = (pl.items || new Array(16).fill(null)).slice(0, 16);
+    if (pl.type === 'antorcha') {
+      s.mount = pl.mount === 'wall' ? 'wall' : 'floor'; s.on = pl.on || null; s.d = pl.d;
+      const f = g.userData.flames.getWorldPosition(new THREE.Vector3()); // donde está la llama (luz y lluvia)
+      s.lx = f.x; s.ly = f.y; s.lz = f.z;
+    }
     g.traverse((o) => (o.userData.struct = s));
     s.boxes = computeBoxes(s);
     B.list.push(s);
     if (s.key) B.byKey.set(s.key, s);
-    if (!fromSave) G.Audio.play(pl.type === 'fogata' ? 'ignite' : 'place');
+    if (!fromSave) G.Audio.play(burning(s) ? 'ignite' : 'place');
     return s;
   };
   B.counter = 0;
   B.byId = (id) => B.list.find((s) => s.id === id);
-  B.data = (s) => ({ id: s.id, type: s.type, x: s.x, y: s.y, z: s.z, rot: s.rot, key: s.key, fuel: s.fuel, items: s.items, hp: s.hp, team: s.team });
+  B.data = (s) => ({ id: s.id, type: s.type, x: s.x, y: s.y, z: s.z, rot: s.rot, key: s.key, fuel: s.fuel, items: s.items, hp: s.hp, team: s.team, mount: s.mount, on: s.on, d: s.d });
   // Resistencia de cada construcción (modo versus: se pueden destruir si está activado)
-  B.MAXHP = { piso: 220, pared: 260, puerta: 220, techo: 160, cama: 80, fogata: 60, horno: 300, cofre: 150, banco: 150 };
+  B.MAXHP = { piso: 220, pared: 260, puerta: 220, techo: 160, cama: 80, fogata: 60, horno: 300, cofre: 150, banco: 150, antorcha: 30 };
   // Construcciones recibidas por red
   B.applyPlace = function (d) {
     if (B.byId(d.id) || (d.key && B.byKey.has(d.key))) return;
-    B.place(d, true);
-    G.Audio.playAt(d.type === 'fogata' ? 'ignite' : 'place', d.x, d.z);
+    const s = B.place(d, true);
+    G.Audio.playAt(burning(s) ? 'ignite' : 'place', d.x, d.z);
   };
   B.applyRemove = function (id) {
     const s = B.byId(id);
@@ -373,10 +501,16 @@
 
   B.remove = function (s, refund) {
     G.scene.remove(s.group);
-    s.group.traverse((o) => { if (o.isMesh && o.geometry) o.geometry.dispose(); });
+    s.group.traverse((o) => { if (o.isMesh && o.geometry) o.geometry.dispose(); if (o.isSprite) o.material.dispose(); });
     B.list.splice(B.list.indexOf(s), 1);
     if (s.key) B.byKey.delete(s.key);
-    if (refund) {
+    // Las antorchas clavadas en esta pieza se caen con ella (quien la desmonta las recupera)
+    for (const t of B.list.filter((o) => o.type === 'antorcha' && o.on === s.id)) {
+      B.remove(t, false);
+      if (refund) G.Game.giveTool('antorcha', t.d, t.x, t.y, t.z);
+    }
+    if (refund && s.type === 'antorcha') { G.Game.giveTool('antorcha', s.d, s.x, s.y, s.z); G.Audio.play('place'); }
+    else if (refund) {
       const rec = G.RECIPES.find((r) => r.id === s.type);
       if (rec) for (const [id, n] of Object.entries(rec.req)) { const k = Math.floor(n / 2); if (k > 0) G.Game.give(id, k); }
       G.Audio.play('place');
@@ -417,11 +551,98 @@
     return pl;
   };
 
+  // ------------------------------------------------------------------ antorchas: clavarlas en el suelo o en una pared
+  const TREACH = 3.3;
+  const _to = new THREE.Vector3(), _td = new THREE.Vector3(), _tb = new THREE.Box3(), _trc = new THREE.Raycaster();
+  // Esfera que envuelve un objeto del escenario (se calcula una vez) para descartar lo que está lejos
+  function nearObj(o, x, z, r) {
+    let bs = o.userData._bs;
+    if (bs === undefined) { _tb.setFromObject(o); bs = o.userData._bs = _tb.isEmpty() ? null : _tb.getBoundingSphere(new THREE.Sphere()); }
+    return !!bs && Math.hypot(bs.center.x - x, bs.center.z - z) < bs.radius + r;
+  }
+  // Dónde quedaría la antorcha que llevas en la mano: el primer suelo o pared que tocas con la mirada
+  B.planTorch = function () {
+    const P = G.Player, res = { ok: false, hit: false, reason: '', type: 'antorcha', mount: 'floor', x: 0, y: 0, z: 0, rot: 0, on: null };
+    if (P.ship || P.swimming || P.diving) { res.reason = 'Sal del agua (o del barco) para clavar la antorcha.'; return res; }
+    const o = P.eyePos(_to), d = P.lookDir(_td);
+    let best = null, bt = TREACH;
+    // Terreno (también las paredes de roca empinadas): se avanza por el rayo hasta meterse bajo el suelo
+    for (let t = 0.1, prev = 0; t <= TREACH; prev = t, t += 0.08) {
+      if (o.y + d.y * t > G.height(o.x + d.x * t, o.z + d.z * t)) continue;
+      let a = prev, b = t;
+      for (let k = 0; k < 8; k++) { const m = (a + b) / 2; if (o.y + d.y * m <= G.height(o.x + d.x * m, o.z + d.z * m)) b = m; else a = m; }
+      const x = o.x + d.x * b, z = o.z + d.z * b, e = 0.3;
+      best = { t: b, x, y: G.height(x, z), z, n: new THREE.Vector3(G.height(x - e, z) - G.height(x + e, z), 2 * e, G.height(x, z - e) - G.height(x, z + e)).normalize() };
+      bt = b;
+      break;
+    }
+    // Construcciones, chozas, cuevas y demás lugares (los barcos y otras antorchas solo estorban)
+    const px = P.pos.x, pz = P.pos.z, objs = [], ships = new Set();
+    for (const s of B.list) if (Math.abs(s.x - px) < 8 && Math.abs(s.z - pz) < 8) objs.push(s.group);
+    for (const ob of G.Landmarks.surfaces) if (ob.parent && ob.visible && nearObj(ob, px, pz, TREACH + 1)) objs.push(ob);
+    for (const s of G.Ships.list) if (s.root && Math.hypot(s.x - px, s.z - pz) < 30) { objs.push(s.root); ships.add(s.root); }
+    _trc.set(o, d); _trc.far = bt; _trc.camera = G.camera;
+    for (const h of _trc.intersectObjects(objs, true)) {
+      const m = h.object, mt = Array.isArray(m.material) ? m.material[0] : m.material;
+      if (m.isSprite || !h.face || !mt || mt.visible === false || mt.blending === THREE.AdditiveBlending || (mt.transparent && mt.opacity < 0.6)) continue;
+      let ship = false;
+      for (let q = m; q; q = q.parent) if (ships.has(q)) { ship = true; break; }
+      const n = h.face.normal.clone().transformDirection(m.matrixWorld);
+      if (n.dot(d) > 0) n.negate(); // cara de dentro (choza, cueva)
+      best = { t: h.distance, x: h.point.x, y: h.point.y, z: h.point.z, n, s: m.userData.struct || null, ship };
+      break;
+    }
+    if (!best) { res.reason = 'Apunta al suelo o a una pared cercana.'; return res; }
+    if (best.s && best.s.type === 'antorcha') return res; // mirando a otra antorcha: su propio aviso (encender o recoger)
+    res.hit = true;
+    res.x = best.x; res.y = best.y; res.z = best.z;
+    if (best.s) res.on = best.s.id;
+    const n = best.n;
+    if (n.y >= 0.55) res.mount = 'floor';
+    else if (n.y > -0.68) { res.mount = 'wall'; res.rot = Math.atan2(n.x, n.z); } // también paredes que se echan encima (cuevas)
+    else res.reason = 'No se puede colgar del techo: ponla en el suelo o en una pared.';
+    if (best.ship) res.reason = 'En un barco no se puede clavar.';
+    // Un árbol o una roca en medio
+    if (!res.reason) G.Res.query(px, pz, 6, (r) => {
+      if (res.reason || !r.alive || !r.k.solid) return;
+      const rr = (r.k.r || 0.5) * r.s * 0.8, top = r.y + (r.k.tree ? 8 : 1.3 * r.s);
+      for (let t = 0.2; t < best.t; t += 0.1) {
+        const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t;
+        if (y < top && Math.hypot(x - r.x, z - r.z) < rr) { res.reason = r.k.tree ? 'Hay un árbol en medio.' : 'Hay una roca en medio.'; return; }
+      }
+    });
+    const wl = G.World.waterLevelAt(res.x, res.z);
+    if (!res.reason && res.y < wl + 0.1 && G.height(res.x, res.z) < wl + 0.05) res.reason = 'En el agua se apagaría.';
+    if (!res.reason) for (const s of B.list) if (s.type === 'antorcha' && Math.hypot(s.x - res.x, s.z - res.z) < 0.35 && Math.abs(s.y - res.y) < 0.6) { res.reason = 'Ya hay una antorcha ahí.'; break; }
+    res.ok = !res.reason;
+    return res;
+  };
+  // Vista previa (verde o roja) de la antorcha en la mano
+  let tGhost = null, tGhostMount = null;
+  B.updateTorchGhost = function (active) {
+    const pl = active ? B.planTorch() : null, show = !!pl && pl.hit;
+    if (tGhost && (!show || tGhostMount !== pl.mount)) {
+      G.scene.remove(tGhost);
+      tGhost.traverse((o) => { if (o.isMesh) o.geometry.dispose(); if (o.isSprite) o.material.dispose(); });
+      tGhost = null;
+    }
+    if (!show) return pl;
+    if (!tGhost) {
+      tGhost = BUILDERS.antorcha(pl); tGhostMount = pl.mount;
+      tGhost.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } if (o.isSprite) o.visible = false; });
+      G.scene.add(tGhost);
+    }
+    tGhost.position.set(pl.x, pl.y, pl.z); tGhost.rotation.y = pl.rot;
+    const m = pl.ok ? mats.ghostOk : mats.ghostBad;
+    tGhost.traverse((o) => { if (o.isMesh) o.material = m; });
+    return pl;
+  };
+
   // ------------------------------------------------------------------ actualización
   B.update = function (dt) {
     B.time += dt;
     const P = G.Player.pos;
-    const lit = [];
+    const lit = [], rain = G.Weather.intensity > 0.1 && G.Weather.fallKind === 'rain';
     for (const s of B.list) {
       if (s.type === 'fogata') {
         const on = s.fuel > 0;
@@ -443,6 +664,24 @@
           p.scale.setScalar(0.4 + t * 1.6);
           p.material.opacity = on ? (1 - t) * 0.35 * Math.min(1, t * 6) : 0;
         }
+      } else if (s.type === 'antorcha') {
+        // Bajo la lluvia y sin techo aguanta como mucho 3 minutos; con buen tiempo se va secando
+        if (s.fuel > 0) {
+          s.wet = rain && !B.hasRoof(s.lx, s.lz) && !G.Landmarks.inCave(s.lx, s.lz) && !G.Landmarks.underRoof(s.lx, s.lz);
+          s.fuel = s.wet ? Math.max(0, s.fuel - dt) : Math.min(B.TORCH_RAIN, s.fuel + dt * 0.5);
+          if (s.fuel <= 0) torchOut(s);
+        }
+        const ud = s.group.userData, on = s.fuel > 0;
+        ud.flames.visible = on; ud.glow.visible = on;
+        if (on) {
+          // En los últimos 45 s bajo la lluvia la llama se ahoga y chisporrotea
+          const k = s.wet && s.fuel < 45 ? 0.5 + 0.5 * (s.fuel / 45) : 1, sp = k < 1 && Math.random() < 0.12 ? 0.55 : 1;
+          ud.flames.scale.set(k * (1 + Math.sin(B.time * 14 + s.x) * 0.1), k * sp * (1 + Math.sin(B.time * 19 + s.z) * 0.18), k);
+          ud.flames.rotation.y += dt;
+          ud.glow.material.opacity = 0.7 * k * sp * (0.9 + Math.random() * 0.1);
+          s.glowK = k * sp;
+          lit.push(s);
+        }
       } else if (s.type === 'horno') {
         s.group.userData.glow.material.opacity = 0.6 + Math.sin(B.time * 7 + s.x) * 0.15 + Math.random() * 0.1;
       } else if (s.type === 'balsa') {
@@ -455,10 +694,22 @@
     B.lights.forEach((l, i) => {
       const s = lit[i];
       if (!s) { l.intensity = 0; return; }
-      l.position.set(s.x, s.y + 0.9, s.z);
+      if (s.type === 'antorcha') {
+        l.position.set(s.lx, s.ly + 0.15, s.lz); l.distance = 14;
+        l.intensity = (5.5 + Math.sin(B.time * 13 + i) * 0.7 + Math.random() * 0.7) * s.glowK;
+        return;
+      }
+      l.position.set(s.x, s.y + 0.9, s.z); l.distance = 22;
       l.intensity = (22 + Math.sin(B.time * 11 + i) * 3 + Math.random() * 3) * U.clamp(s.fuel / 60, 0.5, 1);
     });
   };
+  // La lluvia apagó una antorcha: vapor, siseo y aviso si estás cerca
+  function torchOut(s) {
+    G.Ships.puff(s.lx, s.ly + 0.1, s.lz, 0xcfd4d8, 0.6, 1.4, 4);
+    G.Audio.playAt('hiss', s.lx, s.lz, 30);
+    const P = G.Player.pos;
+    if (Math.hypot(P.x - s.x, P.z - s.z) < 30) G.UI.msg('🌧️ La lluvia apagó una antorcha: vuelve a encenderla con un 🔥 mechero (<kbd>E</kbd>) o ponla bajo techo.', 'warn', 'torchout');
+  }
 
   B.getState = () => B.list.map(B.data);
 

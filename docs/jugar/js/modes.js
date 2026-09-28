@@ -17,7 +17,7 @@
   Md.FORMATS = { '1v1': [1, 1], '2v2': [2, 2], '3v3': [3, 3], '4v4': [4, 4], '1v1v1': [1, 1, 1], '1v1v1v1': [1, 1, 1, 1], '2v2v2': [2, 2, 2], '2v2v2v2': [2, 2, 2, 2] };
   Md.DEFAULT_VS = { format: '2v2', treasure: true, ctf: true, caps: 2, sink: true, minutes: 75, truce: 10, death: 'half', structs: true, ships: true, ff: false, diff: 1 };
   Md.DEFAULT_COOP = { diff: 1, death: 'half' };
-  Md.DEATH = { keep: 'Reaparecer conservando todo', half: 'Reaparecer perdiendo la mitad', all: 'Reaparecer perdiendo todo', out: 'Eliminado (sin reaparecer)' };
+  Md.DEATH = { keep: 'Reaparecer conservando todo', half: 'Tus cosas quedan en un cofre (5 min para recuperarlas)', all: 'Reaparecer perdiendo todo', out: 'Eliminado (sin reaparecer)' };
   Md.teamName = (t) => (Md.TEAMS[t] ? Md.TEAMS[t].name : '?');
   Md.teamColor = (t) => (Md.TEAMS[t] ? Md.TEAMS[t].color : null);
   Md.nTeams = () => (Md.cfg ? Md.FORMATS[Md.cfg.format].length : 0);
@@ -107,7 +107,7 @@
       G.Net.send({ t: 'shNew', d: G.Ships.data(s) });
       // Cofre con provisiones iguales para todos los equipos
       const cx = sp.x - dx / dl * 5, cz = sp.z - dz / dl * 5;
-      const c = G.Build.place({ type: 'cofre', x: cx, y: G.height(cx, cz), z: cz, rot: 0, team: t, items: [{ id: 'hacha', n: 1, d: 120 }, { id: 'pico', n: 1, d: 120 }, { id: 'pala', n: 1, d: 200 }, { id: 'carne_cocida', n: 4 }, { id: 'agua_limpia', n: 3 }, { id: 'cuenco', n: 2 }, { id: 'polvora', n: 6 }, { id: 'bala_canon', n: 6 }, { id: 'cuerda', n: 4 }, { id: 'tabla', n: 8 }, { id: 'clavos', n: 8 }, { id: 'antorcha', n: 2 }, null, null, null, null] }, true);
+      const c = G.Build.place({ type: 'cofre', x: cx, y: G.height(cx, cz), z: cz, rot: 0, team: t, items: [{ id: 'hacha', n: 1, d: 120 }, { id: 'pico', n: 1, d: 120 }, { id: 'pala', n: 1, d: 200 }, { id: 'carne_cocida', n: 4 }, { id: 'agua_limpia', n: 3 }, { id: 'cuenco', n: 2 }, { id: 'polvora', n: 6 }, { id: 'bala_canon', n: 6 }, { id: 'cuerda', n: 4 }, { id: 'tabla', n: 8 }, { id: 'clavos', n: 8 }, { id: 'antorcha', n: 2 }, { id: 'mechero', n: 1, d: 25 }, null, null, null] }, true);
       G.Net.placed(c);
     }
   };

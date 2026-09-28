@@ -9,7 +9,7 @@
     { name: 'Normal', decay: 1.0, dmg: 1.0, wolves: 2 },
     { name: 'Difícil', decay: 1.35, dmg: 1.4, wolves: 4 },
   ];
-  G.state = { mode: 'loading', day: 1, t: 0.3, diff: 1, dayLen: 300, spawn: null, flags: {}, stats: { kills: 0, crafted: 0, deaths: 0, k: {} }, obj: 0 };
+  G.state = { mode: 'loading', day: 1, t: 0.3, diff: 1, dayLen: 600, spawn: null, flags: {}, stats: { kills: 0, crafted: 0, deaths: 0, k: {} }, obj: 0 };
   // Estadísticas de la partida (muertes y animales cazados por tipo, para algunos logros)
   const fixStats = (s) => Object.assign({ kills: 0, crafted: 0, deaths: 0 }, s || {}, { k: Object.assign({}, (s && s.k) || {}) });
   Game.fixStats = fixStats;
@@ -23,12 +23,12 @@
     const P = G.Player.pos;
     return G.Build.list.some((s) => s.type === st && Math.hypot(s.x - P.x, s.z - P.z) < 4);
   };
-  Game.sheltered = () => G.Build.hasRoof(G.Player.pos.x, G.Player.pos.z) || G.Landmarks.inCave(G.Player.pos.x, G.Player.pos.z);
+  Game.sheltered = () => G.Build.hasRoof(G.Player.pos.x, G.Player.pos.z) || G.Landmarks.inCave(G.Player.pos.x, G.Player.pos.z) || G.Landmarks.underRoof(G.Player.pos.x, G.Player.pos.z);
   Game.newWorldState = () => ({ loot: {}, bossKilled: false, story: null });
 
   Game.give = function (id, n) {
     const added = G.Inv.add(id, n);
-    if (added > 0) G.UI.msg(`+${added} ${G.ITEMS[id].i} ${G.ITEMS[id].n}`, 'item');
+    if (added > 0) G.UI.msg(`+${added} ${G.icon(id, 'xs')} ${G.ITEMS[id].n}`, 'item');
     if (added > 0 && G.Ach) G.Ach.add('get:' + id, added, true);
     if (added > 0 && id.startsWith('pista_') && G.Prologue) G.Prologue.onItem(id);
     if (added < n) G.UI.msg('¡Inventario lleno!', 'bad', 'full');
@@ -62,7 +62,7 @@
     const held = G.Inv.held();
     const wreach = held && G.ITEMS[held.id].reach ? G.ITEMS[held.id].reach : reach;
     G.Creatures.forEachAlive((c) => {
-      const t = raySphere(o, d, c.x, c.y + c.d.bodyY, c.z, c.d.hitR);
+      const t = G.Creatures.rayHit(c, o, d);
       if (t >= 0 && t < bt && t < wreach + 0.4) { bt = t; best = { kind: 'creature', c, t }; }
     });
     for (const p of G.Net.peers.values()) {
@@ -71,11 +71,14 @@
       if (t >= 0 && t < bt && t < wreach + 0.4) { bt = t; best = { kind: 'peer', p, t }; }
     }
     for (const c of G.Landmarks.loot) {
-      if (c.opened && (c.kind === 'barrel' || c.kind === 'bottle' || c.kind === 'bag')) continue;
+      if (c.noTarget || (c.opened && (c.kind === 'barrel' || c.kind === 'bottle' || c.kind === 'bag'))) continue;
       if (c.kind === 'clue' && !G.Prologue.visible(c)) continue;
       const t = raySphere(o, d, c.x, c.y + 0.35, c.z, c.hitR || 0.65);
       if (t >= 0 && t < bt && t < reach + (c.kind === 'mono' ? 0.8 : 0)) { bt = t; best = { kind: 'loot', c, t }; }
     }
+    // Hojas de encargos clavadas en los tablones de las aldeas
+    const qp = G.Quests.findTarget(o, d);
+    if (qp && qp.t < bt) { bt = qp.t; best = qp; }
     if (G.Build.list.length) {
       _rc.set(o, d); _rc.far = 4.2; _rc.camera = G.camera;
       const groups = [];
@@ -130,9 +133,15 @@
     if (tg.kind === 'struct') {
       const s = tg.s;
       let t = `<b>${G.ITEMS[s.type] ? G.ITEMS[s.type].n : s.type}</b>`;
+      // Encender con el mechero (fogata apagada sin leña: además, 1 madera)
+      const light = (wood) => G.Inv.count('mechero') ? `<kbd>E</kbd> Encender <span class="muted">(mechero${wood ? ' + 1 madera' : ''})</span>` : `<span class="warn">necesitas un 🔥 mechero${wood ? ' y 1 madera' : ''} para encenderla</span>`;
       if (s.type === 'fogata') {
         if (s.fuel > 0 && G.COOK[hid]) t += ` · <kbd>E</kbd> Cocinar ${G.ITEMS[hid].n.toLowerCase()}`;
-        else t += s.fuel > 0 ? ` · 🔥 ${U.fmtSecs(s.fuel)} · <kbd>E</kbd> Añadir madera` : ' · apagada · <kbd>E</kbd> Encender (1 madera)';
+        else t += s.fuel > 0 ? ` · 🔥 ${U.fmtSecs(s.fuel)} · <kbd>E</kbd> Añadir madera` : ' · apagada · ' + light(s.fuel === 0);
+      }
+      if (s.type === 'antorcha') {
+        t += s.fuel > 0 ? (s.wet ? ` · 🌧️ se apaga en ${U.fmtSecs(s.fuel)}` : ' · 🔥') : ' · apagada · ' + light(false);
+        if (!(G.Modes.active && s.team !== null && s.team !== G.Net.team)) return t + ' · <kbd>X</kbd> Recoger';
       }
       if (s.type === 'cama') t += ' · <kbd>E</kbd> Dormir';
       if (s.type === 'cofre') t += ' · <kbd>E</kbd> Abrir';
@@ -148,8 +157,10 @@
       if (c.kind === 'bottle') return '🍾 <b>Botella con mensaje</b> · <kbd>E</kbd> Leer';
       if (c.kind === 'barrel') return `🛢️ <b>${c.name}</b> · <kbd>E</kbd> Abrir`;
       if (c.kind === 'bag') return '🎒 <b>Bolsa caída</b> · <kbd>E</kbd> Recoger';
+      if (c.kind === 'chest') return `<b>${c.name}</b> · <kbd>E</kbd> Abrir${c.opened ? ' <span class="muted">(puedes guardar objetos)</span>' : ''}`;
       return c.opened ? `<b>${c.name}</b> · vacío` : `<b>${c.name}</b> · <kbd>E</kbd> Abrir`;
     }
+    if (tg.kind === 'qpaper') return G.Quests.prompt(tg);
     if (['station', 'piece', 'ship'].includes(tg.kind)) return G.Ships.promptFor(tg);
     if (tg.kind.startsWith('vs')) return G.Modes.promptFor(tg);
     if (tg.kind === 'water') {
@@ -165,6 +176,10 @@
     if (G.Story.dialog) { G.Story.choose(-1); return; }
     // Soltar el timón, el cañón o levantarse del asiento
     if (P.station) { G.Ships.releaseStation(); return; }
+    // Encima de la ✖ de un mapa del tesoro: cavar
+    if (G.Treasure.dig()) return;
+    // Tu cofre flotando o ya desenterrado: recuperar las cosas
+    if (G.Grave.interact()) return;
     const tg = Game.target;
     if (!tg) {
       // Recoger agua de lluvia con el cuenco
@@ -175,6 +190,7 @@
       }
       return;
     }
+    if (tg.kind === 'qpaper') { G.Quests.click(tg); return; }
     if (tg.kind === 'loot') { Game.openLoot(tg.c); return; }
     if (tg.kind === 'res') { if (!tg.r.k.tool) G.Res.interact(tg.r); return; }
     if (tg.kind === 'creature') { if (tg.c.d.npc) G.Story.talk(tg.c); return; }
@@ -215,14 +231,17 @@
           G.Ach.add('cook:' + out);
           G.Audio.play('ignite');
           if (out === 'agua_limpia') G.state.flags.boiled = true;
-        } else if (G.Inv.count('madera') > 0) {
+        } else if (s.fuel <= 0) Game.lightFire(s);
+        else if (G.Inv.count('madera') > 0) {
           G.Inv.remove('madera', 1);
-          const was = s.fuel > 0;
-          s.fuel = Math.min(600, Math.max(0, s.fuel) + 120);
+          s.fuel = Math.min(600, s.fuel + 120);
           G.Net.fuel(s);
           G.Audio.play('ignite');
-          G.UI.msg(was ? `Avivas el fuego (🔥 ${U.fmtSecs(s.fuel)})` : '¡Fuego encendido!', 'good', 'fuel');
+          G.UI.msg(`Avivas el fuego (🔥 ${U.fmtSecs(s.fuel)})`, 'good', 'fuel');
         } else G.UI.msg('Necesitas madera para alimentar el fuego.', 'warn', 'nowood');
+      } else if (s.type === 'antorcha') {
+        if (s.fuel <= 0) Game.lightFire(s);
+        else G.UI.msg('La antorcha ya está encendida (<kbd>X</kbd> para recogerla).', 'info', 'torch');
       } else if (s.type === 'cama') Game.sleep(s);
       else if (s.type === 'cofre') G.UI.openChest(s);
     }
@@ -232,6 +251,9 @@
     const P = G.Player;
     if (P.cd > 0 || P.dead) return;
     if (G.Story.dialog) return;
+    if (G.Grave.aimed()) return; // mirando a la ✖ de un cofre: el clic mantenido cava (grave.js)
+    // Clic en una hoja del tablón de encargos: aceptar o entregar
+    if (Game.target && Game.target.kind === 'qpaper') { P.cd = 0.4; G.Quests.click(Game.target); return; }
     // Cañones: desde el puesto del cañón o el cañón de proa desde el timón de la lancha
     if (P.station && P.station.kind === 'cannon') { P.cd = 0.4; G.Ships.fireCannon(P.ship, P.station.st); return; }
     if (P.station && P.station.kind === 'helm' && P.ship && P.ship.type === 'lancha' && G.Ships.has(P.ship, 'canon0')) {
@@ -258,7 +280,7 @@
     P.swingCount++;
     G.Audio.play('swing');
     const mul = G.Story.meleeMul();
-    if (tg && tg.kind === 'creature' && tg.c.d.friendly) { G.UI.msg('No vas a atacar a tu propia gente.', 'warn', 'npcatk'); return; }
+    if (tg && tg.kind === 'creature' && tg.c.d.friendly) { G.UI.msg(tg.c.type === 'aldeano' ? 'Los aldeanos son gente de paz: no les hagas daño.' : 'No vas a atacar a tu propia gente.', 'warn', 'npcatk'); return; }
     if (tg && tg.kind === 'creature') {
       if (tg.c.d.npc && !G.Story.tribeHostile() && !G.Input.keys.ShiftLeft) { G.UI.msg('Mantén <kbd>Shift</kbd> para atacar a un aldeano (¡la tribu se enfadará!).', 'warn', 'npcatk'); return; }
       G.Creatures.hurt(tg.c, (it && it.dmg ? it.dmg : 5) * mul);
@@ -280,7 +302,7 @@
     const P = G.Player, o = P.eyePos(new V3()), d = P.lookDir(new V3());
     G.Audio.play('swing');
     let best = null, bt = 30;
-    G.Creatures.forEachAlive((c) => { const t = raySphere(o, d, c.x, c.y + c.d.bodyY, c.z, c.d.hitR + 0.2); if (t >= 0 && t < bt) { bt = t; best = c; } });
+    G.Creatures.forEachAlive((c) => { const t = G.Creatures.rayHit(c, o, d, 0.2); if (t >= 0 && t < bt) { bt = t; best = c; } });
     if (best) { G.Creatures.hurt(best, 8, undefined, { poison: 12 }); G.UI.msg(`🎯 Dardo en el blanco: ${best.d.name} envenenado`, 'good', 'dart'); G.Ach.add('dart'); }
     for (const p of G.Net.peers.values()) {
       if (p.dead || !G.Modes.canHurtPlayer(p.team)) continue;
@@ -293,7 +315,8 @@
     const held = G.Inv.held();
     if (!held) return;
     const it = G.ITEMS[held.id];
-    if (it.eq) { G.Inv.equipFrom(G.Inv.sel); G.Audio.play('select'); G.UI.msg(`Te pones: ${it.i} ${it.n}`, 'info'); return; }
+    if (held.id === 'antorcha') { Game.placeTorch(); return; }
+    if (it.eq) { G.Inv.equipFrom(G.Inv.sel); G.Audio.play('select'); G.UI.msg(`Te pones: ${G.icon(held.id, 'xs')} ${it.n}`, 'info'); return; }
     if (it.fruit) { G.Story.eatFruit(held.id); return; }
     if (it.read) { G.Story.readItem(it.read); return; }
     if (it.use) Game.consume(G.Inv.sel);
@@ -335,12 +358,17 @@
     const type = it.place;
     const pl = G.Build.plan(type);
     if (!pl.ok) { G.UI.msg(pl.reason, 'warn', 'place'); G.Audio.play('error'); return; }
+    const lighter = type === 'fogata' && G.Inv.count('mechero') > 0;
+    if (type === 'fogata') pl.fuel = lighter ? 150 : -150;
     const placed = G.Build.place(pl);
     G.Net.placed(placed);
     G.Inv.consumeHeld();
     G.Ach.add('place:' + type, 1, true);
     const f = G.state.flags;
-    if (type === 'fogata') f.fire = true;
+    if (type === 'fogata') {
+      if (lighter) { Game.useLighter(); f.fire = true; G.UI.msg('🔥 Enciendes la fogata con el mechero.', 'good', 'fuel'); }
+      else G.UI.msg('Fogata colocada pero <b>apagada</b>: necesitas un 🔥 <b>mechero</b> (1 sílex + 1 fibra) para encenderla con <kbd>E</kbd>.', 'warn', 'lighter');
+    }
     if (type === 'techo') f.roof = true;
     if (type === 'cama') { f.bed = true; G.state.spawn = { x: pl.x, z: pl.z }; G.UI.msg('🛏️ Punto de reaparición establecido.', 'good'); }
   };
@@ -361,7 +389,65 @@
     G.Build.remove(s, true);
     G.Net.removed(s);
     if (s.type === 'cama' && G.state.spawn && Math.hypot(G.state.spawn.x - s.x, G.state.spawn.z - s.z) < 0.5) G.state.spawn = null;
-    G.UI.msg(`Desmontaste: ${G.ITEMS[s.type].n}`, 'info');
+    if (s.type !== 'antorcha') G.UI.msg(`Desmontaste: ${G.ITEMS[s.type].n}`, 'info');
+  };
+
+  // ------------------------------------------------------------------ fuego: mechero y antorchas clavadas
+  // Devuelve una herramienta con su desgaste (si la mochila está llena, se queda en el suelo)
+  Game.giveTool = function (id, d, x, y, z) {
+    const it = G.ITEMS[id], S = G.Inv.slots, i = S.findIndex((s) => !s);
+    if (i >= 0) {
+      S[i] = { id, n: 1, d: d > 0 ? Math.min(d, it.dur) : it.dur };
+      G.Inv.changed();
+      G.UI.msg(`+1 ${G.icon(id, 'xs')} ${it.n}`, 'item');
+      return;
+    }
+    const drop = { id: 'gd:' + (G.Net.myId || 0) + ':' + Date.now().toString(36) + Math.floor(Math.random() * 1e4), item: id, n: 1, dur: d, x, y: y + 0.3, z, age: 0 };
+    G.Net.send({ t: 'gdrop', d: Object.assign({}, drop) });
+    G.Drops.add(drop);
+    G.UI.msg(`Mochila llena: ${it.n.toLowerCase()} se queda en el suelo.`, 'warn', 'full');
+  };
+  // Gasta una chispa del mechero (primero el de la mano; si no, cualquiera de la mochila)
+  Game.useLighter = function () {
+    const S = G.Inv.slots, i = S[G.Inv.sel] && S[G.Inv.sel].id === 'mechero' ? G.Inv.sel : S.findIndex((s) => s && s.id === 'mechero');
+    if (i < 0) return false;
+    const s = S[i];
+    s.d = (s.d ?? G.ITEMS.mechero.dur) - 1;
+    if (s.d <= 0) { S[i] = null; G.Audio.play('break'); G.UI.msg('Tu mechero se ha gastado: fabrica otro (1 sílex + 1 fibra).', 'warn', 'lighter'); }
+    G.Inv.changed();
+    const P = G.Player; P.swing = 1; P.swingCount++;
+    return true;
+  };
+  // Encender una fogata o una antorcha apagada
+  Game.lightFire = function (s) {
+    if (!G.Inv.count('mechero')) { G.UI.msg('Necesitas un 🔥 <b>mechero</b> para encenderla: fabrícalo con 1 sílex + 1 fibra (pestaña 🪓 Herramientas).', 'warn', 'lighter'); G.Audio.play('error'); return false; }
+    if (s.type === 'fogata') {
+      if (s.fuel < 0) s.fuel = -s.fuel;
+      else if (G.Inv.count('madera') > 0) { G.Inv.remove('madera', 1); s.fuel = 120; }
+      else { G.UI.msg('La fogata no tiene leña: necesitas 1 madera para encenderla.', 'warn', 'nowood'); return false; }
+      G.state.flags.fire = true;
+    } else s.fuel = G.Build.TORCH_RAIN;
+    Game.useLighter();
+    G.Net.fuel(s);
+    G.Audio.play('ignite');
+    G.UI.msg(s.type === 'fogata' ? '🔥 ¡Fuego encendido!' : '🔥 Antorcha encendida', 'good', 'fuel');
+    return true;
+  };
+  // Clic derecho con la antorcha en la mano: clavarla en el suelo o en la pared que miras
+  Game.placeTorch = function () {
+    const P = G.Player, held = G.Inv.held(), tg = Game.target;
+    if (!held || held.id !== 'antorcha' || P.ship || P.dead) return;
+    if (tg && tg.kind !== 'water' && (tg.kind !== 'struct' || tg.s.type === 'antorcha')) return;
+    const pl = G.Build.planTorch();
+    if (!pl.ok) { G.UI.msg(pl.reason || 'Apunta al suelo o a una pared cercana.', 'warn', 'place'); G.Audio.play('error'); return; }
+    pl.d = held.d; pl.fuel = G.Build.TORCH_RAIN;
+    const s = G.Build.place(pl);
+    G.Net.placed(s);
+    G.Inv.consumeHeld();
+    G.Ach.add('place:antorcha', 1, true);
+    P.swing = 1; P.swingCount++;
+    const f = G.state.flags;
+    if (!f.torchTip) { f.torchTip = true; G.UI.msg('🔥 Antorcha clavada: aquí no se gasta, pero con lluvia y sin techo se apaga en 3 minutos. Vuelve a encenderla con un mechero (<kbd>E</kbd>) o recógela (<kbd>X</kbd>).', 'info'); }
   };
 
   Game.learned = (rec) => !rec.learn || (G.Cheats && G.Cheats.flag('free')) || (rec.learn.startsWith('style_') ? G.Styles.learned(rec.learn.slice(6)) : false) || (G.state.world && G.state.world.story && G.state.world.story.learned && G.state.world.story.learned[rec.learn]);
@@ -379,7 +465,7 @@
       return;
     }
     G.Audio.play(rec.station === 'horno' ? 'smelt' : rec.station === 'banco' ? 'hammer' : 'craft');
-    G.UI.msg(`Fabricaste: ${G.ITEMS[rec.id].i} ${G.ITEMS[rec.id].n}${n > 1 ? ' ×' + n : ''}`, 'good');
+    G.UI.msg(`Fabricaste: ${G.icon(rec.id, 'xs')} ${G.ITEMS[rec.id].n}${n > 1 ? ' ×' + n : ''}`, 'good');
     G.state.stats.crafted++;
     G.Ach.add('craft:' + rec.id, added, true);
     if (rec.cat === 'ropa') G.Ach.add('craftRopa');
@@ -400,9 +486,65 @@
       Game.grantLoot(c.id, G.Net.myId);
       return;
     }
+    if (c.kind === 'chest') { Game.openStore(c); return; }
     if (c.opened) { G.UI.msg('Está vacío.', 'info', 'loot'); return; }
     if (!G.Net.authority()) { G.Net.send({ t: 'loot', id: c.id }); return; }
     Game.grantLoot(c.id, G.Net.myId);
+  };
+  // Cofres de las islas: al abrirlos enseñan su botín y después sirven para guardar objetos,
+  // como un cofre construido (16 casillas). Su contenido está en world.store y se guarda con la partida.
+  const pad16 = (items) => {
+    const out = [];
+    for (const [id, n] of items) {
+      if (!G.ITEMS[id]) continue;
+      for (let left = n; left > 0 && out.length < 16;) { const k = Math.min(left, G.Inv.maxStack(id)); out.push({ id, n: k, d: G.ITEMS[id].tool ? G.ITEMS[id].dur : undefined }); left -= k; }
+    }
+    while (out.length < 16) out.push(null);
+    return out;
+  };
+  const storeOf = (id) => { const w = G.state.world; w.store = w.store || {}; if (!w.store[id]) w.store[id] = new Array(16).fill(null); return w.store[id]; };
+  const showStore = (c) => G.UI.openChest({ id: c.id, loot: true, title: '📦 ' + c.name, items: storeOf(c.id) });
+  const lootAch = () => { G.Ach.add('loot:chest', 1, true); G.Ach.earn('loot'); G.Audio.play('loot'); };
+  let pendingStore = null;
+  Game.openStore = function (c) {
+    const w = G.state.world;
+    if (w.loot[c.id]) { showStore(c); return; }
+    if (!G.Net.authority()) { pendingStore = c.id; G.Net.send({ t: 'lootOpen', id: c.id }); return; }
+    fillStore(c.id, G.Net.myId);
+    showStore(c);
+  };
+  // Solo el anfitrión (o la partida individual) llena el cofre con su botín la primera vez
+  function fillStore(id, who) {
+    const w = G.state.world;
+    if (w.loot[id]) return;
+    w.store = w.store || {};
+    w.store[id] = pad16(G.Landmarks.lootItems(id));
+    w.loot[id] = 1;
+    G.Landmarks.setOpened(id, true);
+    G.Story.onLootOpened(id);
+    G.Net.send({ t: 'lootOpened', id });
+    G.Net.send({ t: 'lstore', id, items: w.store[id], opener: who });
+    if (!G.Net.active || who === G.Net.myId) lootAch();
+  }
+  Game.lootOpenReq = function (id, from) {
+    const w = G.state.world;
+    if (!w) return;
+    if (!w.loot[id]) fillStore(id, from);
+    else G.Net.send({ t: 'lstore', id, items: storeOf(id), opener: from, again: 1 });
+  };
+  // Contenido de un cofre de isla recibido por la red (lo llenó el anfitrión o alguien lo cambió)
+  Game.onStore = function (m) {
+    const w = G.state.world;
+    if (!w) return;
+    w.store = w.store || {};
+    w.store[m.id] = m.items;
+    if (G.UI.chest && G.UI.chest.loot && G.UI.chest.id === m.id) { G.UI.chest.items = m.items; G.UI.refreshInv(); }
+    if (m.opener === G.Net.myId && pendingStore === m.id) {
+      pendingStore = null;
+      const c = G.Landmarks.byId(m.id);
+      if (!m.again) lootAch();
+      if (c) showStore(c);
+    }
   };
   // Solo el anfitrión (o la partida individual) reparte el botín, para que nadie lo reciba dos veces
   Game.grantLoot = function (id, who) {
@@ -523,9 +665,11 @@
     G.Story.onDeath();
     G.Modes.onDeath();
     const rule = G.Modes.deathRule();
+    const grave = G.Grave.onDeath(); // regla «cofre»: todo lo que llevas se queda en un cofre (grave.js)
     document.getElementById('deadCause').textContent = cause || 'No sobreviviste';
     document.getElementById('deadRule').textContent = rule === 'out' ? 'Estás eliminado: podrás mirar a tu equipo hasta que acabe la partida.' :
-      `Reaparecerás en tu cama (o en tu playa) y ${rule === 'keep' ? 'conservarás todo' : rule === 'all' ? 'perderás todos tus objetos' : 'perderás la mitad de tus recursos'}.`;
+      rule === 'half' ? (grave ? `Reaparecerás en tu cama (o en tu playa). Tus cosas quedaron en un cofre ${grave.water ? 'flotando con una bandera roja 🚩' : 'enterrado bajo una ✖ roja'}: tienes 5 minutos para recuperarlas. En el mapa (M) verás la zona.` : 'Reaparecerás en tu cama (o en tu playa).') :
+      `Reaparecerás en tu cama (o en tu playa) y ${rule === 'keep' ? 'conservarás todo' : 'perderás todos tus objetos'}.`;
     document.getElementById('btnRespawn').textContent = rule === 'out' ? 'Mirar a mi equipo' : 'Reaparecer';
     G.Main.showScreen('dead');
   };
@@ -534,9 +678,8 @@
     if (rule === 'out') { G.state.spectate = true; G.Modes.onPlayerOut(); return; }
     for (let i = 0; i < G.Inv.slots.length; i++) {
       const s = G.Inv.slots[i];
-      if (!s || rule === 'keep') continue;
-      if (rule === 'all') { G.Inv.slots[i] = null; continue; }
-      if (!G.ITEMS[s.id].tool) { s.n = Math.floor(s.n / 2); if (s.n <= 0) G.Inv.slots[i] = null; }
+      if (!s || rule !== 'all') continue; // con «cofre» ya está todo en el cofre; con «conservar», se queda
+      G.Inv.slots[i] = null;
     }
     if (rule === 'all') for (const k of G.Inv.SLOTS) G.Inv.equip[k] = null;
     G.Inv.changed();
@@ -545,7 +688,7 @@
     const S = P.stats;
     S.health = 60; S.hunger = Math.max(S.hunger, 50); S.thirst = Math.max(S.thirst, 50); S.stamina = 100;
     if (!G.Net.active) G.Creatures.removeWolves();
-    G.UI.msg(rule === 'keep' ? 'Despiertas aturdido…' : rule === 'all' ? 'Despiertas aturdido… Lo perdiste todo.' : 'Despiertas aturdido… Perdiste la mitad de tus recursos.', 'warn');
+    G.UI.msg(rule === 'all' ? 'Despiertas aturdido… Lo perdiste todo.' : rule === 'half' && G.Grave.mineActive() ? 'Despiertas aturdido… ¡Corre a por tu cofre! Tienes 5 minutos (mira la zona en el mapa, <kbd>M</kbd>).' : 'Despiertas aturdido…', 'warn');
   };
   Game.homeSpawn = () => (G.Modes.active ? G.Modes.spawnFor(G.Net.team) : G.World.spawn);
 
@@ -567,6 +710,17 @@
     G.Ach.tick(dt);
     G.Styles.update(dt);
     G.Prologue.update(dt);
+    G.Voice.update(dt);
+    G.Drops.update(dt);
+    G.Pets.update(dt);
+    G.Bounty.update();
+    G.Treasure.update(dt);
+    G.Quests.update(dt);
+    G.SeaWx.update(dt);
+    G.Crew.update(dt);
+    G.Navy.update(dt);
+    G.Bosses.update(dt);
+    G.Grave.update(dt);
     P.cd = Math.max(0, P.cd - dt);
     if (!st.spectate) { P.update(dt, inputOn); P.updateStats(dt); }
     G.Net.update(dt);
@@ -592,21 +746,26 @@
     const shipType = hit && (hit.ship || hit.plano);
     const pl = G.Build.updateGhost(st.mode === 'playing' && !P.ship ? placeType || null : null);
     const spl = G.Ships.updateGhost(st.mode === 'playing' && !P.ship ? shipType || null : null);
+    const tgt = Game.target, tpl = G.Build.updateTorchGhost(st.mode === 'playing' && !P.ship && !!held && held.id === 'antorcha' && (!tgt || tgt.kind === 'water' || (tgt.kind === 'struct' && tgt.s.type !== 'antorcha')));
     G.Fishing.update(dt);
     let prompt = Game.promptFor(Game.target);
+    if (!prompt && G.Treasure.near()) prompt = '✖ <b>Tesoro enterrado</b> · <kbd>E</kbd> Cavar aquí';
     if (held && hit.fishing && (!Game.target || Game.target.kind === 'water' || G.Fishing.state !== 'idle')) prompt = G.Fishing.prompt();
     if (!Game.target && held && held.id === 'cuenco' && G.Weather.intensity > 0.3 && !Game.sheltered() && G.Weather.fallKind === 'rain') prompt = '🌧️ <kbd>E</kbd> Recoger agua de lluvia';
     if (st.sleepBed && G.Net.sleepCount) prompt = `💤 Esperando a que todos se acuesten (${G.Net.sleepCount.n}/${G.Net.sleepCount.total})`;
     if (pl) prompt = `<b>${hit.n}</b> · ` + (pl.ok ? '<kbd>Clic</kbd> Colocar' : `<span class="warn">${pl.reason}</span>`) + (placeType === 'cama' || placeType === 'fogata' || placeType === 'banco' ? ' · <kbd>R</kbd> Girar' : '');
     if (spl) prompt = `<b>${hit.n}</b> · ` + (spl.ok ? '<kbd>Clic</kbd> Colocar en el agua' : `<span class="warn">${spl.reason}</span>`) + ' · <kbd>R</kbd> Girar';
+    if (tpl && tpl.hit) prompt = '<b>Antorcha</b> · ' + (tpl.ok ? `<kbd>Clic derecho</kbd> Clavar ${tpl.mount === 'wall' ? 'en la pared' : 'en el suelo'}` : `<span class="warn">${tpl.reason}</span>`);
+    const gp = G.Grave.prompt();
+    if (gp && (G.Grave.aimed() || G.Grave.near() || !prompt)) prompt = gp;
     if (P.station && P.station.kind === 'cannon') prompt = '💣 <kbd>Clic</kbd> Disparar · ratón: apuntar · <kbd>E</kbd> Soltar';
     else if (P.station && P.station.kind === 'helm') prompt = P.ship.def.paddle ? '🛶 <kbd>W</kbd>/<kbd>S</kbd> remar · <kbd>A</kbd>/<kbd>D</kbd> girar · <kbd>E</kbd> levantarse' : `☸️ Al timón · <kbd>V</kbd> cámara${P.ship.type === 'lancha' ? ' · <kbd>Clic</kbd> cañón de proa' : ''} · <kbd>E</kbd> soltar`;
     else if (P.station && P.station.kind === 'seat') prompt = '🪑 Sentado · <kbd>E</kbd> levantarse';
     if (P.sinking) prompt = '🌀 ¡Te hundes! Un compañero puede rescatarte con <kbd>E</kbd>';
     if (st.spectate) prompt = '👁️ Estás eliminado: observando la partida';
-    G.UI.setPrompt(st.mode === 'playing' ? prompt : '');
+    G.UI.setPrompt(st.mode === 'playing' && !G.Story.dialog ? prompt : '');
     G.UI.el.crosshair.classList.toggle('active', !!Game.target);
-    if (inputOn && G.Input.mouseL) Game.attack();
+    if (inputOn && G.Input.mouseL && !G.Grave.dig(dt)) Game.attack();
     G.Creatures.update(dt);
     G.Build.update(dt);
     G.Res.update(dt);
@@ -660,6 +819,7 @@
 
   // ------------------------------------------------------------------ nueva partida / cargar
   Game.resetWorld = function () {
+    G.Drops.clear();
     if (G.Player.ship) { G.Player.ship = null; G.Player.station = null; }
     G.Ships.clear();
     G.Build.clear();
@@ -721,7 +881,7 @@
     const teams = mode === 'versus' ? G.Modes.FORMATS[opts.cfg.format].length : 0;
     await buildWorld(seed, mode, teams);
     const W = G.World;
-    G.state = { mode: 'playing', day: 1, t: 7 / 24, diff, dayLen: 300, spawn: null, flags: {}, stats: fixStats(), obj: 0, world: Game.newWorldState(), seed, gm: mode, cfg: opts.cfg || G.Modes.DEFAULT_COOP, fruit: null };
+    G.state = { mode: 'playing', day: 1, t: 7 / 24, diff, dayLen: 600, spawn: null, flags: {}, stats: fixStats(), obj: 0, world: Game.newWorldState(), seed, gm: mode, cfg: opts.cfg || G.Modes.DEFAULT_COOP, fruit: null, bounty: 0, quests: null };
     G.Cheats.reset();
     G.Clock.init(seed, 7 / 24);
     G.Weather.set('clear', 200);
@@ -754,9 +914,9 @@
     const teams = st.gm === 'versus' ? G.Modes.FORMATS[st.cfg.format].length : 0;
     await buildWorld(st.seed, st.gm || 'coop', teams);
     G.state = {
-      mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 300, spawn: (pdata && pdata.spawn) || null,
+      mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 600, spawn: (pdata && pdata.spawn) || null,
       flags: (pdata && pdata.flags) || {}, stats: fixStats(pdata && pdata.stats), obj: (pdata && pdata.obj) || 0,
-      world: st.world || Game.newWorldState(), seed: st.seed, gm: st.gm || 'coop', cfg: st.cfg, fruit: (pdata && pdata.fruit) || null,
+      world: st.world || Game.newWorldState(), seed: st.seed, gm: st.gm || 'coop', cfg: st.cfg, fruit: (pdata && pdata.fruit) || null, bounty: (pdata && pdata.seed === st.seed && pdata.bounty) || 0, quests: (pdata && pdata.seed === st.seed && pdata.quests) || null,
       styles: (pdata && pdata.seed === st.seed && pdata.styles) || {}, train: (pdata && pdata.seed === st.seed && pdata.train) || {},
     };
     if (Array.isArray(G.state.world.loot)) G.state.world.loot = Object.assign({}, G.state.world.loot);
@@ -770,6 +930,7 @@
     G.Ships.setState(snap.ships);
     G.Creatures.applySnapshot(snap.c || []);
     for (const bl of snap.drops || []) G.Landmarks.addDrop(bl);
+    G.Drops.setState(snap.gd);
     if (st.gm === 'versus') { G.Modes.st = st.vs; G.Modes.start(st.cfg, st.vs.assign, false); }
     if (G.state.spawn && !G.Build.list.some((s) => s.type === 'cama' && Math.hypot(s.x - G.state.spawn.x, s.z - G.state.spawn.z) < 0.5)) G.state.spawn = null;
     const P = G.Player;
@@ -795,8 +956,8 @@
     const seed = st.seed || 20240101;
     await buildWorld(seed, 'coop', 0);
     G.state = {
-      mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 300, spawn: st.spawn, flags: st.flags || {}, stats: fixStats(st.stats), obj: st.obj || 0,
-      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null, styles: st.styles || {}, train: st.train || {},
+      mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 600, spawn: st.spawn, flags: st.flags || {}, stats: fixStats(st.stats), obj: st.obj || 0,
+      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null, styles: st.styles || {}, train: st.train || {}, bounty: st.bounty || 0, quests: st.quests || null,
     };
     // Partidas antiguas: el botín era una lista y la balsa era una construcción
     if (Array.isArray(G.state.world.loot)) { const o = {}; G.state.world.loot.forEach((v, i) => { if (v) o[i] = 1; }); G.state.world.loot = o; }
@@ -810,9 +971,11 @@
       if (b.type === 'balsa') { G.Ships.create({ type: 'balsa', x: b.x, z: b.z, yaw: b.rot, crate: [{ id: 'rep_balsa', n: 2 }] }); G.state.flags.raft = true; continue; }
       G.Build.place(b, true);
     }
+    G.Build.unclip();
     G.Res.setState(data.r);
     for (const s of data.ships || []) G.Ships.create(s);
     for (const bl of data.drops || []) G.Landmarks.addDrop(bl);
+    G.Drops.setState(data.gd);
     applyPlayer(data.p);
     applyInventory(data.inv, data.sel, data.eq);
     G.Creatures.populate();

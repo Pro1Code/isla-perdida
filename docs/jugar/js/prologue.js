@@ -46,6 +46,12 @@
   function pirateLook(type, extra) {
     const r = U.rng(extra * 7919 + 13);
     const pick = (a) => a[Math.floor(r() * a.length)];
+    // Tripulación fantasma del Holandés de las Mareas
+    if (type === 'ghost_captain') return { name: 'Capitán Van Bruma', role: 'boss', shirt: '#24322c', skin: '#a8d8c0', pants: '#141c18', cos: ['cos_tricornio', 'cos_capa', 'cos_parche'], hold: 'sable' };
+    if (type === 'ghost_pirate' || type === 'ghost_gun') return { name: type === 'ghost_gun' ? 'Tirador fantasma' : 'Pirata fantasma', role: 'ghost', shirt: pick(['#3a4a42', '#2a3430', '#4a5a50']), skin: pick(['#a8d8c0', '#98c8b4', '#b8e4d0']), pants: '#1a2420', cos: pick([['cos_bandana'], ['cos_bandana', 'cos_parche'], ['cos_tricornio'], ['cos_parche']]), hold: type === 'ghost_gun' ? 'mosquete' : 'sable' };
+    // Marines de la Marina Blanca (uniforme blanco y azul)
+    if (type === 'marine_boss') return { name: 'Comodoro de la Marina Blanca', role: 'boss', shirt: '#f4f4f0', skin: pick(['#e6b48e', '#c68d67']), pants: '#1e2a4a', cos: ['cos_gorra_marina', 'cos_abrigo_alm', 'cos_bigote'], hold: 'katana' };
+    if (type === 'marine' || type === 'marine_gun') return { name: type === 'marine_gun' ? 'Tirador de la Marina' : 'Marine de la Marina Blanca', role: 'marine', shirt: '#f2f2ee', skin: pick(['#f3d2b4', '#e6b48e', '#c68d67', '#a8704a']), pants: '#1e2a4a', cos: ['cos_gorra_marina'], hold: type === 'marine_gun' ? 'mosquete' : 'sable' };
     if (type === 'pirate_boss') return { name: 'Capitana Hiena', role: 'boss', shirt: '#2a2a2e', skin: '#e6b48e', pants: '#5a1a1a', cos: ['cos_tricornio', 'cos_capa', 'cos_parche'], hold: 'sable' };
     return {
       name: type === 'pirate_gun' ? 'Pirata tirador' : 'Pirata de la Hiena', role: 'pirate',
@@ -59,7 +65,21 @@
     const model = G.Character.create(hx(d.shirt), { skin: hx(d.skin), pants: hx(d.pants) });
     G.Equip.apply(model, d.cos || []);
     if (d.hold) { const t = G.makeItemMesh(d.hold); if (t) { t.rotation.set(Math.PI / 2, 2.12, 0); model.hand.add(t); } }
-    return { g: model.root, legs: [], head: null, model, vinfo: { name: d.name, role: d.role }, feathers: { dispose() {} }, hold: !!d.hold };
+    const out = { g: model.root, legs: [], head: null, model, vinfo: { name: d.name, role: d.role }, feathers: { dispose() {} }, hold: !!d.hold };
+    if (/^ghost_/.test(type)) out.ghostMats = ghostly(model);
+    return out;
+  };
+  // Fantasmas: todo el cuerpo translúcido y con un brillo verdoso
+  function ghostly(model) {
+    const mats = [], tint = new THREE.Color(0xa8e8d0);
+    model.root.traverse((o) => {
+      if (!o.isMesh) return;
+      const one = (m) => { const k = m.clone(); k.transparent = true; k.opacity = 0.62; k.depthWrite = false; if (k.color) k.color.lerp(tint, 0.45); if (k.emissive) { k.emissive.setHex(0x2a8a62); k.emissiveIntensity = 0.6; } mats.push(k); return k; };
+      o.material = Array.isArray(o.material) ? o.material.map(one) : one(o.material);
+    });
+    const dispose = model.dispose && model.dispose.bind(model);
+    model.dispose = () => { if (dispose) dispose(); for (const m of mats) m.dispose(); };
+    return mats;
   };
   // Muñecos de entrenamiento
   Pr.dummy = function (extra) {
@@ -238,7 +258,7 @@
     if (!nearAny(P.x, P.z, 170)) return;
     const alive = (t) => list.filter((c) => c.type === t && !c.dead).length;
     const far = !nearAny(P.x, P.z, 45);
-    if (!f.pirateBoss && !list.some((c) => c.type === 'pirate_boss') && (far || !Pr.bossOnce)) { Pr.bossOnce = true; const c = spawn('pirate_boss', P.x + 1, P.z + 2, undefined, 99); c.hx = P.x; c.hz = P.z; c.homeR = 5; }
+    if ((!f.pirateBoss || G.Bosses.canSpawn('pirate_boss')) && !list.some((c) => c.type === 'pirate_boss') && (far || !Pr.bossOnce)) { Pr.bossOnce = true; const c = spawn('pirate_boss', P.x + 1, P.z + 2, undefined, 99); c.hx = P.x; c.hz = P.z; c.homeR = 5; }
     const want = f.pirateBoss ? [2, 1] : [3, 2];
     setTimeout(() => (Pr.crewOnce = true), 0);
     for (const [t, n] of [['pirate', want[0]], ['pirate_gun', want[1]]]) {
@@ -269,14 +289,14 @@
     return trainer(c, n, f);
   };
   function hermit(c, f) {
-    const who = 'Silvano, el ermitaño';
+    const who = 'Silvano, el ermitaño', S = G.LINES.silvano;
     if (!f.metHermit) {
       chain([
-        [who, '«¡Eh, náufrago! Creí que el mar te había llevado.»', '«¿Dónde estoy?»'],
-        [who, '«En la Isla Perdida. Anoche vi cómo la Marina Blanca hundía vuestro barco. Algunos de los tuyos llegaron a la costa este, junto al viejo naufragio.»', '«Tengo que encontrarlos.»'],
-        [who, '«Escucha primero: no naufragasteis aquí por casualidad. Rogan D. Aldor, el Rey de las Mareas, escondió en esta isla una Fruta del Abismo.»', '«¿Una Fruta del Abismo?»'],
-        [who, '«Quien la come gana un poder… y el mar lo rechaza para siempre. Tu capitana la buscaba. Y los piratas de la Hiena, en la costa oeste, también.»', '«¿Por dónde empiezo?»'],
-        [who, '«Haz fuego antes de que caiga la noche: los lobos salen con la oscuridad. Luego busca a tu gente. Yo vivo junto al lago… ven a verme cuando quieras aprender algo más que a sobrevivir.»', 'Gracias, viejo'],
+        [who, S.meet[0], '«¿Dónde estoy?»'],
+        [who, S.meet[1], '«Tengo que encontrarlos.»'],
+        [who, S.meet[2], '«¿Una Fruta del Abismo?»'],
+        [who, S.meet[3], '«¿Por dónde empiezo?»'],
+        [who, S.meet[4], 'Gracias, viejo'],
       ], () => {
         f.metHermit = 1; sync();
         G.UI.banner('La Fruta de Rogan', 'Sobrevive, encuentra a tu tripulación y sigue las pistas');
@@ -286,71 +306,52 @@
       return;
     }
     if (!G.Styles.learned('magic')) {
-      show(who, '«Las mareas tienen memoria, y quien sabe escucharlas puede pedirles cosas. ¿Quieres aprender la magia de las mareas?»', [['«Enséñame.»', () => {
+      show(who, S.teach, [['«Enséñame.»', () => {
         G.Styles.learn('magic'); giveOnce('baston');
         startTrain('magic');
-        show(who, '«Toma mi viejo bastón. Clic: lanzas una chispa arcana. Q: llamas al rayo. Gasta maná, que vuelve solo. Practica con el tótem de runas: 5 chispas.»');
+        show(who, S.how);
       }], ['«Ahora no.»', null]]);
       return;
     }
-    if (trainPending('magic')) { show(who, `«El tótem espera: ${trainLeft('magic')} chispas más. Con el bastón en la mano, apunta y haz clic.»`); return; }
+    if (trainPending('magic')) { show(who, `${S.train} (Te faltan ${trainLeft('magic')} chispas.)`); return; }
     const clues = Pr.clues();
-    const lines = [
-      clues < 3 ? `«Llevas ${clues} de las 3 pistas de Rogan. Él escribía como hablaba: en acertijos.»` : f.treasure ? '«Ya tienes la fruta… o ya la llevas dentro. Ahora el mar es tu enemigo y tu camino.»' : '«Tres pistas… ¡entonces ya sabes dónde cavar! Ve antes que los piratas.»',
-      '«En Isla Tahuri vive una tribu que sabe leer las piedras negras. Su jefe, Kalgor, sabe más de lo que cuenta.»',
-      '«En el nivel 3 de la magia aprenderás la Marea curativa (Z). Tu tripulación te lo agradecerá.»',
-      '«Rogan pasó por aquí hace veinte años. Nunca volvió a sonreír como aquel día.»',
-    ];
+    const lines = [clues < 3 ? S.clues[clues] : f.treasure ? S.fruit : S.dig].concat(S.tips);
     show(who, lines[Math.floor(Math.random() * lines.length)]);
   }
   function captain(c, f) {
-    const who = 'Capitana Mara';
+    const who = 'Capitana Mara', M = G.LINES.mara;
     if (!f.metCrew) {
       chain([
-        [who, '«¡Estás vivo! Por las mareas… creí que te habíamos perdido.»', '«¿Qué pasó con el barco?»'],
-        [who, '«La Marina Blanca nos hundió sin aviso. Iban tras lo mismo que nosotros: la fruta que Rogan escondió en esta isla.»', '«¿Cómo la encontramos?»'],
-        [who, '«Rogan dejó tres pistas. La primera, bajo el ancla del viejo naufragio de esta playa. La segunda, en la piedra de la calavera del lago. La tercera… se la robó la Hiena.»', '«¿La Hiena?»'],
-        [who, '«La capitana pirata de la costa oeste. No vayas a por ella sin saber pelear: Kaito, Crane y Bastián pueden enseñarte. Y el Log de Mareas está en los cofres del naufragio, cógelo.»', 'A la orden, capitana'],
+        [who, M.meet[0], '«¿Qué pasó con el barco?»'],
+        [who, M.meet[1], '«¿Cómo la encontramos?»'],
+        [who, M.meet[2], '«¿La Hiena?»'],
+        [who, M.meet[3], 'A la orden, capitana'],
       ], () => { f.metCrew = 1; sync(); G.UI.banner('Las pistas de Rogan', 'Aprende a pelear y encuentra las 3 pistas'); });
       return;
     }
     const clues = Pr.clues();
-    if (f.treasure) { show(who, '«¿La tienes? Es tuya: tú la encontraste. Pero piénsalo bien antes de comerla. Ahora construye una balsa: el Log de Mareas nos guiará a la siguiente isla.»'); return; }
-    if (clues >= 3) { show(who, '«¡Las tres pistas! Mira tu mapa: Rogan marcó el sitio con una ✖. ¡Ve a cavar!»'); return; }
-    if (!f.clue1) { show(who, '«La primera pista está bajo el ancla oxidada, junto al viejo naufragio. Aquí mismo, en la playa.»'); return; }
-    if (!f.clue2) { show(who, '«La segunda está en la piedra de la calavera, a la orilla del lago. El viejo Silvano vive cerca.»'); return; }
-    show(who, `«La última la tiene la Hiena, en la costa oeste. ${G.Styles.any() ? 'Ya sabes pelear: ve con cuidado y llévate comida.' : 'Aprende antes un estilo de combate con la tripulación.'}»`);
+    if (f.treasure && !G.Crew.joined()) { show(who, M.treasure, [['«¿Y la tripulación?»', () => show(who, M.crew, [['«¡A mi barco, tripulación!»', () => G.Crew.join()]])], ['«Ahora no.»', null]]); return; }
+    if (f.treasure) { show(who, M.crewAfter); return; }
+    if (clues >= 3) { show(who, M.clues3); return; }
+    if (!f.clue1) { show(who, M.clue1); return; }
+    if (!f.clue2) { show(who, M.clue2); return; }
+    show(who, M.clue3[G.Styles.any() ? 1 : 0]);
   }
-  const TIPS = {
-    sword: ['«Una buena espada corta el viento. Literalmente: Q.»', '«En el nivel 3 te enseñaré el Torbellino (Z): perfecto cuando te rodean.»', '«Con el horno puedes forjar sables. Y con obsidiana, una katana de verdad.»'],
-    gun: ['«Las balas se hacen en el horno: hierro y pólvora. La pólvora, con azufre y carbón.»', '«El mosquete pega fuerte y llega lejos, pero recarga despacio. Elige bien el momento.»', '«Q: disparo certero. Respira, apunta… y no falles.»'],
-    fist: ['«Las manos vacías también son un arma. Deja la barra rápida en un hueco sin nada.»', '«Cada tercer golpe es más fuerte. Cuenta: uno, dos… ¡tres!»', '«La Patada huracán (Q) aparta a cualquiera que se acerque demasiado.»'],
-  };
   function trainer(c, n, f) {
-    const k = n.style, D = G.Styles.DEF[k], who = n.name.split(',')[0];
+    const k = n.style, D = G.Styles.DEF[k], who = n.name.split(',')[0], T = G.LINES[n.key];
     if (!G.Styles.learned(k)) {
-      const intro = {
-        sword: '«¿Quieres aprender a usar una espada? No es levantar un palo y ya: es respirar con el acero.»',
-        gun: '«¿Sabes lo que es una pistola de chispa? Ruido, humo… y un agujero donde apuntas. ¿Te enseño?»',
-        fist: '«En la cocina y en la pelea lo importante son las piernas. ¿Te enseño a pelear sin armas?»',
-      }[k];
-      show(who, intro, [[`«Enséñame.» (${D.icon} ${D.name})`, () => {
+      show(who, T.intro, [[`«Enséñame.» (${D.icon} ${D.name})`, () => {
         G.Styles.learn(k);
         if (k === 'sword') giveOnce('katana');
         if (k === 'gun') { giveOnce('pistola'); G.Game.give('bala', 15); }
         startTrain(k);
-        const how = {
-          sword: '«Toma mi katana de repuesto. Clic para cortar, Q para el corte volador. Golpea el muñeco de paja 10 veces.»',
-          gun: '«Toma esta pistola y 15 balas. Clic para disparar: la bala va donde miras. Acierta 5 veces a la diana.»',
-          fist: '«Deja las manos vacías (un hueco sin nada en la barra rápida). Clic para golpear, Q para la patada huracán. Dale 12 golpes al saco.»',
-        }[k];
-        show(who, how);
+        show(who, T.how);
       }], ['«Ahora no.»', null]]);
       return;
     }
-    if (trainPending(k)) { show(who, `«Sigue practicando: ${trainLeft(k)} más con el ${Pr.DUMMIES.find((d) => d.style === k).name.toLowerCase()}.»`); return; }
-    const pool = TIPS[k];
-    show(who, pool[Math.floor(Math.random() * pool.length)]);
+    if (trainPending(k)) { show(who, `${T.train} (Te faltan ${trainLeft(k)}.)`); return; }
+    const pool = T.tips;
+    show(who, pool[Math.floor(Math.random() * pool.length)], G.Crew.options(c));
   }
   // Entrega un arma solo si no la tienes ya
   function giveOnce(id) { if (G.Inv.count(id) <= 0 && !G.Inv.SLOTS.some((s) => G.Inv.equip[s] && G.Inv.equip[s].id === id)) G.Game.give(id, 1); }
@@ -373,7 +374,9 @@
     const gift = { sword: ['venda', 2], gun: ['bala', 15], fist: ['brocheta', 3], magic: ['infusion', 2] }[k];
     G.Game.give(gift[0], gift[1]);
     const master = Pr.NPCS.find((n) => n.style === k);
-    G.UI.banner('¡Entrenamiento completado!', `${master ? master.name.split(',')[0] + ': ' : ''}«Buen trabajo. Ya estás listo.»`);
+    const done = master ? G.LINES[master.key].done : '«Buen trabajo. Ya estás listo.»';
+    G.UI.banner('¡Entrenamiento completado!', `${master ? master.name.split(',')[0] + ': ' : ''}${G.stripMood(done)}`);
+    if (master) G.Voice.say(master.key, done);
     G.Audio.play('win');
   };
 
@@ -384,7 +387,7 @@
       const k = c.id === 'p:clue1' ? 'clue1' : 'clue2', item = c.id === 'p:clue1' ? 'pista_1' : 'pista_2';
       if (G.Inv.count(item) > 0) { G.UI.msg('Ya tienes esta pista (clic derecho sobre ella para leerla).', 'info', 'clue'); return; }
       G.Story.show({ who: c.id === 'p:clue1' ? '⚓ Ancla oxidada' : '💀 Piedra de la calavera',
-        text: c.id === 'p:clue1' ? 'Entre la arena y el hierro oxidado hay una cajita de hojalata. Dentro, un pergamino enrollado con un sello: una R y un ancla.' : 'Detrás de la calavera tallada hay un hueco. Alguien escondió un pergamino envuelto en hule.',
+        text: c.id === 'p:clue1' ? G.LINES.narrador.ancla : G.LINES.narrador.calavera,
         options: [['Coger el pergamino', () => {
           G.Game.give(item, 1);
           if (!f[k]) { f[k] = 1; sync(); }
@@ -424,12 +427,7 @@
     if (!G.Net.active || who === G.Net.myId) G.UI.fade(give); else give();
   }
   Pr.readClue = function (item) {
-    const T = {
-      pista_1: '«Primera palabra: al sur, donde la arena se vuelve roca.» — R. D. A.\n(En el reverso hay un dibujo: una calavera junto a un lago.)',
-      pista_2: '«Segunda palabra: busca la palmera que se inclina hacia el mar.» — R. D. A.\n(Falta un trozo del pergamino. Hay marcas de cuchillo… y huellas de botas pirata.)',
-      pista_3: '«Tercera palabra: a sus pies, donde la gaviota de piedra mira al horizonte, cava.» — R. D. A.',
-    };
-    G.Story.show({ who: '📜 Pista de Rogan', text: T[item] });
+    G.Story.show({ who: '📜 Pista de Rogan', text: G.LINES.rogan[item] });
     if (Pr.clues() >= 3 && !F().treasure) setTimeout(() => G.UI.banner('✖ El cofre de Rogan', 'Está marcado en tu mapa (M): costa sur, junto a la palmera torcida'), 1500);
   };
   // Objetos que dan pistas (la tercera la suelta la capitana Hiena)

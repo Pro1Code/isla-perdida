@@ -55,6 +55,7 @@
     { give: { cuero: 3 }, get: ['dardo', 6] }, { give: { doblon: 8 }, get: ['plano_velero', 1] }, { give: { perla: 4 }, get: ['catalejo', 1] },
     { give: { piel_gruesa: 2 }, get: ['chocolate', 2] }, { give: { doblon: 5 }, get: ['tela_vela', 2] },
     { give: { perla: 3 }, get: ['tocado_shandara', 1] }, { give: { cuero: 5 }, get: ['pantalon_cuero', 1] }, { give: { doblon: 6 }, get: ['aletas', 1] },
+    { give: { doblon: 8 }, get: ['mapa_tesoro', 1] },
   ];
   const FRUITS = {
     llama: { item: 'fruta_llama', name: 'Llama-Llama', icon: '🔥', power: 'Bola de fuego', desc: 'Inmune al frío y a la lava, brillas de noche y tus golpes queman.' },
@@ -64,6 +65,7 @@
     roca: { item: 'fruta_roca', name: 'Roca-Roca', icon: '🪨', power: 'Golpe sísmico', desc: 'Piel de piedra: recibes mucho menos daño y golpeas más fuerte.' },
   };
   St.FRUITS = FRUITS;
+  St.TRADES = TRADES;
   // Dónde aparece cada fruta al principio
   const FRUIT_SPOTS = { llama: 'c:brasa:rim', hielo: 'c:escarcha:cave', muelle: 'c:tahuri:temple', humo: 'sub', roca: 'sw1' };
 
@@ -93,7 +95,7 @@
     { id: 'gather', t: 'Recoge palos, piedras y fibra del suelo (<kbd>E</kbd>)', done: (I, f) => (I.count('palo') >= 2 && I.count('piedra') >= 2 && I.count('fibra') >= 3) || f.axe },
     { id: 'axe', t: 'Abre el inventario (<kbd>Tab</kbd>) y fabrica un <b>hacha de piedra</b>', done: (I, f) => f.axe || I.count('hacha') > 0 },
     { id: 'wood', t: 'Tala árboles para conseguir <b>8 de madera</b>', done: (I, f) => I.count('madera') >= 8 || f.fire },
-    { id: 'fire', t: 'Fabrica una <b>fogata</b> y colócala (clic derecho)', done: (I, f) => f.fire },
+    { id: 'fire', t: 'Recoge un <b>sílex</b> 🔷 del suelo, fabrica un <b>mechero</b> y una <b>fogata</b>: colócala (clic derecho) y enciéndela', done: (I, f) => f.fire },
     { id: 'crew', t: 'Reúnete con tu <b>tripulación</b> en la costa este, junto al viejo barco naufragado', done: (I, f, w) => !PRO() || w.flags.metCrew || legacy(w, f) },
     { id: 'style', t: 'Aprende un <b>estilo de combate</b>: Kaito ⚔️, Crane 🔫 o Bastián 👊 (en el campamento) o Silvano 🔮 (junto al lago)', done: (I, f, w) => !PRO() || G.Styles.any() || legacy(w, f) },
     { id: 'clues', t: 'Encuentra las <b>3 pistas de Rogan</b>: el ancla del naufragio, la piedra del lago… y la capitana Hiena', done: (I, f, w) => !PRO() || G.Prologue.clues() >= 3 || w.flags.treasure || legacy(w, f) },
@@ -223,6 +225,7 @@
   };
   St.readItem = function (id) {
     if (id && id.startsWith('pista_')) { G.Prologue.readClue(id); return true; }
+    if (id === 'mapa_tesoro') { G.Treasure.read(); return true; }
     if (id !== 'diario') return false;
     const w = W();
     w.flags = w.flags || {};
@@ -253,9 +256,10 @@
   St.show = function (d) {
     St.dialog = d;
     G.UI.showDialog(d);
+    G.Voice.dialog(d);
     if (d.fact !== undefined) setTimeout(() => St.fact(d.fact), 1200);
   };
-  St.close = function () { St.dialog = null; G.UI.hideDialog(); };
+  St.close = function () { St.dialog = null; G.UI.hideDialog(); G.Voice.stop('dialog'); };
   St.choose = function (i) {
     const d = St.dialog;
     if (!d || !d.options || !d.options[i]) { St.close(); return; }
@@ -271,23 +275,35 @@
     if (before >= -20 && w.rep < -20) { G.UI.banner('¡Traición!', 'La tribu Shandara te declara la guerra'); G.Net.send({ t: 'story', w }); }
   };
   St.tribeKilled = function () { const w = W(); w.rep = -100; G.Net.send({ t: 'story', w }); };
-  const LINES = {
-    guard: ['Wypar: «La selva tiene ojos. No te alejes del sendero.»', 'Kamakiro: «Los caimanes duermen junto al agua. No los despiertes.»', 'Wypar: «Kalgor lleva años esperando a alguien como tú.»'],
-    villager: ['Aisha: «Las ranas azules son pequeñas, pero su veneno tumba a un jaguar.»', 'Laka: «Con cacao y agua caliente se hace algo delicioso. Pregúntale a Kalgor.»', 'Brahan: «Dicen que en la isla del volcán la tierra sangra fuego.»', 'Aisha: «El mar se lleva a quien come las frutas malditas. Nunca lo olvides.»'],
+  // Frases de cada aldeano (js/lines.js): cada uno dice las suyas, con su voz
+  const lineOf = (c) => G.LINES[G.Voice.speakerOf(c.name)] || G.LINES.wypar;
+  // Aldeanos de los Kyrr (Escarcha) y de Ceniza (Brasa): frases cortas y te mandan al tablón de encargos
+  const ALDEANO_LINES = {
+    escarcha: ['El frío no perdona, forastero. Acércate a la hoguera.', 'Si quieres ayudar a los Kyrr, mira el tablón de encargos.', 'Cuando la ventisca aprieta, el Rey de la Escarcha baja de la montaña.', 'Aquí vivimos del hielo y de la foca. Nada se desperdicia.'],
+    brasa: ['Cuidado con las coladas: aquí la tierra quema.', '¿Buscas trabajo? En el tablón hay encargos para ti.', 'El dragón duerme junto a la lava… cuando despierta, tiembla toda la isla.', 'En Ceniza forjamos el mejor hierro del archipiélago.'],
   };
+  function aldeanoTalk(c) {
+    const v = G.Creatures.ALDEANOS[c.extra] || {}, L = ALDEANO_LINES[v.tribe] || ALDEANO_LINES.escarcha;
+    c.talkI = ((c.talkI ?? -1) + 1) % L.length;
+    St.show({ who: c.name, text: L[c.talkI] });
+  }
   St.talk = function (c) {
     if (c.type === 'npc') return G.Prologue.talk(c);
+    if (c.type === 'aldeano') return aldeanoTalk(c);
     const w = W();
     w.flags = w.flags || {};
     G.Audio.play('talk');
     // Con el tocado shandara puesto, la tribu te perdona y te trata como a uno de los suyos
     if (G.Inv.eqStat('tribe') && w.rep < 0) { w.rep = 0; G.Net.send({ t: 'story', w }); G.UI.msg('🪶 Los shandara reconocen tu tocado y te perdonan.', 'good'); }
-    if (St.tribeHostile()) { St.show({ who: c.name, text: '«¡Fuera de nuestra aldea, traidor!»', options: [['Ofrecer 5 doblones de paz', () => peace()], ['Irse', null]] }); return; }
+    if (St.tribeHostile()) { St.show({ who: c.name, text: lineOf(c).hostil, options: [['Ofrecer 5 doblones de paz', () => peace()], ['Irse', null]] }); return; }
     if (c.type === 'npc') return G.Prologue.talk(c);
     if (c.role === 'chief') return chief(c, w);
     if (c.role === 'trader') return trader(c);
-    const pool = LINES[c.role] || LINES.villager;
-    St.show({ who: c.name, text: pool[Math.floor(Math.random() * pool.length)].replace(/^[^:]+: /, '') });
+    // Si eres famoso, la primera vez te comentan tu cartel de "Se busca"
+    const L = lineOf(c), recog = (G.state.recog = G.state.recog || {});
+    if (L.fama && G.Bounty.famous() && !recog[c.name]) { recog[c.name] = 1; St.show({ who: c.name, text: L.fama }); return; }
+    const pool = L.talk;
+    St.show({ who: c.name, text: pool[Math.floor(Math.random() * pool.length)] });
   };
   function peace() {
     if (G.Inv.count('doblon') < 5) { G.UI.msg('Necesitas 5 doblones.', 'warn'); return; }
@@ -296,17 +312,17 @@
     G.UI.msg('🤝 Los Shandara aceptan tu ofrenda de paz.', 'good');
   }
   function chief(c, w) {
-    const step = w.step || 0;
+    const step = w.step || 0, K = G.LINES.kalgor;
     if (!w.flags.metChief) {
-      St.show({ who: 'Anciano Kalgor', text: '«Un náufrago con un Log de Mareas en la muñeca… Hacía veinte años que no veía uno. ¿Buscas las piedras que hablan?»', options: [['«Quiero leerlas.»', () => {
+      St.show({ who: 'Anciano Kalgor', text: K.meet, options: [['«Quiero leerlas.»', () => {
         w.flags.metChief = 1; G.Net.send({ t: 'story', w });
-        St.show({ who: 'Anciano Kalgor', text: '«La escritura antigua no se regala. Tráeme 4 pescados asados y 2 mazorcas de cacao, y te enseñaré.»' });
+        St.show({ who: 'Anciano Kalgor', text: K.price });
       }], ['«Solo estoy de paso.»', null]] });
       return;
     }
     if (!w.flags.script) {
       if (G.Inv.count('pez_asado') >= 4 && G.Inv.count('cacao') >= 2) {
-        St.show({ who: 'Anciano Kalgor', text: '«Buena ofrenda.» (Kalgor dibuja símbolos en la arena y te explica su significado durante horas.)', options: [['Entregar la ofrenda', () => {
+        St.show({ who: 'Anciano Kalgor', text: K.offer, options: [['Entregar la ofrenda', () => {
           G.Inv.remove('pez_asado', 4); G.Inv.remove('cacao', 2);
           w.flags.script = 1; w.learned.cerbatana = 1; w.learned.chocolate = 1; w.rep = Math.max(w.rep, 20);
           G.Net.send({ t: 'story', w });
@@ -314,36 +330,36 @@
           G.UI.msg('📜 Aprendiste recetas shandara: <b>Cerbatana</b>, <b>Dardos venenosos</b> y <b>Chocolate caliente</b>.', 'good');
           St.fact(5);
         }]] });
-      } else St.show({ who: 'Anciano Kalgor', text: `«Te espero con 4 pescados asados (${G.Inv.count('pez_asado')}/4) y 2 mazorcas de cacao (${G.Inv.count('cacao')}/2).»` });
+      } else St.show({ who: 'Anciano Kalgor', text: `${K.waiting} (Llevas ${G.Inv.count('pez_asado')}/4 pescados y ${G.Inv.count('cacao')}/2 de cacao.)` });
       return;
     }
     const read = ['m:tahuri', 'm:perdida', 'm:escarcha', 'm:brasa'].filter((k) => w.monos[k]).length;
-    if (read < 4) { St.show({ who: 'Anciano Kalgor', text: `«Has leído ${read} de las 4 piedras. La del templo está en esta isla. Las demás, en la Isla Perdida, en Escarcha y en Brasa.»` }); return; }
+    if (read < 4) { St.show({ who: 'Anciano Kalgor', text: `${K.stones} (Has leído ${read} de 4.)` }); return; }
     if (!w.flags.twist) {
-      St.show({ who: 'Anciano Kalgor', text: '«Así que la Marina Blanca hundió Aurea… y el Ancla del Mundo lo mantiene bajo el mar.» (Se quita el tocado. Debajo, una vieja cicatriz con forma de ancla.)', options: [['«¿Quién eres en realidad?»', () => {
+      St.show({ who: 'Anciano Kalgor', text: K.twist, options: [['«¿Quién eres en realidad?»', () => {
         w.flags.twist = 1; G.Net.send({ t: 'story', w });
-        St.show({ who: 'Kalgor', text: '«Hace veinte años fui el segundo de a bordo de Rogan D. Aldor. Él encontró la Última Pieza y rió, porque el mundo aún no estaba listo. Tu naufragio no fue un accidente: la Marina Blanca iba tras ese Log. Ahora te toca decidir a ti.»', fact: 2 });
+        St.show({ who: 'Kalgor', text: K.truth, fact: 2 });
         G.UI.banner('Continuará…', 'La ruta sigue más allá de la Franja de Calma');
       }]] });
       return;
     }
-    St.show({ who: 'Kalgor', text: '«Construye un barco digno, reúne a tu tripulación y prepárate. Cuando el mar se calme en la Franja, zarparemos.»' });
+    St.show({ who: 'Kalgor', text: K.end });
   }
-  function trader(c) {
+  function trader(c, again) {
     const opts = TRADES.map((tr) => {
-      const give = Object.entries(tr.give).map(([id, n]) => `${n} ${G.ITEMS[id].i}`).join(' + ');
+      const give = Object.entries(tr.give).map(([id, n]) => `${n} ${G.icon(id, 'xs')}`).join(' + ');
       const ok = Object.entries(tr.give).every(([id, n]) => G.Inv.count(id) >= n);
-      return [`${ok ? '' : '✗ '}${give} → ${tr.get[1]} ${G.ITEMS[tr.get[0]].i} ${G.ITEMS[tr.get[0]].n}`, () => {
+      return [`${ok ? '' : '✗ '}${give} → ${tr.get[1]} ${G.icon(tr.get[0], 'xs')} ${G.ITEMS[tr.get[0]].n}`, () => {
         if (!Object.entries(tr.give).every(([id, n]) => G.Inv.count(id) >= n)) { G.UI.msg('No tienes lo necesario.', 'warn'); G.Audio.play('error'); return; }
         for (const [id, n] of Object.entries(tr.give)) G.Inv.remove(id, n);
         G.Game.give(tr.get[0], tr.get[1]);
         G.Ach.add('trade');
         G.Audio.play('loot');
-        trader(c);
-      }];
+        trader(c, true);
+      }, 'html'];
     });
     opts.push(['Adiós', null]);
-    St.show({ who: 'Genbu (comerciante)', text: '«Perlas, doblones, pescado… todo tiene precio. ¿Qué me ofreces?»', options: opts });
+    St.show({ who: 'Genbu (comerciante)', text: again ? G.LINES.genbu.deal : G.LINES.genbu.hello, options: opts });
   }
 
   // ------------------------------------------------------------------ Frutas del Abismo
@@ -409,12 +425,12 @@
     const k = St.fruitOf(), P = G.Player;
     if (!k) { G.UI.msg('No tienes ningún poder. Las Frutas del Abismo están escondidas en cofres del archipiélago.', 'info', 'power'); return; }
     if (St.powerCd > 0) { G.UI.msg(`Poder recargando (${Math.ceil(St.powerCd)} s)`, 'warn', 'power'); return; }
-    const near = (r) => { const out = []; G.Creatures.forEachAlive((c) => { if (Math.hypot(c.x - P.pos.x, c.z - P.pos.z) < r && !c.d.npc) out.push(c); }); return out; };
+    const near = (r) => { const out = []; G.Creatures.forEachAlive((c) => { if (G.Creatures.distTo(c, P.pos.x, P.pos.z) < r && !c.d.npc) out.push(c); }); return out; };
     G.Ach.add('power');
     if (k === 'llama') {
       St.powerCd = 3;
       const d = P.lookDir(new THREE.Vector3()), o = P.eyePos(new THREE.Vector3());
-      G.Creatures.forEachAlive((c) => { const v = new THREE.Vector3(c.x - o.x, c.y + c.d.bodyY - o.y, c.z - o.z), t = v.dot(d); if (t > 0 && t < 16 && v.addScaledVector(d, -t).length() < c.d.hitR + 1 && !c.d.npc) G.Creatures.hurt(c, 35); });
+      G.Creatures.forEachAlive((c) => { if (c.d.npc) return; const t = G.Creatures.rayHit(c, o, d, 1); if (t >= 0 && t < 16) G.Creatures.hurt(c, 35); });
       for (let i = 1; i < 8; i++) setTimeout(() => G.Ships && G.Ships.puff(o.x + d.x * i * 2, o.y + d.y * i * 2, o.z + d.z * i * 2, 0xff7a20, 1.2, 0.5, 1), i * 30);
       G.Audio.play('ignite');
     } else if (k === 'hielo') {

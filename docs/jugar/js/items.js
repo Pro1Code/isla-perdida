@@ -21,7 +21,8 @@
     hacha:       { n: 'Hacha de piedra', i: '🪓', tool: true, toolType: 'hacha', power: 1, dur: 120, dmg: 12, d: 'Tala árboles. También sirve como arma.' },
     pico:        { n: 'Pico de piedra', i: '⛏️', tool: true, toolType: 'pico', power: 1, dur: 120, dmg: 10, d: 'Rompe rocas y extrae mineral de hierro.' },
     lanza:       { n: 'Lanza de sílex', i: '🔱', tool: true, dur: 70, dmg: 24, reach: 4.2, d: 'Buena arma con mayor alcance.' },
-    antorcha:    { n: 'Antorcha', i: '🔥', tool: true, dur: 180, dmg: 6, torch: true, d: 'Ilumina la noche y las cuevas. Se consume con el tiempo.' },
+    antorcha:    { n: 'Antorcha', i: '🔥', tool: true, dur: 180, dmg: 6, torch: true, d: 'Ilumina la noche y las cuevas; en la mano se consume con el tiempo. Clic derecho: clávala en el suelo o en una pared (ahí no se gasta, pero con lluvia y sin techo se apaga en 3 minutos).' },
+    mechero:     { n: 'Mechero de sílex', i: '🔥', tool: true, dur: 25, dmg: 2, d: 'Chispas de sílex para encender fogatas y antorchas apagadas (E). Basta con llevarlo en la mochila; cada fuego gasta un poco.' },
     // --- Pesca y cocina
     cana:        { n: 'Caña de pescar', i: '🎣', tool: true, dur: 60, dmg: 3, fishing: true, d: 'Apunta al agua y haz clic para lanzar. Cuando pique, ¡clic otra vez!' },
     pez_crudo:   { n: 'Pescado crudo', i: '🐟', stack: 10, d: 'Ásalo en una fogata.', use: { hunger: 8, health: -3, sick: 0.3 } },
@@ -70,6 +71,7 @@
     mosquete:    { n: 'Mosquete', i: '🎯', tool: true, dur: 320, dmg: 8, style: 'gun', gun: { dmg: 46, range: 75, reload: 2.2 }, fp: [0.02, 0.06, 0.02], d: 'Largo alcance y mucho daño, pero recarga despacio.' },
     bala:        { n: 'Balas de plomo', i: '⚫', stack: 60, d: 'Munición para pistolas y mosquetes.' },
     baston:      { n: 'Bastón rúnico', i: '🪄', tool: true, dur: 520, dmg: 6, style: 'magic', d: 'Canaliza la magia de las mareas. Estilo Brujo: clic Chispa arcana, <kbd>Q</kbd> Rayo, <kbd>Z</kbd> Marea curativa.' },
+    mapa_tesoro: { n: 'Mapa del tesoro', i: '🗺️', stack: 5, read: 'mapa_tesoro', d: 'Un viejo mapa con una ✖ roja. Clic derecho: leerlo y marcar el tesoro en tu mapa (M).' },
     pista_1:     { n: 'Pista de Rogan (1/3)', i: '📜', stack: 1, read: 'pista_1', d: 'Un pergamino con la letra de Rogan D. Aldor. Clic derecho: leer.' },
     pista_2:     { n: 'Pista de Rogan (2/3)', i: '📜', stack: 1, read: 'pista_2', d: 'Un pergamino con la letra de Rogan D. Aldor. Clic derecho: leer.' },
     pista_3:     { n: 'Pista de Rogan (3/3)', i: '📜', stack: 1, read: 'pista_3', d: 'El último pergamino de Rogan, robado por los piratas. Clic derecho: leer.' },
@@ -151,6 +153,7 @@
     { id: 'lanza', cat: 'herr', req: { palo: 3, silex: 2, fibra: 2 } },
     { id: 'antorcha', cat: 'herr', req: { palo: 1, fibra: 2 } },
     { id: 'antorcha', cat: 'herr', req: { palo: 1, grasa: 1 }, n: 2 },
+    { id: 'mechero', cat: 'herr', req: { silex: 1, fibra: 1 } },
     { id: 'cana', cat: 'herr', req: { palo: 3, fibra: 5 } },
     { id: 'cuenco', cat: 'herr', req: { madera: 2 } },
     { id: 'lingote', cat: 'herr', req: { mineral_hierro: 2, madera: 1 }, station: 'horno' },
@@ -399,6 +402,13 @@
     return g;
   }
   // El mango apunta a +Y y el agarre queda en el origen
+  // Icono del paquete de texturas oficial (img/items/<id>.png, lo genera scripts/iconos.js)
+  G.iconSrc = (id) => 'img/items/' + id + '.png';
+  G.icon = function (id, cls) {
+    const it = G.ITEMS[id];
+    if (!it) return '';
+    return `<img class="ico${cls ? ' ' + cls : ''}" src="${G.iconSrc(id)}" alt="" draggable="false" data-e="${it.i}" onerror="this.outerHTML=this.dataset.e">`;
+  };
   G.makeItemMesh = function (id) {
     if (!id) return null;
     const it = G.ITEMS[id];
@@ -660,6 +670,14 @@
         const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.16, 7, 1, true), M.flameB);
         f2.position.y = 0.07; fl.add(f2);
         g.userData.flame = fl;
+        break;
+      }
+      case 'mechero': {
+        // Eslabón de acero en forma de C con la empuñadura forrada y una lasca de sílex atada con fibra
+        part(g, new THREE.TorusGeometry(0.05, 0.01, 6, 16, Math.PI * 1.4), iron, 0, 0.07, 0, 0, 0, -Math.PI * 0.2);
+        part(g, new THREE.CylinderGeometry(0.014, 0.014, 0.06, 7), leather, 0, 0.12, 0, 0, 0, Math.PI / 2);
+        part(g, new THREE.OctahedronGeometry(0.036).scale(1, 1.3, 0.6), flint, 0.012, 0.045, 0.02, 0.3, 0.4, 0.2);
+        part(g, new THREE.TorusGeometry(0.03, 0.006, 4, 10), fiber, 0.012, 0.045, 0.02, Math.PI / 2, 0, 0);
         break;
       }
       case 'palo': part(g, new THREE.CylinderGeometry(0.025, 0.03, 0.6, 5), wood, 0, 0.15, 0); break;

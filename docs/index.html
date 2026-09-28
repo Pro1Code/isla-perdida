@@ -33,28 +33,45 @@
   .card { padding: 18px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
   .card b { display: block; font-size: 17px; margin-bottom: 4px; }
   .card span { color: var(--muted); font-size: 14.5px; }
-  #versions { display: none; }
-  #versions.open { display: block; }
-  .ver { padding: 16px 18px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); margin-bottom: 12px; }
-  .ver.latest { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(242,181,68,.4); padding: 24px; background: linear-gradient(180deg, rgba(242,181,68,.1), var(--panel) 60%); }
+  /* Cada versión: miniatura, descargas y «Ver contenido» (notas y capturas de novedades/novedades.json) */
+  .ver { border-radius: 14px; background: var(--panel); border: 1px solid var(--line); margin-bottom: 14px; overflow: hidden; }
+  .ver.latest { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(242,181,68,.4); background: linear-gradient(180deg, rgba(242,181,68,.1), var(--panel) 60%); }
   .ver.latest .ver-title { font-size: 24px; }
   .ver.latest .dl { font-size: 18px; padding: 13px 24px; }
+  .ver-thumb { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #0e2a3a; }
+  .ver-in { padding: 16px 18px; }
+  .ver.latest .ver-in { padding: 22px 24px; }
+  .ver.old { display: grid; grid-template-columns: 300px 1fr; }
+  .ver.old.nothumb { grid-template-columns: 1fr; }
+  .ver.old .ver-thumb { align-self: start; }
+  .ver.old .ver-in { display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .ver-content { display: none; grid-column: 1 / -1; padding: 0 18px 18px; font-size: 14.5px; }
+  .ver.latest .ver-content { padding: 0 24px 24px; }
+  .ver.open .ver-content { display: block; }
+  .ver-content h4 { font-family: 'Cinzel', serif; font-size: 16px; color: var(--accent); margin: 18px 0 6px; letter-spacing: .4px; }
+  .ver-content ul { margin: 0; padding-left: 22px; }
+  .ver-content li { margin: 4px 0; }
+  .ver-content p { margin: 6px 0; }
+  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .gal figure { margin: 0; }
+  .gal img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+  .gal figcaption { color: var(--muted); font-size: 13px; margin-top: 5px; }
+  button.dl { border: 0; cursor: pointer; }
+  .dl.more { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid var(--accent); }
   .space { margin-bottom: 34px; }
   .space h3 { font-family: 'Cinzel', serif; font-size: 20px; margin: 0 0 6px; }
   .space p.hint { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
   .dls { display: flex; gap: 8px; flex-wrap: wrap; }
   .dl.alt { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid var(--line); }
-  details.notes-box summary { cursor: pointer; color: var(--muted); font-size: 13.5px; margin-top: 8px; }
   .ver-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
   .ver-title { font-weight: 800; font-size: 18px; }
   .badge { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 999px; background: var(--accent); color: #1d1406; margin-left: 8px; }
   .ver-date { color: var(--muted); font-size: 13px; }
-  .notes { color: var(--muted); font-size: 14px; white-space: pre-wrap; margin-top: 8px; }
   .dl { font: 800 15px 'Nunito', sans-serif; padding: 9px 16px; border-radius: 10px; background: var(--accent); color: #1d1406; text-decoration: none; }
   .steps { padding-left: 20px; }
   .steps li { margin-bottom: 6px; }
   footer { text-align: center; color: var(--muted); font-size: 13px; padding: 30px 16px 50px; }
-  @media (max-width: 600px) { .btn { width: 100%; justify-content: center; } }
+  @media (max-width: 600px) { .btn { width: 100%; justify-content: center; } .ver.old { display: block; } .ver-in, .ver.latest .ver-in { padding: 16px; } .ver-content, .ver.latest .ver-content { padding: 0 16px 16px; } }
 </style>
 </head>
 <body>
@@ -72,10 +89,10 @@
   </div>
 
   <section id="versions">
-    <h2>Descargas</h2>
+    <h2>Descargas y novedades</h2>
     <div class="space">
       <h3>⭐ Última versión</h3>
-      <p class="hint">Instala la app para Windows. Incluye la versión más reciente del juego y un <b>lanzador</b> para elegir con qué versión jugar.</p>
+      <p class="hint">Instala la app para Windows. Incluye la versión más reciente del juego y un <b>lanzador</b> para elegir con qué versión jugar. Pulsa <b>📖 Ver contenido</b> para ver todo lo nuevo con capturas del juego.</p>
       <div id="verLatest"><p class="small">Cargando…</p></div>
     </div>
     <div class="space">
@@ -96,7 +113,8 @@
       <div class="card"><b>🛡️ Ropa y armadura</b><span>Cuatro ranuras de equipo: botas de nieve, botas de obsidiana, casco de buceo, corazas…</span></div>
       <div class="card"><b>🎬 Un inicio con historia</b><span>Cinemática del naufragio, tu tripulación, un ermitaño brujo, piratas… y una Fruta del Abismo escondida en la primera isla.</span></div>
       <div class="card"><b>⚔️ Estilos de combate</b><span>Espadachín, tirador, luchador o brujo: apréndelos con sus maestros, sube de nivel y domina sus técnicas.</span></div>
-      <div class="card"><b>🏆 100 logros</b><span>40 comunes, 20 especiales, 20 raros, 15 épicos y 5 legendarios. Cada uno da doblones.</span></div>
+      <div class="card"><b>👑 Jefes y aldeas</b><span>Jabalí gigante, Gran Caimán, Rey de la Escarcha y Dragón de Brasa. Cada isla con jefe tiene su aldea y un tablón de encargos.</span></div>
+      <div class="card"><b>🏆 101 logros</b><span>40 comunes, 20 especiales, 20 raros, 16 épicos y 5 legendarios. Cada uno da doblones.</span></div>
       <div class="card"><b>🛒 Tienda de cosméticos</b><span>Sombreros, máscaras, capas, mascotas al hombro, velas, banderas y mascarones. Solo estéticos.</span></div>
       <div class="card"><b>🗂️ Varias partidas</b><span>Como en Minecraft: crea todas las islas que quieras, con nombre, dificultad, semilla y trucos opcionales.</span></div>
     </div>
@@ -117,44 +135,78 @@
 <script>
   // Configurado al publicar (scripts/build-web.js)
   const REPO = 'Pro1Code/isla-perdida';
+  const NEWS = 'novedades/'; // miniatura, notas y capturas de cada versión (web/novedades → docs/novedades)
   const boxLatest = document.getElementById('verLatest'), boxOld = document.getElementById('verOld');
   const fmt = (d) => new Date(d).toLocaleDateString('es', { year: 'numeric', month: 'long', day: 'numeric' });
   const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const mb = (a) => (a.size / 1048576).toFixed(a.size > 10485760 ? 0 : 1) + ' MB';
   const cmp = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (y[i] || 0) - (x[i] || 0); return 0; };
-  function card(x, latest) {
+  // Notas en texto: la 1.ª línea es el título, los apartados van EN MAYÚSCULAS y las novedades empiezan por «- »
+  function format(txt) {
+    const out = [];
+    let list = false;
+    const close = () => { if (list) { out.push('</ul>'); list = false; } };
+    String(txt || '').split(/\r?\n/).forEach((raw, i) => {
+      const l = raw.trim();
+      if (!l) { close(); return; }
+      if (i === 0) return;
+      if (l.startsWith('- ')) { if (!list) { out.push('<ul>'); list = true; } out.push(`<li>${esc(l.slice(2))}</li>`); return; }
+      close();
+      const letters = l.replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü]/g, '');
+      out.push(letters.length > 3 && letters === letters.toUpperCase() ? `<h4>${esc(l)}</h4>` : `<p>${esc(l)}</p>`);
+    });
+    close();
+    return out.join('');
+  }
+  function card(v, latest) {
+    const x = v.rel || {};
+    const tag = 'v' + v.version;
     const exe = (x.assets || []).find((a) => /\.exe$/i.test(a.name) && !/blockmap/i.test(a.name));
     const zip = (x.assets || []).find((a) => /^isla-perdida-juego-.+\.zip$/i.test(a.name));
+    const notes = v.notes || x.body || '';
+    const gal = (v.images || []).map((m) => `<figure><a href="${esc(NEWS + m.src)}" target="_blank" rel="noopener"><img loading="lazy" src="${esc(NEWS + m.src)}" alt="" /></a><figcaption>${esc(m.text)}</figcaption></figure>`).join('');
+    const more = notes || gal ? `<button class="dl more" data-a="more">📖 Ver contenido</button>` : '';
     const links = latest
-      ? (exe ? `<a class="dl" href="${exe.browser_download_url}">⬇️ Descargar ${esc(x.tag_name)} para Windows</a>` : '') + `<a class="dl alt" href="jugar/">🌐 Jugar en el navegador</a>`
-      : (exe ? `<a class="dl alt" href="${exe.browser_download_url}">Instalador ${esc(x.tag_name)} · ${mb(exe)}</a>` : '') + (zip ? `<a class="dl alt" href="${zip.browser_download_url}">Paquete del juego · ${mb(zip)}</a>` : '');
-    const notes = x.body ? (latest ? `<div class="notes">${esc(x.body)}</div>` : `<details class="notes-box"><summary>Ver novedades</summary><div class="notes">${esc(x.body)}</div></details>`) : '';
-    return `<div class="ver ${latest ? 'latest' : ''}">
-      <div class="ver-head"><div><span class="ver-title">${esc(x.name || x.tag_name)}</span>${latest ? '<span class="badge">Última versión</span>' : ''}<div class="ver-date">${fmt(x.published_at)}${latest && exe ? ' · ' + mb(exe) : ''}</div></div>
-      <div class="dls">${links}</div></div>${notes}</div>`;
+      ? (exe ? `<a class="dl" href="${exe.browser_download_url}">⬇️ Descargar ${esc(tag)} para Windows</a>` : '') + `<a class="dl alt" href="jugar/">🌐 Jugar en el navegador</a>`
+      : (exe ? `<a class="dl alt" href="${exe.browser_download_url}">Instalador ${esc(tag)} · ${mb(exe)}</a>` : '') + (zip ? `<a class="dl alt" href="${zip.browser_download_url}">Paquete del juego · ${mb(zip)}</a>` : '');
+    const date = x.published_at ? fmt(x.published_at) : v.date ? fmt(v.date + 'T12:00:00') : '';
+    return `<article class="ver ${latest ? 'latest' : 'old'}${v.thumb ? '' : ' nothumb'}">
+      ${v.thumb ? `<img class="ver-thumb" src="${esc(NEWS + v.thumb)}" alt="Miniatura de la versión ${esc(v.version)}" />` : ''}
+      <div class="ver-in">
+        <div class="ver-head"><div><span class="ver-title">${esc(v.name ? `${v.version} · ${v.name}` : x.name || tag)}</span>${latest ? '<span class="badge">Última versión</span>' : ''}<div class="ver-date">${date}${latest && exe ? ' · ' + mb(exe) : ''}</div></div></div>
+        <div class="dls">${links}${more}</div>
+      </div>
+      <div class="ver-content">${format(notes)}${gal ? `<h4>📸 Imágenes</h4><div class="gal">${gal}</div>` : ''}</div>
+    </article>`;
   }
-  let loaded = false;
+  const getJSON = (url, opt) => fetch(url, opt).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   async function loadVersions() {
-    if (loaded) return;
-    loaded = true;
-    try {
-      const r = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=100`);
-      if (!r.ok) throw new Error(r.status);
-      const rel = (await r.json()).filter((x) => !x.draft && !x.prerelease).sort((a, b) => cmp(a.tag_name.replace(/^v/, ''), b.tag_name.replace(/^v/, '')));
-      if (!rel.length) { boxLatest.innerHTML = '<p class="small">Todavía no hay versiones publicadas.</p>'; boxOld.innerHTML = ''; return; }
-      boxLatest.innerHTML = card(rel[0], true);
-      boxOld.innerHTML = rel.length > 1 ? rel.slice(1).map((x) => card(x, false)).join('') : '<p class="small">Aún no hay versiones anteriores.</p>';
-    } catch (e) {
-      boxLatest.innerHTML = `<p class="small">No se pudo cargar la lista de versiones. Míralas directamente en <a href="https://github.com/${REPO}/releases">GitHub</a>.</p>`;
+    const [rel, man] = await Promise.all([getJSON(`https://api.github.com/repos/${REPO}/releases?per_page=100`), getJSON(NEWS + 'novedades.json', { cache: 'no-cache' })]);
+    // Una entrada por versión: lo del manifiesto (miniatura, notas, capturas) más las descargas de GitHub
+    const map = new Map();
+    (man || []).forEach((v) => map.set(v.version, Object.assign({}, v)));
+    (rel || []).filter((x) => !x.draft && !x.prerelease).forEach((x) => {
+      const ver = x.tag_name.replace(/^v/, '');
+      map.set(ver, Object.assign(map.get(ver) || { version: ver }, { rel: x }));
+    });
+    // Sin GitHub (límite de consultas, sin red…) se enseñan igual las novedades publicadas
+    const list = [...map.values()].filter((v) => (rel ? v.rel : v.date)).sort((a, b) => cmp(a.version, b.version));
+    if (!list.length) {
+      boxLatest.innerHTML = rel ? '<p class="small">Todavía no hay versiones publicadas.</p>' : `<p class="small">No se pudo cargar la lista de versiones. Míralas directamente en <a href="https://github.com/${REPO}/releases">GitHub</a>.</p>`;
       boxOld.innerHTML = '';
+      return;
     }
+    boxLatest.innerHTML = card(list[0], true) + (rel ? '' : `<p class="small">No se pudieron cargar las descargas. Búscalas en <a href="https://github.com/${REPO}/releases">GitHub</a>.</p>`);
+    boxOld.innerHTML = list.length > 1 ? list.slice(1).map((v) => card(v, false)).join('') : '<p class="small">Aún no hay versiones anteriores.</p>';
   }
-  document.getElementById('btnDownload').onclick = () => {
-    const v = document.getElementById('versions');
-    v.classList.add('open');
-    loadVersions();
-    v.scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('versions').onclick = (e) => {
+    const b = e.target.closest('button[data-a="more"]');
+    if (!b) return;
+    const open = b.closest('.ver').classList.toggle('open');
+    b.textContent = open ? '🔼 Ocultar contenido' : '📖 Ver contenido';
   };
+  loadVersions();
+  document.getElementById('btnDownload').onclick = () => document.getElementById('versions').scrollIntoView({ behavior: 'smooth' });
 </script>
 </body>
 </html>

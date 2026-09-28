@@ -33,15 +33,16 @@
     ['cos_katana', 'back', 'Katana a la espalda', 700, '🗡️', 'Una espada envainada de un país lejano.'],
     ['cos_capa', 'back', 'Capa de capitán', 800, '🦸', 'Capa roja con bordes dorados.'],
     ['cos_abrigo_alm', 'back', 'Abrigo de almirante', 1200, '🧥', 'Abrigo blanco sobre los hombros, con charreteras.'],
-    ['cos_gaviota', 'pet', 'Gaviota', 600, '🕊️', 'Siempre sabe dónde está la tierra más cercana.'],
-    ['cos_loro', 'pet', 'Loro', 900, '🦜', 'Un loro guacamayo que no se calla nunca.'],
-    ['cos_mono', 'pet', 'Mono capuchino', 1000, '🐒', 'Pequeño, curioso y un poco ladrón.'],
-    ['cos_caracol', 'pet', 'Caracolófono', 1100, '🐌', 'Un caracol con auricular. ¿Quién llamará?'],
+    ['cos_gaviota', 'pet', 'Gaviota', 600, '🕊️', 'En alta mar te señala la tierra más cercana y lo que flota cerca.'],
+    ['cos_loro', 'pet', 'Loro', 900, '🦜', 'No se calla nunca… y grita cuando un enemigo se acerca por donde no miras.'],
+    ['cos_mono', 'pet', 'Mono capuchino', 1000, '🐒', 'Pequeño, curioso y muy ladrón: les roba cosas a los piratas cuando te acercas.'],
+    ['cos_caracol', 'pet', 'Caracolófono', 1100, '🐌', 'Un caracol con auricular. De vez en cuando llaman con pistas: cofres, peligros y rumores.'],
     ['sail_rayas', 'sail', 'Vela a rayas', 400, '🟥', 'Rayas rojas y blancas: se ven desde lejos.'],
     ['sail_marea', 'sail', 'Vela de la marea', 450, '🌊', 'Azul con olas blancas.'],
     ['sail_sol', 'sail', 'Vela del sol', 600, '🌞', 'Naranja con un sol radiante.'],
     ['sail_noche', 'sail', 'Vela nocturna', 700, '🌙', 'Azul noche con luna y estrellas.'],
     ['sail_dorada', 'sail', 'Vela dorada', 900, '🟨', 'Dorada con franja carmesí. Pura ostentación.'],
+    ['flag_custom', 'flag', 'Tu propia bandera', 0, '✏️', 'Dibújala tú en la pizarra: pinceles, formas, sellos piratas, texto y colores. ¡Nadie más tendrá una igual!'],
     ['flag_tricornio', 'flag', 'Calavera con tricornio', 350, '☠️', 'Bandera pirata con sombrero de capitán.'],
     ['flag_ancla', 'flag', 'Ancla y luna', 450, '⚓', 'Una bandera tranquila… para un barco que no lo es.'],
     ['flag_espadas', 'flag', 'Sables cruzados', 500, '⚔️', 'Calavera sobre dos sables curvos.'],
@@ -54,11 +55,15 @@
   Shop.byId = (id) => Shop.CATALOG.find((c) => c.id === id);
 
   // Diseños de barco comprados (el astillero los añade a los que ya había)
-  Shop.ownedOf = (slot) => Shop.CATALOG.filter((c) => c.slot === slot && G.Profile.owns(c.id)).map((c) => c.id.replace(/^(sail|flag|fh)_/, ''));
+  Shop.ownedOf = (slot) => Shop.CATALOG.filter((c) => c.slot === slot && G.Profile.owns(c.id)).map((c) => (c.id === 'flag_custom' ? G.Profile.customFlag() : c.id.replace(/^(sail|flag|fh)_/, ''))).filter(Boolean);
+  // Diseño que lleva el barco para una bandera de la tienda (la propia viaja como imagen)
+  Shop.flagDesign = (id) => (id === 'flag_custom' ? G.Profile.customFlag() : id && id.startsWith('flag_') ? id.slice(5) : null);
+  Shop.isCustomFlag = (d) => typeof d === 'string' && d.length < 90000 && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(d);
+  Shop.flagLabel = (d) => (Shop.isCustomFlag(d) ? 'Tu bandera' : Shop.flagName[d || 'clasica'] || 'Clásica');
   Shop.shipName = { tiburon: 'Colmillo del Mar', aguila: 'Ala del Alba', ballena: 'Gran Ballena' };
   Shop.fhName = { tiburon: 'Tiburón', aguila: 'Águila', ballena: 'Ballena' };
   Shop.sailName = { rayas: 'Rayas', marea: 'Marea', sol: 'Sol', noche: 'Noche', dorada: 'Dorada' };
-  Shop.flagName = { clasica: 'Clásica', tricornio: 'Tricornio', ancla: 'Ancla y luna', espadas: 'Sables', llamas: 'Llamas', corona: 'Corona' };
+  Shop.flagName = { marina: 'Marina Blanca', clasica: 'Clásica', tricornio: 'Tricornio', ancla: 'Ancla y luna', espadas: 'Sables', llamas: 'Llamas', corona: 'Corona' };
 
   // ------------------------------------------------------------------ utilidades de modelado
   // Lámina con grosor: P(u, v) → [x, y, z]; la segunda cara se desplaza "off" y se invierte
@@ -99,11 +104,19 @@
       }, (x, y, z) => (Math.hypot(x, z) > 0.188 * (1 + 0.22 * ph(Math.atan2(z, x))) ? GOLD : BLACK));
       return [{ bone: 'head', geos: [brim, half(0.126, BLACK, 0, 0.128, 0, [1, 0.95, 1.05]), M.ball(0.024, 0xf2eee4, 0, 0.21, 0.135, [1, 1, 0.6]), M.ball(0.006, 0x111111, 0.008, 0.214, 0.148), M.ball(0.006, 0x111111, -0.008, 0.214, 0.148)] }];
     },
-    cos_bandana: () => [{ bone: 'head', geos: [
-      M.xf(M.paint(new THREE.SphereGeometry(0.134, 22, 12, 0, Math.PI * 2, 0, 1.3), (x, y, z) => (Math.sin(x * 95) + Math.sin(y * 95) + Math.sin(z * 95) > 2.1 ? 0xf6f2ea : 0xc0282a), 0.02), 0, 0.09, -0.008, -0.42),
-      M.ball(0.03, 0xb02424, 0, 0.07, -0.135, [1.2, 0.9, 0.8]),
-      box(0.035, 0.12, 0.008, 0xc0282a, 0.02, 0.0, -0.142, 0.25, 0, 0.25), box(0.035, 0.1, 0.008, 0xc0282a, -0.02, 0.01, -0.142, 0.25, 0, -0.3),
-    ] }],
+    cos_bandana: () => {
+      const cap = new THREE.SphereGeometry(1, 30, 18, 0, Math.PI * 2, 0, 1.8);
+      cap.rotateX(-0.62); cap.scale(0.118, 0.146, 0.134); cap.translate(0, 0.12, 0.004);
+      const dots = (x, y, z) => (Math.sin(x * 105) + Math.sin(y * 105 + 1) + Math.sin(z * 105 + 2) > 2.05 ? 0xf6f2ea : 0xc0282a);
+      // Dobladillo: el borde del casquete (círculo perpendicular al polo inclinado)
+      const hem = new THREE.TorusGeometry(Math.sin(1.8) * 1.01, 0.06, 6, 48);
+      hem.rotateX(0.95); hem.translate(0, Math.cos(1.8) * Math.cos(0.62), -Math.cos(1.8) * Math.sin(0.62)); hem.scale(0.118, 0.146, 0.134); hem.translate(0, 0.12, 0.004);
+      return [{ bone: 'head', geos: [M.paint(cap, dots, 0.02), M.paint(hem, 0xa82024, 0.02),
+        // Nudo con dos puntas en la nuca
+        M.ball(0.03, 0xb02424, 0, 0.08, -0.14, [1.25, 0.95, 0.8]),
+        box(0.036, 0.13, 0.008, 0xc0282a, 0.022, 0.0, -0.146, 0.2, 0, 0.28), box(0.036, 0.11, 0.008, 0xc0282a, -0.022, 0.01, -0.146, 0.2, 0, -0.34),
+      ] }];
+    },
     cos_gorra_marina: () => [{ bone: 'head', geos: [
       M.lathe([[0.001, 0.155], [0.128, 0.155], [0.136, 0.2], [0.142, 0.248], [0.1, 0.27], [0.001, 0.265]], 24, (x, y) => (y < 0.19 ? 0x1e2a4a : 0xf4f2ec)),
       cyl(0.105, 0.105, 0.008, 20, 0x14141a, 0, 0.162, 0.07, -0.18, 0, 0, [1, 1, 1.25], false, -Math.PI / 2, Math.PI),
@@ -138,7 +151,11 @@
     },
     cos_parche: () => [{ bone: 'head', geos: [
       cyl(0.026, 0.024, 0.008, 16, 0x111111, -0.036, 0.13, 0.108, Math.PI / 2 - 0.15, 0, 0, [1, 1, 1.15]),
-      torus(0.121, 0.004, 0x111111, 0, 0.135, -0.004, Math.PI / 2 - 0.22, 0, 0, [1.02, 1.08, 1], 36),
+      // Cinta: del parche por encima de la oreja, por la nuca y en diagonal por la frente
+      M.tube([[-0.3, 0.13], [-0.9, 0.14], [-1.6, 0.15], [-2.4, 0.165], [-3.1, 0.18], [2.4, 0.2], [1.6, 0.215], [0.9, 0.2], [0.35, 0.18], [-0.05, 0.155], [-0.3, 0.13]].map(([al, y]) => {
+        const k = Math.sqrt(Math.max(0, 1 - ((y - 0.12) / 0.14) ** 2));
+        return [0.109 * k * Math.sin(al), y, 0.006 + 0.127 * k * Math.cos(al)];
+      }), [0.0045, 0.0045], 6, 0x111111, 60),
     ] }],
     cos_gafas: () => {
       const g = [];
@@ -151,17 +168,28 @@
       return [{ bone: 'head', metal: true, geos: g }];
     },
     cos_bigote: () => [{ bone: 'head', geos: [-1, 1].map((s) => M.tube([[s * 0.004, 0.1, 0.124], [s * 0.03, 0.096, 0.126], [s * 0.058, 0.09, 0.118], [s * 0.078, 0.098, 0.104], [s * 0.084, 0.114, 0.094]], [0.013, 0.004], 7, 0x2a1a10, 10)) }],
-    cos_mascara: () => [{ bone: 'head', geos: [
-      M.xf(M.paint(new THREE.SphereGeometry(0.136, 22, 14, Math.PI / 2 - 0.95, 1.9, 0.5, 1.4), (x, y, z) => {
-        const ey = y - 0.03;
-        if (Math.hypot(Math.abs(x) - 0.037, ey) < 0.022) return 0x111111;
-        if (Math.abs(x) > 0.06 && Math.abs(Math.sin(y * 70)) > 0.7) return 0xb0281e;
-        if (y < -0.03 && Math.abs(Math.sin(x * 110)) > 0.6) return 0x111111;
-        return Math.abs(x) < 0.01 ? 0xb0281e : 0xe8dcbc;
-      }, 0.02), 0, 0.1, 0.014, 0, 0, 0, [1, 1.12, 1]),
-      ...[-1, 0, 1].map((k) => cone(0.02, 0.16, k ? 0x2a8a6a : 0xc0302a, k * 0.06, 0.29, 0.06, -0.25, 0, -k * 0.35, [1, 1, 0.35], 4)),
-      cone(0.012, 0.05, 0xf4f0e0, 0.05, 0.02, 0.14, Math.PI, 0, 0.2), cone(0.012, 0.05, 0xf4f0e0, -0.05, 0.02, 0.14, Math.PI, 0, -0.2),
-    ] }],
+    cos_mascara: () => {
+      const m = new THREE.SphereGeometry(1, 28, 20, Math.PI / 2 - 0.85, 1.7, 0.42, 2.1);
+      m.scale(0.112, 0.15, 0.136); m.translate(0, 0.118, 0.006);
+      const mask = M.paint(m, (x, y, z) => {
+        if (Math.abs(Math.atan2(x / 0.112, (z - 0.006) / 0.136)) > 0.76 || y > 0.24 || y < 0.006) return 0x5a3a20; // borde tallado
+        const ex = Math.abs(x) - 0.036, ey = y - 0.13;
+        if (Math.hypot(ex * 0.9, ey * 1.3) < 0.02) return 0x0c0a08;                 // ojos
+        if (Math.hypot(ex * 0.9, ey * 1.3) < 0.028) return 0xb0281e;                // ojeras rojas
+        if (y < 0.045 && y > 0.012 && Math.abs(x) < 0.05) return Math.sin(x * 190) > 0 ? 0xf4f0e0 : 0x0c0a08; // boca con dientes
+        if (Math.abs(x) > 0.062 && Math.sin(y * 85) > 0.35) return Math.sin(y * 42) > 0 ? 0xb0281e : 0x1e6a52; // rayas en las mejillas
+        if (Math.abs(x) < 0.009 && y > 0.155) return 0xb0281e;                      // línea de la frente
+        if (Math.abs(x) < 0.016 && y < 0.11 && y > 0.06) return 0xc8a870;          // nariz
+        return 0xe8dcbc;
+      }, 0.02);
+      const g = [mask];
+      // Cresta de plumas en abanico
+      const C = [0xc0302a, 0x2a8a6a, 0xf0c030, 0x2a8a6a, 0xc0302a];
+      for (let k = 0; k < 5; k++) { const a = (k - 2) * 0.32; g.push(M.xf(M.fin([[-0.022, 0], [0.022, 0], [0.018, 0.16], [0, 0.22], [-0.018, 0.16]], 0.008, C[k]), Math.sin(a) * 0.06, 0.24, 0.07, -0.2, 0, -a)); }
+      g.push(M.ball(0.024, 0xf0c030, 0, 0.26, 0.1));
+      g.push(cone(0.011, 0.045, 0xf4f0e0, 0.047, 0.036, 0.09, 0, 0, -0.25), cone(0.011, 0.045, 0xf4f0e0, -0.047, 0.036, 0.09, 0, 0, 0.25));
+      return [{ bone: 'head', geos: g }];
+    },
     // ---------------------------------------------------------------- espalda
     cos_capa: () => [{ bone: 'chest', geos: [
       sheet(14, 12, (u, v) => { const a = (u - 0.5) * 2.0, r = 0.25 + v * 0.1; return [Math.sin(a) * r, 0.25 - v * 0.95, -Math.cos(a) * r * 0.68 - 0.012 - v * 0.03]; },
@@ -171,7 +199,7 @@
     ] }],
     cos_abrigo_alm: () => {
       const g = [sheet(18, 12, (u, v) => { const a = (u - 0.5) * 2.7, r = 0.268 + v * 0.07; return [Math.sin(a) * r, 0.26 - v * 1.02, -Math.cos(a) * r * 0.7 - v * 0.02]; },
-        (x, y, z) => (Math.abs(x) < 0.05 && y < -0.05 && y > -0.35 && z < 0 && Math.abs(Math.sin(y * 40 + x * 30)) < 0.45 ? 0x2a4a8a : y < -0.7 ? 0xe0dcd0 : 0xf6f4ee), [0, 0, 0.012]),
+        (x, y) => (y < -0.66 && y > -0.71 ? 0x2a4a8a : y < -0.71 ? 0xe0dcd0 : 0xf6f4ee), [0, 0, 0.012]),
         torus(0.14, 0.03, 0xf6f4ee, 0, 0.25, -0.01, Math.PI / 2, 0, 0, [1.3, 0.85, 1])];
       for (const s of [-1, 1]) {
         g.push(M.ball(0.075, GOLD, s * 0.23, 0.245, 0, [1.25, 0.35, 1]));
@@ -315,25 +343,131 @@
     return true;
   };
   // Mascarones nuevos (misma escala que los del astillero)
+  // Ejes: +Z hacia delante (la proa), +Y arriba; mide ~1 m y la parte de atrás queda dentro del casco
+  const tri = (r, h, color, x, y, z, rx = 0, ry = 0, rz = 0) => M.xf(M.paint(new THREE.ConeGeometry(r, h, 3), color, 0.02), x, y, z, rx, ry, rz);
+  // Punto sobre una sección elíptica (loft) a la altura sa (seno del ángulo) y lado s
+  const onEll = (rx, ry, yc, sa, s, k = 1) => [s * rx * Math.sqrt(Math.max(0, 1 - sa * sa)) * k, yc + ry * sa * k];
+  const mix = (a, b, k) => { const c = (sh) => Math.round(((a >> sh) & 255) * (1 - k) + ((b >> sh) & 255) * k); return (c(16) << 16) | (c(8) << 8) | c(0); };
+  const backCap = (S, z, color) => M.xf(M.paint(new THREE.CircleGeometry(1, 32), color, 0.02), 0, S.y, z - 0.002, 0, Math.PI, 0, [S.rx, S.ry, 1]);
   Shop.figurehead = function (kind) {
     const p = [];
     if (kind === 'tiburon') {
-      p.push(M.loft({ z0: -0.35, z1: 0.62, n: 14, m: 14, prof: (t) => ({ rx: 0.3 * Math.sin(Math.PI * (0.25 + t * 0.7)) + 0.03, ry: 0.28 * Math.sin(Math.PI * (0.25 + t * 0.7)) + 0.03, y: -t * 0.04 }), color: (t, a, ca, sa) => (sa < -0.25 ? 0xeeeee6 : 0x6a7a88) }));
-      p.push(M.ball(0.075, 0x6a7a88, 0, -0.03, 0.6, [1.1, 0.8, 1], 12, 8));
-      p.push(M.xf(M.fin([[-0.14, 0], [0.16, 0], [-0.05, 0.36]], 0.04, 0x5a6a78), 0, 0.22, -0.02, 0, Math.PI / 2, 0));
-      for (let i = 0; i < 9; i++) { const a = (i / 8 - 0.5) * 2.2; p.push(M.xf(M.paint(new THREE.ConeGeometry(0.018, 0.06, 4), 0xffffff), Math.sin(a) * 0.14, -0.06, 0.42 + Math.cos(a) * 0.05, Math.PI)); }
-      p.push(M.xf(M.paint(new THREE.BoxGeometry(0.3, 0.03, 0.14), 0x7a1a1a), 0, -0.07, 0.45));
-      for (const s of [-1, 1]) p.push(M.ball(0.035, 0x111111, s * 0.16, 0.06, 0.34));
+      const TOP = 0x5a6e80, BELLY = 0xf0eee8, DARK = 0x25303a, MOUTH = 0x6e1c24, TOOTH = 0xfbf8ee;
+      // Cuerpo: hocico cónico algo levantado, lomo gris azulado y vientre blanco
+      const Z0 = -0.55, Z1 = 0.8, g = (t) => (t < 0.42 ? 0.88 + 0.12 * (t / 0.42) : Math.pow(Math.max(0, Math.cos(((t - 0.42) / 0.58) * Math.PI / 2)), 0.55));
+      const sec = (z) => { const t = (z - Z0) / (Z1 - Z0); return { rx: 0.3 * g(t) + 0.012 * (1 - t), ry: 0.28 * g(t) + 0.012 * (1 - t), y: t * 0.06 }; };
+      p.push(backCap(sec(Z0), Z0, TOP));
+      p.push(M.loft({ z0: Z0, z1: Z1, n: 64, m: 40, caps: false, prof: (t) => sec(U.lerp(Z0, Z1, t)),
+        color: (t, a, ca, sa) => {
+          // Techo de la boca abierta (debajo del hocico)
+          if (t > 0.57 && t < 0.95 && sa < -0.6) return MOUTH;
+          return sa < -0.3 + Math.sin(t * 23) * 0.06 ? BELLY : TOP;
+        } }));
+      // Garganta (se ve por la boca abierta)
+      p.push(M.ball(0.2, 0x3a0c12, 0, -0.17, 0.3, [0.85, 0.42, 1.25], 16, 10));
+      // Dientes de arriba: fila triangular por el borde de la mandíbula
+      for (let i = 0; i <= 9; i++) {
+        const z = 0.24 + i * 0.052, S = sec(z), sa = -0.66 - i * 0.02;
+        for (const s of [-1, 1]) { const [x, y] = onEll(S.rx, S.ry, S.y, sa, s, 0.98); p.push(tri(0.02, 0.07, TOOTH, x, y - 0.03, z, Math.PI, 0, s * 0.25)); }
+      }
+      // Mandíbula inferior abierta, con lengua y dientes
+      const jaw = [M.loft({ z0: 0, z1: 0.5, n: 20, m: 20, prof: (t) => ({ rx: 0.21 * Math.sqrt(Math.max(0, 1 - Math.pow(t, 2.4))) + 0.015, ry: 0.07 * Math.sqrt(Math.max(0, 1 - Math.pow(t, 2.4))) + 0.012, y: 0 }),
+        color: (t, a, ca, sa) => (sa > 0.4 ? 0x9a3a42 : BELLY) })];
+      for (let i = 0; i < 8; i++) {
+        const z = 0.08 + i * 0.052, t = z / 0.5, rx = 0.21 * Math.sqrt(1 - Math.pow(t, 2.4)) + 0.015, ry = 0.07 * Math.sqrt(1 - Math.pow(t, 2.4)) + 0.012;
+        for (const s of [-1, 1]) jaw.push(tri(0.018, 0.062, TOOTH, s * rx * 0.86, ry * 0.5 + 0.03, z, 0, 0, -s * 0.2));
+      }
+      for (const j of jaw) { j.rotateX(0.52); j.translate(0, -0.19, 0.22); p.push(j); }
+      // Ojos negros brillantes
+      for (const s of [-1, 1]) {
+        const S = sec(0.4), [x, y] = onEll(S.rx, S.ry, S.y, 0.16, s);
+        p.push(M.ball(0.036, 0x08080a, x - s * 0.008, y, 0.4, [0.7, 1, 1.1], 12, 10), M.ball(0.009, 0xffffff, x + s * 0.012, y + 0.014, 0.418));
+        // Fosa nasal
+        const N = sec(0.7), [nx, ny] = onEll(N.rx, N.ry, N.y, -0.2, s, 0.97);
+        p.push(M.ball(0.014, DARK, nx, ny, 0.7, [0.6, 0.6, 1.4]));
+        // Cinco branquias
+        for (let k = 0; k < 5; k++) {
+          const z = 0.02 + k * 0.05, G2 = sec(z), [gx, gy] = onEll(G2.rx, G2.ry, G2.y, -0.05, s, 0.995);
+          p.push(M.xf(M.paint(new THREE.BoxGeometry(0.018, 0.2 - k * 0.012, 0.014), DARK, 0.02), gx, gy, z, 0.28, 0, s * 0.08));
+        }
+      }
+      // Aleta dorsal alta y curvada
+      p.push(M.xf(M.fin([[0.22, 0], [0.16, 0.13], [0.07, 0.28], [-0.03, 0.41], [-0.13, 0.5], [-0.12, 0.4], [-0.13, 0.27], [-0.17, 0.12], [-0.27, 0]], 0.06, (x, y) => (y > 0.36 ? 0x4a5c6c : TOP)), 0, 0.26, -0.08, 0, -Math.PI / 2, 0));
+      // Aletas pectorales (hacia abajo y atrás)
+      for (const s of [-1, 1]) {
+        const f = M.fin([[0, 0.1], [0, -0.1], [s * 0.36, -0.3], [s * 0.39, -0.23]].map(([x, y]) => [x, y]), 0.04, TOP);
+        f.rotateX(Math.PI / 2); f.rotateZ(-s * 0.55); f.translate(s * 0.2, -0.18, -0.05);
+        p.push(f);
+      }
     } else if (kind === 'aguila') {
-      p.push(M.ball(0.32, 0x5a3a20, 0, -0.28, -0.08, [1.1, 0.9, 1.1], 16, 12));
-      p.push(M.ball(0.28, 0xf6f4ee, 0, 0.02, 0.08, [1, 1.05, 1.1], 16, 12));
-      p.push(M.tube([[0, 0.02, 0.32], [0, 0.0, 0.48], [0, -0.12, 0.54]], [0.09, 0.02], 10, 0xf0c030, 10));
-      for (const s of [-1, 1]) { p.push(M.ball(0.045, 0xf8d040, s * 0.14, 0.08, 0.28)); p.push(M.ball(0.025, 0x111111, s * 0.155, 0.085, 0.31)); }
-      for (let i = 0; i < 5; i++) p.push(M.xf(M.paint(new THREE.ConeGeometry(0.05, 0.22, 4), 0xeae6dc), (i - 2) * 0.07, 0.24, -0.1, -0.7, 0, (i - 2) * 0.12));
+      const BROWN = 0x5a3a20, DBROWN = 0x3a2414, LBROWN = 0x7a5230, WHITE = 0xf6f4ee, BEAK = 0xf0b020;
+      // Pecho y cuello de plumas marrones
+      p.push(M.loft({ z0: -0.5, z1: 0.14, n: 24, m: 28, prof: (t) => ({ rx: 0.3 - t * 0.09, ry: 0.36 - t * 0.12, y: -0.22 + t * 0.14 }),
+        color: (t, a) => (Math.sin(t * 46 + Math.abs(Math.sin(a)) * 9) > 0.6 ? DBROWN : BROWN) }));
+      // Cabeza blanca y gorguera de plumas blancas
+      p.push(M.ball(0.21, WHITE, 0, 0.1, 0.22, [1, 0.95, 1.2], 22, 16));
+      for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2; p.push(M.xf(M.paint(new THREE.ConeGeometry(0.06, 0.2, 5), i % 2 ? WHITE : 0xe8e4da, 0.02), Math.cos(a) * 0.17, -0.02 + Math.sin(a) * 0.17, 0.06, -Math.PI / 2 - 0.25 * Math.sin(a), 0, 0)); }
+      // Pico ganchudo
+      p.push(M.tube([[0, 0.12, 0.38], [0, 0.12, 0.5], [0, 0.07, 0.6], [0, -0.03, 0.62], [0, -0.07, 0.58]], (t) => 0.075 * (1 - t) + 0.01, 10, BEAK, 16));
+      p.push(M.tube([[0, 0.03, 0.38], [0, 0.01, 0.48], [0, 0.01, 0.53]], [0.05, 0.015], 8, 0xd89a18, 8));
+      for (const s of [-1, 1]) {
+        // Ojo amarillo con pupila y ceja fiera
+        p.push(M.ball(0.036, 0xf8d040, s * 0.14, 0.15, 0.38), M.ball(0.019, 0x0a0a0a, s * 0.152, 0.152, 0.404), M.ball(0.006, 0xffffff, s * 0.147, 0.162, 0.414));
+        p.push(M.tube([[s * 0.06, 0.205, 0.42], [s * 0.12, 0.2, 0.4], [s * 0.18, 0.17, 0.33]], [0.024, 0.014], 7, 0xdcd8cc, 8));
+        // Alas abiertas hacia atrás y arriba, con plumas remeras
+        const w = M.fin([[0, 0.08], [0.18, 0.3], [0.38, 0.52], [0.62, 0.63], [0.84, 0.62], [0.74, 0.47], [0.81, 0.4], [0.68, 0.31], [0.73, 0.22], [0.58, 0.16], [0.61, 0.06], [0.45, 0.04], [0.45, -0.07], [0.29, -0.04], [0.27, -0.15], [0.1, -0.1], [0, -0.13]], 0.045,
+          (x, y) => (y > 0.42 && x < 0.62 ? LBROWN : x > 0.55 || y < 0.02 ? DBROWN : BROWN));
+        w.rotateY(s > 0 ? 1.17 : 1.97); w.translate(s * 0.2, -0.02, -0.06);
+        p.push(w);
+      }
     } else if (kind === 'ballena') {
-      p.push(M.loft({ z0: -0.4, z1: 0.6, n: 14, m: 16, prof: (t) => ({ rx: 0.4 * Math.sin(Math.PI * (0.3 + t * 0.55)) + 0.06, ry: 0.33 * Math.sin(Math.PI * (0.3 + t * 0.55)) + 0.05, y: 0 }), color: (t, a, ca, sa) => (sa < -0.35 ? (Math.sin(ca * 30) > 0 ? 0xe8e4dc : 0xb8b4ac) : 0x3a5a7a) }));
-      for (const s of [-1, 1]) { p.push(M.ball(0.04, 0x111111, s * 0.3, 0.02, 0.28)); p.push(M.xf(M.fin([[0, 0], [0.26, -0.05], [0.2, -0.16]], 0.03, 0x34506e), s * 0.3, -0.15, 0.05, 0, s > 0 ? 0 : Math.PI, 0)); }
-      p.push(M.xf(M.paint(new THREE.BoxGeometry(0.46, 0.02, 0.05), 0x22324a), 0, -0.1, 0.55));
+      const BLUE = 0x4674a0, DEEP = 0x284666, PLEAT = 0xebe8e0, PLEAT2 = 0xb4bec8, LIP = 0x16202c;
+      // Cabeza redonda y roma
+      const Z0 = -0.55, Z1 = 0.74, g = (t) => (t < 0.5 ? 0.92 + 0.08 * t / 0.5 : Math.sqrt(Math.max(0, 1 - Math.pow((t - 0.5) / 0.5, 2.2))));
+      const secT = (t) => ({ rx: 0.44 * g(t) + 0.012 * (1 - t), ry: 0.37 * g(t) + 0.012 * (1 - t), y: -0.02 - t * 0.03 }), sec = (z) => secT((z - Z0) / (Z1 - Z0));
+      // Altura de la boca: rodea el morro por debajo y sube hacia atrás en una sonrisa
+      const lipY = (t) => -0.19 + 0.13 * U.clamp((0.6 - t) / 0.13, 0, 1) ** 2;
+      const pleatY = (t) => (t >= 0.47 ? lipY(t) - 0.035 : -0.225 - (0.47 - t) * 0.45);
+      p.push(backCap(secT(0), Z0, BLUE));
+      p.push(M.loft({ z0: Z0, z1: Z1, n: 60, m: 72, caps: false, prof: secT,
+        color: (t, a, ca, sa) => {
+          const S = secT(t), y = S.y + S.ry * sa;
+          // Pliegues de la garganta (rayas a lo largo) bajo la boca
+          if (t > 0.2 && y < pleatY(t)) return Math.sin(ca * 30) > 0.15 ? PLEAT : PLEAT2;
+          if (t > 0.9 ? y < lipY(t) : sa < -0.75) return PLEAT;
+          // Lomo más oscuro que los costados (degradado suave)
+          return mix(BLUE, DEEP, t > 0.93 ? 0.3 : U.clamp((sa - 0.1) / 0.8, 0, 1));
+        } }));
+      // Labio: una sola línea de comisura a comisura pasando por delante
+      const lip = [];
+      let tf = 0.47;
+      while (tf < 0.999 && secT(tf).y - secT(tf).ry < lipY(tf)) tf += 0.004;
+      for (const s of [-1, 1]) {
+        const side = [];
+        for (let i = 0; i <= 24; i++) {
+          const t = U.lerp(0.47, tf - 0.004, i / 24), S = secT(t), sa = U.clamp((lipY(t) - S.y) / S.ry, -1, 1);
+          side.push([s * S.rx * Math.sqrt(1 - sa * sa) * 1.012, S.y + S.ry * sa * 1.012, U.lerp(Z0, Z1, t)]);
+        }
+        if (s < 0) lip.push(...side); else lip.push([0, lipY(tf) - 0.004, U.lerp(Z0, Z1, tf) + 0.004], ...side.reverse());
+      }
+      p.push(M.tube(lip, [0.015, 0.015], 6, LIP, 90));
+      for (const s of [-1, 1]) {
+        // Ojo grande y amable, con brillo y párpado
+        const E = sec(0.0), [x, y] = onEll(E.rx, E.ry, E.y, (0.0 - E.y) / E.ry, s, 0.97);
+        p.push(M.ball(0.058, 0xf4f2ec, x, y, 0.0), M.ball(0.036, 0x14100c, x + s * 0.03, y + 0.004, 0.02), M.ball(0.011, 0xffffff, x + s * 0.042, y + 0.02, 0.032));
+        const [lx, ly] = onEll(E.rx, E.ry, E.y, (0.075 - E.y) / E.ry, s, 1.0);
+        p.push(M.tube([[lx, ly - 0.012, -0.07], [lx + s * 0.02, ly + 0.012, 0.0], [lx, ly - 0.012, 0.07]], [0.013, 0.013], 6, DEEP, 8));
+        // Aleta pectoral larga con el borde ondulado (ballena jorobada)
+        const f = M.fin([[0, 0.12], [s * 0.12, 0.12], [s * 0.26, 0.07], [s * 0.36, 0.04], [s * 0.44, -0.02], [s * 0.53, -0.08], [s * 0.6, -0.15], [s * 0.52, -0.16], [s * 0.3, -0.1], [s * 0.1, -0.08], [0, -0.1]], 0.04,
+          (fx) => (Math.abs(fx) > 0.46 ? PLEAT : BLUE));
+        f.rotateX(Math.PI / 2); f.rotateZ(-s * 0.6); f.translate(s * 0.34, -0.2, -0.12);
+        p.push(f);
+      }
+      // Espiráculo doble en lo alto de la cabeza
+      const B = sec(-0.02);
+      for (const s of [-1, 1]) p.push(M.ball(0.03, 0x10161e, s * 0.028, B.y + B.ry - 0.006, -0.02, [0.7, 0.35, 1.3]));
+      // Protuberancias en el hocico
+      for (let i = 0; i < 10; i++) { const z = 0.3 + Math.floor(i / 2) * 0.075, S = sec(z), [x, y] = onEll(S.rx, S.ry, S.y, 0.62 + ((i * 7) % 5) * 0.07, i % 2 ? 1 : -1, 1.0); p.push(M.ball(0.024, DEEP, x, y, z, [1, 0.7, 1])); }
     } else return null;
     return p;
   };

@@ -1,4 +1,4 @@
-// Logros: 100 en total (40 comunes, 20 especiales, 20 raros, 15 épicos y 5 legendarios).
+// Logros: 101 en total (40 comunes, 20 especiales, 20 raros, 16 épicos y 5 legendarios).
 // Se guardan en el perfil (valen para todas las partidas) y dan doblones para la tienda.
 // En las partidas con trucos no se consiguen logros.
 //  - Contadores de por vida (perfil): Ach.add('kill:boar'), Ach.add('sail', metros)…
@@ -30,6 +30,7 @@
   const FRUITS = ['llama', 'hielo', 'muelle', 'humo', 'roca'];
   const SHIPS = ['balsa', 'canoa', 'velero', 'lancha', 'barco'];
   const STYLES = ['sword', 'gun', 'fist', 'magic'];
+  const VILLAGES = ['perdida', 'tahuri', 'escarcha', 'brasa'];
 
   // t: rango · i: icono · n: nombre · d: descripción · c/n: contador y meta · f: comprobación
   const A = [
@@ -132,18 +133,20 @@
     ['sin_morir', 'p', '💪', 'Piel de hierro', 'Llega al día 25 sin morir en una partida.', null, 0, () => day() >= 25 && deaths() === 0],
     ['archipielago', 'p', '🗾', 'Cartógrafo', 'Pisa todos los tipos de isla: Perdida, Tahuri, Escarcha, Brasa, islote y arrecife.', null, 0, () => distinct('visit:', ISLES) >= ISLES.length],
     ['moda', 'p', '🎩', 'Pirata a la moda', 'Consigue 10 cosméticos de la tienda.', null, 0, () => PR.data.owned.length >= 10],
+    ['aldeas', 'p', '🛖', 'Héroe de las aldeas', 'Cumple los 15 encargos del tablón de las 4 aldeas: tu tripulación (Isla Perdida), los Shandara (Tahuri), los Kyrr (Escarcha) y Ceniza (Brasa).', null, 0, () => distinct('aldea:', VILLAGES) >= 4, () => distinct('aldea:', VILLAGES) / 4],
     // ================================================================= LEGENDARIOS (5)
     ['ultima_pieza', 'l', '👑', 'La ruta de la Última Pieza', 'Completa la historia principal en dificultad Difícil.', null, 0, () => sflag('twist') && st().diff === 2],
     ['inmortal', 'l', '🔱', 'Inmortal', 'Llega al día 50 sin morir en dificultad Difícil.', null, 0, () => day() >= 50 && deaths() === 0 && st().diff === 2],
     ['bestias', 'l', '🐲', 'Señor de las bestias', 'En una misma partida, derrota al jabalí gigante, a la serpiente marina y a un oso blanco.', null, 0, () => wkill('boss') > 0 && wkill('serpent') > 0 && wkill('bear') > 0],
     ['siete_mares', 'l', '🌊', 'Leyenda de los siete mares', 'Navega 100 kilómetros.', 'sail', 100000],
-    ['completista', 'l', '🌟', 'Leyenda del archipiélago', 'Consigue los otros 99 logros.', null, 0, () => Ach.count() >= 99],
+    ['completista', 'l', '🌟', 'Leyenda del archipiélago', 'Consigue todos los demás logros.', null, 0, () => Ach.count() >= Ach.LIST.length - 1],
   ];
-  Ach.LIST = A.map(([id, t, i, n, d, c, goal, f]) => ({ id, t, i, n, d, c, goal, f }));
+  // p: progreso por partes (p. ej. aldeas ayudadas de 4)
+  Ach.LIST = A.map(([id, t, i, n, d, c, goal, f, p]) => ({ id, t, i, n, d, c, goal, f, p }));
   Ach.byId = (id) => Ach.LIST.find((a) => a.id === id);
   Ach.count = () => Ach.LIST.filter((a) => PR.hasAch(a.id)).length;
   // Progreso de un logro de contador (para la barra de la lista)
-  Ach.progress = (a) => (a.c ? Math.min(1, cnt(a.c) / a.goal) : PR.hasAch(a.id) ? 1 : 0);
+  Ach.progress = (a) => (PR.hasAch(a.id) ? 1 : a.c ? Math.min(1, cnt(a.c) / a.goal) : a.p ? Math.min(1, safe(a.p) || 0) : 0);
 
   // En partidas con trucos no se consigue nada
   Ach.blocked = () => !!(G.Cheats && G.Cheats.enabled());

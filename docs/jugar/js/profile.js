@@ -10,7 +10,7 @@
   Profile.SKINS = ['#f3d2b4', '#e6b48e', '#c68d67', '#a8704a', '#7e4d30', '#553421'];
   Profile.SHIRTS = ['#e6dfcc', '#f4f4f0', '#e05a4f', '#a01e1e', '#f08a3c', '#e8b83c', '#5fc46a', '#2e7a4a', '#3cc4b8', '#4f9de0', '#2a4a8a', '#b36ee0', '#d86aa0', '#8a5a3a', '#6a6a6a', '#2a2a2e'];
   Profile.PANTS = ['#3b5270', '#2a2a2e', '#5a4632', '#6a4a2a', '#4a5a3a', '#8a8070', '#c8b890', '#7a2a2a', '#2a3a6a', '#e6dfcc'];
-  Profile.DEFAULT_SET = { sens: 1, invY: false, fov: 70, vol: 80, sfx: 100, amb: 100, fps: true };
+  Profile.DEFAULT_SET = { sens: 1, invY: false, fov: 70, vol: 80, sfx: 100, amb: 100, voz: 100, subs: true, fps: true };
 
   function fresh() {
     let name = 'Náufrago' + Math.floor(Math.random() * 90 + 10), shirt = '#e6dfcc';
@@ -77,6 +77,15 @@
   Profile.grant = (id) => { if (!Profile.owns(id)) { D.owned.push(id); Profile.save(); } };
   Profile.equipped = (slot) => D.cos[slot] || null;
   Profile.equip = (slot, id) => { if (id && !Profile.owns(id)) return; D.cos[slot] = id || null; Profile.save(); if (Profile.onLook) Profile.onLook(); };
+  // Bandera dibujada en la pizarra: img (pequeña, para los barcos) y src (grande, para seguir editándola)
+  Profile.customFlag = () => (D.flag && D.flag.img) || null;
+  Profile.customFlagSrc = () => (D.flag && D.flag.src) || null;
+  Profile.setCustomFlag = function (img, src) {
+    D.flag = { img, src };
+    if (!Profile.owns('flag_custom')) D.owned.push('flag_custom');
+    Profile.save(true);
+    if (Profile.onLook) Profile.onLook();
+  };
   // Cosméticos del personaje que se ven sobre el modelo (sombrero, rostro, espalda, mascota)
   Profile.cosIds = () => ['hat', 'face', 'back', 'pet'].map((s) => D.cos[s]).filter(Boolean);
 

@@ -32,11 +32,9 @@
     G.World.setQuality(q);
     renderer.shadowMap.type = Q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     if (prevSoft !== undefined && prevSoft !== Q.soft) scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => (m.needsUpdate = true)); });
-    $('btnPauseQuality').textContent = 'Calidad gráfica: ' + Q.name;
     document.querySelectorAll('#setQuality button').forEach((b) => b.classList.toggle('on', b.dataset.q === q));
   }
   Main.setQuality = (q) => setQuality(q);
-  const cycleQuality = () => setQuality(Q_ORDER[(Q_ORDER.indexOf(Main.quality) + 1) % Q_ORDER.length]);
 
   // Cede el control para que se pinte el texto de carga (sin depender de requestAnimationFrame,
   // que se pausa si la pestaña está en segundo plano)
@@ -116,8 +114,7 @@
       G.UI.closeChat();
       G.Player.zoom = 0;
     }
-    $('pauseControls').classList.add('hidden');
-    $('pauseAch').classList.add('hidden');
+    if (G.Menus.inGame()) G.Menus.closeInGame(true);
     $('clickToPlay').classList.add('hidden');
     $('pauseNet').classList.toggle('hidden', !G.Net.active);
   };
@@ -168,11 +165,11 @@
   async function playWorld(w) {
     const cfg = { diff: w.diff, death: w.death || 'half', cheats: !!w.cheats };
     G.Save.setWorld(w);
-    if (w.fresh) { await G.Game.newGame(w.diff, { mode: 'coop', seed: w.seed || undefined, cfg }); return true; }
-    const data = await G.Save.loadWorld(w);
-    if (!data) { await G.Game.newGame(w.diff, { mode: 'coop', seed: w.seed || undefined, cfg }); return true; }
-    await G.Game.loadGame(data, { cfg });
-    G.Cheats.reset();
+    const data = w.fresh ? null : await G.Save.loadWorld(w);
+    if (data) { await G.Game.loadGame(data, { cfg }); G.Cheats.reset(); }
+    else await G.Game.newGame(w.diff, { mode: 'coop', seed: w.seed || undefined, cfg });
+    // La semilla que le tocó (también si se dejó en blanco): se ve en la tarjeta de la partida para copiarla
+    if (G.state.seed && w.seed !== G.state.seed) { w.seed = G.state.seed; G.Worlds.update(w.id, { seed: G.state.seed }); }
     return true;
   }
   Main.playSingle = async function (w) {
@@ -184,16 +181,12 @@
 
   // ------------------------------------------------------------------ menús
   function bindMenus() {
-    $('btnPauseQuality').onclick = cycleQuality;
     $('btnResume').onclick = resume;
     $('btnSave').onclick = () => { G.UI.msg(G.Save.save() ? '💾 Partida guardada' : 'No se pudo guardar', 'info'); resume(); };
-    $('btnPauseControls').onclick = () => { $('pauseAch').classList.add('hidden'); $('pauseControls').classList.toggle('hidden'); };
-    $('btnPauseAch').onclick = () => {
-      $('pauseControls').classList.add('hidden');
-      const box = $('pauseAch');
-      box.classList.toggle('hidden');
-      if (!box.classList.contains('hidden')) G.Menus.renderAch(box.querySelector('.ach-list'), 'pending');
-    };
+    // Configuración y Logros: se abren en la misma ventana que en el menú principal
+    $('btnPauseAch').onclick = () => G.Menus.openInGame('ach');
+    $('btnPauseBounty').onclick = () => G.Bounty.open();
+    $('btnPauseSettings').onclick = () => G.Menus.openInGame('settings');
     $('btnPauseCheats').onclick = () => { resume(); setTimeout(() => G.Cheats.open(), 60); };
     $('btnQuit').onclick = quitToMenu;
     $('btnRespawn').onclick = () => { G.Game.respawn(); resume(); };
@@ -400,6 +393,8 @@
   // ------------------------------------------------------------------ entrada
   function bindInput() {
     window.addEventListener('keydown', (e) => {
+      // Escribiendo en el buscador del recetario: las teclas no son atajos del juego
+      if (e.target && e.target.id === 'bookSearch') { if (e.code === 'Escape' || e.code === 'Tab') { e.preventDefault(); e.target.blur(); } return; }
       const mode = G.state.mode;
       if (mode === 'cinema') { if (['Space', 'Escape', 'Enter'].includes(e.code)) { e.preventDefault(); G.Cinema.skip(); } return; }
       if (G.chatOpen) {
@@ -425,10 +420,11 @@
       if (mode === 'playing') {
         if (!Input.locked && e.code !== 'Escape') return;
         if (G.Ships.helmKey(e.code)) return;
+        if (G.Cheats.keyDown(e)) return; // atajos de los trucos (doble Espacio, doble W, Ctrl + F)
         if (e.code === 'Tab' || e.code === 'KeyI') G.Game.openInventory();
         else if ((e.code === 'KeyT' || e.code === 'Enter') && G.Net.active) { e.preventDefault(); Input.keys = {}; G.UI.openChat(); }
         else if (e.code === 'KeyE') G.Game.interact();
-        else if (e.code === 'KeyF') G.Game.useHeld();
+        else if (e.code === 'KeyF' && !e.ctrlKey && !e.metaKey) G.Game.useHeld();
         else if (e.code === 'KeyG') G.Story.usePower();
         else if (e.code === 'KeyV') G.Player.toggleCam();
         else if (e.code === 'KeyM') G.Game.openMap();
@@ -436,6 +432,7 @@
         else if (e.code === 'KeyX') G.Game.demolish();
         else if (e.code === 'KeyK') G.Cheats.open();
         else if (e.code === 'KeyQ') G.Styles.tech(0);
+        else if (e.code === 'KeyB') G.Drops.dropHeld(e.shiftKey);
         else if (e.code === 'KeyZ') G.Styles.tech(1);
         else if (e.code === 'KeyR') {
           const tg = G.Game.target;
@@ -447,6 +444,7 @@
         else if (/^Digit[1-8]$/.test(e.code)) { G.Inv.sel = +e.code.slice(5) - 1; G.Inv.changed(); G.Audio.play('select'); }
       } else if (mode === 'inventory') {
         if (e.code === 'Tab' || e.code === 'Escape' || e.code === 'KeyI') G.Game.closeInventory();
+        else if (e.code === 'KeyB' && G.UI.hoverSlot !== null) { G.Drops.dropSlot(G.UI.hoverSlot, e.shiftKey ? 0 : 1); if (G.UI.infoSlot === G.UI.hoverSlot) G.UI.showInfo(G.UI.hoverSlot); }
       } else if (mode === 'map') {
         if (e.code === 'KeyM' || e.code === 'Escape') G.Game.closeMap();
       } else if (mode === 'journal') {
@@ -454,11 +452,28 @@
       } else if (mode === 'cheats') {
         if (e.code === 'KeyK' || e.code === 'Escape') G.Cheats.close();
       } else if (mode === 'paused') {
-        if (e.code === 'Escape') resume();
+        if (e.code === 'Escape') { if (G.Menus.inGame()) G.Menus.closeInGame(); else resume(); }
       }
     });
-    window.addEventListener('keyup', (e) => { Input.keys[e.code] = false; });
-    window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; });
+    // Atajos del navegador (Ctrl+S guardar página, Ctrl+P imprimir, Ctrl+D, Ctrl+H, Ctrl+J, Alt+←…): bloqueados para
+    // que no interrumpan la partida. En los campos de texto se permiten los de editar (copiar, pegar, deshacer…).
+    // Recargar (F5 / Ctrl+R) solo se permite en el menú principal. El navegador no deja bloquear Ctrl+W, Ctrl+T ni Ctrl+N.
+    const EDIT = new Set(['KeyA', 'KeyC', 'KeyV', 'KeyX', 'KeyZ', 'KeyY']);
+    window.addEventListener('keydown', (e) => {
+      const t = e.target, typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable), mod = e.ctrlKey || e.metaKey;
+      const reload = e.code === 'F5' || (mod && e.code === 'KeyR');
+      if (reload) { if (G.state.mode !== 'menu') e.preventDefault(); return; }
+      if (mod && e.shiftKey && ['KeyI', 'KeyJ', 'KeyC'].includes(e.code)) return; // herramientas de desarrollador
+      if (mod && (typing || G.state.mode !== 'playing') && EDIT.has(e.code)) return; // copiar, pegar… (en los menús y al escribir)
+      if (mod || (e.altKey && ['ArrowLeft', 'ArrowRight', 'Home', 'KeyD', 'KeyF', 'KeyE'].includes(e.code)) || ['F1', 'F3', 'F6', 'F7', 'F10'].includes(e.code)) e.preventDefault();
+    }, true);
+    // Ctrl + rueda (zoom) y los botones de atrás / adelante del ratón
+    window.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+    window.addEventListener('mouseup', (e) => { if (e.button === 3 || e.button === 4) e.preventDefault(); });
+    // Si aun así se va a cerrar o recargar la pestaña en plena partida, el navegador pregunta antes (en la app no)
+    if (!window.islaDesktop) window.addEventListener('beforeunload', (e) => { if (G.state && G.state.mode !== 'menu' && !G.Net.active) { e.preventDefault(); e.returnValue = ''; } });
+    window.addEventListener('keyup', (e) => { Input.keys[e.code] = false; G.Cheats.keyUp(e); });
+    window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; G.Cheats.on.fast = false; });
     canvas.addEventListener('mousedown', (e) => {
       if (G.state.mode !== 'playing') return;
       if (!Input.locked) { Main.lockPointer(); return; }
@@ -577,7 +592,7 @@
       if (G.state.mode === 'playing' && fps < 24) fpsLow++; else fpsLow = Math.max(0, fpsLow - 1);
       if (fpsLow >= 6 && !fpsWarned && Main.quality !== 'low') {
         fpsWarned = true;
-        G.UI.msg('⚠ El juego va lento. Baja la calidad gráfica en el menú de pausa (Esc) o en Configuración → Gráficos.', 'warn');
+        G.UI.msg('⚠ El juego va lento. Baja la calidad en Esc → Configuración → Gráficos.', 'warn');
       }
     }
   }

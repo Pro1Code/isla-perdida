@@ -137,7 +137,7 @@
         break;
       case 'give':
         for (const [id, n] of m.items) G.Game.give(id, n);
-        if (m.kill) { G.state.stats.kills++; G.UI.msg(`Has cazado: ${esc(m.kill)}`, 'good'); if (m.kt) G.Ach.onKill(m.kt); }
+        if (m.kill) { G.state.stats.kills++; G.UI.msg(`Has cazado: ${esc(m.kill)}`, 'good'); if (m.kt) { G.Ach.onKill(m.kt); G.Bounty.onKill(m.kt); G.Treasure.onKill(m.kt); G.Quests.onKill(m.kt); } }
         if (m.loot) { G.Ach.add('loot:' + (m.lk || 'chest'), 1, true); G.Ach.earn('loot'); }
         if (m.loot && m.items.length) { G.Audio.play('loot'); G.UI.msg('📦 ¡Encontraste un botín!', 'good'); }
         break;
@@ -149,6 +149,8 @@
       case 'loot':
         if (Net.isHost) G.Game.grantLoot(m.id, from);
         break;
+      case 'lootOpen': if (Net.isHost) G.Game.lootOpenReq(m.id, from); break;
+      case 'lstore': if (Net.inWorld) G.Game.onStore(m); break;
       case 'lootOpened':
         if (G.state.world) G.state.world.loot[m.id] = 1;
         G.Landmarks.setOpened(m.id, true);
@@ -159,6 +161,12 @@
         G.Landmarks.setOpened(m.id, false);
         break;
       case 'drop': if (Net.inWorld) G.Landmarks.addDrop(m.d); break;
+      case 'gdrop': case 'gtakeReq': case 'gtake': if (Net.inWorld) G.Drops.onNet(m, from); break;
+      case 'trNew': case 'trDig': case 'trDone': if (Net.inWorld) G.Treasure.onNet(m, from); break;
+      case 'seaWx': if (Net.inWorld) G.SeaWx.onNet(m); break;
+      case 'grave': if (Net.inWorld) G.Grave.onNet(m, from); break;
+      case 'bossFx': if (Net.inWorld) G.Bosses.onNet(m); break;
+      case 'navyNew': case 'navyPos': case 'navyGone': if (Net.inWorld) G.Navy.onNet(m); break;
       case 'chest': {
         const s = G.Build.byId(m.id);
         if (s) { s.items = m.items; if (G.UI.chest === s) G.UI.refreshInv(); }
@@ -184,7 +192,8 @@
   Net.fuel = (s) => { if (Net.active) Net.send({ t: 'fuel', id: s.id, fuel: s.fuel }); };
   Net.chestChanged = (s) => {
     if (!Net.active) return;
-    if (s.ship) Net.send({ t: 'shCrate', id: s.ship.id, items: s.items });
+    if (s.loot) Net.send({ t: 'lstore', id: s.id, items: s.items });
+    else if (s.ship) Net.send({ t: 'shCrate', id: s.ship.id, items: s.items });
     else Net.send({ t: 'chest', id: s.id, items: s.items });
   };
   Net.chat = (text) => { if (Net.active && text) Net.send({ t: 'chat', text: text.slice(0, 140) }); };
@@ -201,7 +210,7 @@
       day: G.state.day, t: G.state.t, diff: G.state.diff, world: G.state.world, weather: [G.Weather.type, Math.round(G.Weather.timer)],
       seed: G.state.seed, gm: G.state.gm, cfg: G.state.cfg, clocks: G.Clock.pack(), vs: G.Modes.st,
     },
-    b: G.Build.getState(), r: G.Res.getState(), c: G.Creatures.snapshot(), ships: G.Ships.getState(), drops: G.Landmarks.getDrops(),
+    b: G.Build.getState(), r: G.Res.getState(), c: G.Creatures.snapshot(), ships: G.Ships.getState(), drops: G.Landmarks.getDrops(), gd: G.Drops.getState(),
   });
   Net.startWorld = function () { Net.inWorld = true; Net.send({ t: 'worldReady' }); };
   // Configuración del lobby (el anfitrión la reparte)
@@ -358,7 +367,7 @@
       tT = 2;
       Net.send({
         t: 'time', clocks: G.Clock.pack(), wx: G.Weather.type, wa: +(G.Weather.windA || 0).toFixed(3), bk: G.state.world.bossKilled ? 1 : 0,
-        fires: G.Build.list.filter((s) => s.type === 'fogata').map((s) => [s.id, Math.round(s.fuel)]),
+        fires: G.Build.list.filter((s) => s.type === 'fogata' || s.type === 'antorcha').map((s) => [s.id, Math.round(s.fuel)]),
       });
     }
   };

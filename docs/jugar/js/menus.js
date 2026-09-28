@@ -6,7 +6,7 @@
   const Menus = (G.Menus = {});
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const PANELS = ['menuMain', 'menuSP', 'menuCreate', 'menuAch', 'menuMP', 'menuSettings', 'menuShop'];
+  const PANELS = ['menuMain', 'menuSP', 'menuCreate', 'menuAch', 'menuMP', 'menuSettings', 'menuShop', 'menuNews'];
   const DIFF = ['Fácil', 'Normal', 'Difícil'];
   let current = 'menuMain';
 
@@ -20,11 +20,39 @@
   };
   Menus.current = () => current;
 
+  // ------------------------------------------------------------------ ventanas del menú durante la partida
+  // Configuración y Logros se abren desde la pausa en la misma ventana que en el menú principal
+  let inGame = null;
+  Menus.inGame = () => !!inGame;
+  Menus.openInGame = function (which) {
+    const id = which === 'ach' ? 'menuAch' : 'menuSettings';
+    if (which === 'ach') openAch('game'); else openSettings();
+    $('gameMenuCard').appendChild($(id));
+    inGame = id;
+    $('pause').classList.add('hidden');
+    $('gameMenu').classList.remove('hidden');
+    if (which !== 'ach') renderSettings();
+  };
+  Menus.closeInGame = function (silent) {
+    if (!inGame) return;
+    const panel = $(inGame);
+    panel.classList.add('hidden');
+    $('menuCard').appendChild(panel);
+    inGame = null;
+    G.Shop.Preview.stop();
+    $('gameMenu').classList.add('hidden');
+    // El aspecto y el nombre nuevos se aplican al momento
+    G.Player.setLook(G.Profile.lookHex());
+    G.Player.refreshCosmetics();
+    if (G.Net.active) { G.Net.name = G.Profile.name(); G.Net.color = G.Profile.look().shirt; }
+    if (!silent && G.state.mode === 'paused') $('pause').classList.remove('hidden');
+  };
+
   // ------------------------------------------------------------------ perfil (arriba a la derecha)
   Menus.refreshChip = function () {
     const P = G.Profile;
-    $('profileChip').innerHTML = `<i style="background:${esc(P.look().shirt)}"></i><b>${esc(P.name())}</b><span>🏆 ${G.Ach.count()}/100</span><span>🪙 ${P.coins()}</span>`;
-    $('achCount').textContent = `${G.Ach.count()}/100`;
+    $('profileChip').innerHTML = `<i style="background:${esc(P.look().shirt)}"></i><b>${esc(P.name())}</b><span>🏆 ${G.Ach.count()}/${G.Ach.LIST.length}</span><span>🪙 ${P.coins()}</span>`;
+    $('achCount').textContent = `${G.Ach.count()}/${G.Ach.LIST.length}`;
     $('shopCoins').textContent = `🪙 ${P.coins()} doblones`;
   };
 
@@ -39,6 +67,13 @@
     return d < 30 ? `hace ${d} día${d > 1 ? 's' : ''}` : new Date(t).toLocaleDateString('es');
   };
   const dur = (s) => (s < 3600 ? `${Math.max(1, Math.round(s / 60))} min` : `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)} min`);
+  // Copiar al portapapeles (con plan B para navegadores sin permiso)
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; } catch (e) { /* plan B */ }
+    try { const a = document.createElement('textarea'); a.value = t; a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); const ok = document.execCommand('copy'); a.remove(); return ok; } catch (e) { return false; }
+  }
+  // Regla al morir de cada partida (clic en la etiqueta para cambiarla)
+  const DEATH_TAG = { half: '⚰️ Al morir: cofre', keep: '🎒 Al morir: conservas todo', all: '💀 Al morir: pierdes todo' };
   // kind: 'sp' o 'mp' · onPlay(w): qué hacer al pulsar Jugar / Hospedar
   Menus.renderWorlds = function (box, kind, onPlay) {
     const list = G.Worlds.list(kind);
@@ -48,7 +83,8 @@
     }
     box.innerHTML = list.map((w) => `<div class="world" data-id="${w.id}">
       <div class="w-main"><b class="w-name">${esc(w.name)}</b>
-        <div class="w-tags"><span class="tag d${w.diff}">${DIFF[w.diff] || 'Normal'}</span>${w.cheats ? '<span class="tag cheat">🪄 Trucos</span>' : ''}<span>${w.fresh ? 'Sin empezar' : `Día ${w.day || 1}`}</span>${w.time ? `<span>⏱️ ${dur(w.time)}</span>` : ''}<span class="muted">${ago(w.played || w.created)}</span>${w.ver && w.ver !== G.VERSION ? `<span class="muted">v${esc(w.ver)}</span>` : ''}</div></div>
+        <div class="w-seed">🌱 Semilla ${w.seed ? `<code>${w.seed}</code><button class="seed-copy" data-a="seed" title="Copiar la semilla">📋 Copiar</button>` : '<span class="muted">se verá al entrar en la partida</span>'}</div>
+        <div class="w-tags"><span class="tag d${w.diff}">${DIFF[w.diff] || 'Normal'}</span><button class="tag death" data-a="death" title="Qué pasa al morir en esta partida · clic para cambiarlo">${DEATH_TAG[w.death] || DEATH_TAG.half}</button>${w.cheats ? '<span class="tag cheat">🪄 Trucos</span>' : ''}<span>${w.fresh ? 'Sin empezar' : `Día ${w.day || 1}`}</span>${w.time ? `<span>⏱️ ${dur(w.time)}</span>` : ''}<span class="muted">${ago(w.played || w.created)}</span>${w.ver && w.ver !== G.VERSION ? `<span class="muted">v${esc(w.ver)}</span>` : ''}</div></div>
       <div class="w-btns"><button class="btn small primary" data-a="play">${kind === 'sp' ? '▶ Jugar' : '👑 Hospedar'}</button><button class="btn small icon" data-a="ren" title="Renombrar">✏️</button><button class="btn small icon" data-a="del" title="Borrar">🗑️</button></div>
     </div>`).join('');
     box.onclick = async (e) => {
@@ -56,7 +92,20 @@
       if (!b) return;
       const card = b.closest('.world'), w = G.Worlds.get(card.dataset.id);
       if (!w) return;
-      if (b.dataset.a === 'play') { box.querySelectorAll('button').forEach((x) => (x.disabled = true)); try { await onPlay(w); } finally { box.querySelectorAll('button').forEach((x) => (x.disabled = false)); } }
+      if (b.dataset.a === 'seed') {
+        copyText(String(w.seed)).then((ok) => {
+          // Si el navegador no deja copiar, queda seleccionada para copiarla con Ctrl + C
+          if (!ok) { const c = card.querySelector('.w-seed code'), r = document.createRange(); r.selectNodeContents(c); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+          b.textContent = ok ? '✅ Copiada' : 'Pulsa Ctrl + C';
+          setTimeout(() => { if (b.isConnected) b.textContent = '📋 Copiar'; }, 2200);
+        });
+        return;
+      }
+      if (b.dataset.a === 'death') {
+        const order = ['half', 'keep', 'all'], cur = order.indexOf(w.death || 'half');
+        G.Worlds.update(w.id, { death: order[(cur + 1) % order.length] });
+        Menus.renderWorlds(box, kind, onPlay);
+      } else if (b.dataset.a === 'play') { box.querySelectorAll('button').forEach((x) => (x.disabled = true)); try { await onPlay(w); } finally { box.querySelectorAll('button').forEach((x) => (x.disabled = false)); } }
       else if (b.dataset.a === 'ren') {
         const nm = card.querySelector('.w-name');
         nm.outerHTML = `<input class="mp-input w-edit" maxlength="32" value="${esc(w.name)}" />`;
@@ -113,7 +162,7 @@
     achFrom = from || 'menuSP';
     Menus.show('menuAch');
     const A = G.Ach, n = A.count();
-    $('achSummary').textContent = `${n}/100 conseguidos · ${G.Profile.data.earned || 0} 🪙 ganados en total`;
+    $('achSummary').textContent = `${n}/${G.Ach.LIST.length} conseguidos · ${G.Profile.data.earned || 0} 🪙 ganados en total`;
     $('achTiers').innerHTML = Object.entries(A.TIERS).map(([k, T]) => {
       const all = A.LIST.filter((a) => a.t === k), got = all.filter((a) => G.Profile.hasAch(a.id)).length;
       return `<div class="tier" style="--tc:${T.color}"><b>${got}/${all.length}</b><span>${T.plural}</span><div class="bar"><i style="width:${(got / all.length) * 100}%"></i></div></div>`;
@@ -168,7 +217,8 @@
     $('setFov').value = P.set('fov'); $('setFovV').textContent = P.set('fov') + '°';
     $('setInvY').checked = !!P.set('invY');
     $('setFps').checked = !!P.set('fps');
-    for (const k of ['vol', 'sfx', 'amb']) { $('set' + k[0].toUpperCase() + k.slice(1)).value = P.set(k); $('set' + k[0].toUpperCase() + k.slice(1) + 'V').textContent = P.set(k) + '%'; }
+    $('setSubs').checked = !!P.set('subs');
+    for (const k of ['vol', 'sfx', 'amb', 'voz']) { $('set' + k[0].toUpperCase() + k.slice(1)).value = P.set(k); $('set' + k[0].toUpperCase() + k.slice(1) + 'V').textContent = P.set(k) + '%'; }
     document.querySelectorAll('#setQuality button').forEach((b) => b.classList.toggle('on', b.dataset.q === G.Main.quality));
     $('setVersion').innerHTML = `<b>Isla Perdida ${esc(G.VERSION)}</b> · ${esc(G.VERSION_NAME)}<br><small class="muted">${window.islaDesktop ? 'App de escritorio: puedes tener varias versiones y elegir cuál jugar en el lanzador.' : 'Versión para navegador: siempre es la última.'}</small>`;
   }
@@ -192,14 +242,16 @@
     if (!shopSel || !items.some((c) => c.id === shopSel)) shopSel = items[0].id;
     $('shopGrid').innerHTML = items.map((c) => {
       const own = P.owns(c.id), on = P.equipped(c.slot) === c.id;
-      return `<button class="shop-item${c.id === shopSel ? ' sel' : ''}${own ? ' own' : ''}" data-id="${c.id}"><span class="si-ic">${c.icon}</span><b>${esc(c.name)}</b><span class="si-price">${on ? '✔ Puesto' : own ? 'Tuyo' : `🪙 ${c.price}`}</span></button>`;
+      return `<button class="shop-item${c.id === shopSel ? ' sel' : ''}${own ? ' own' : ''}" data-id="${c.id}"><span class="si-ic">${c.icon}</span><b>${esc(c.name)}</b><span class="si-price">${on ? '✔ Puesto' : own ? 'Tuyo' : c.price ? `🪙 ${c.price}` : 'Gratis'}</span></button>`;
     }).join('');
     const c = S.byId(shopSel), own = P.owns(c.id), on = P.equipped(c.slot) === c.id, lack = c.price - P.coins();
-    const ship = ['sail', 'flag', 'fh'].includes(c.slot);
+    const ship = ['sail', 'flag', 'fh'].includes(c.slot), custom = c.id === 'flag_custom', drawn = !!P.customFlag();
     $('shopInfo').innerHTML = `<h4>${c.icon} ${esc(c.name)}</h4><p class="muted">${esc(c.desc)}</p>` +
       (ship ? '<p class="small-text muted">Se usa en tus barcos: los nuevos lo llevan puesto, y en uno que ya tengas pulsa <kbd>R</kbd> a bordo. También aparece al elegir el diseño en el astillero.</p>' : '') +
-      (own ? `<button id="shopEquip" class="btn ${on ? 'small' : 'primary'}">${on ? 'Quitármelo' : 'Ponérmelo'}</button>`
+      (custom ? `<button id="shopDraw" class="btn ${drawn ? '' : 'primary'}">✏️ ${drawn ? 'Editar mi bandera' : 'Abrir la pizarra (gratis)'}</button>` + (drawn ? ` <button id="shopEquip" class="btn ${on ? 'small' : 'primary'}">${on ? 'Quitármela' : 'Ponérmela'}</button>` : '')
+        : own ? `<button id="shopEquip" class="btn ${on ? 'small' : 'primary'}">${on ? 'Quitármelo' : 'Ponérmelo'}</button>`
         : `<button id="shopBuy" class="btn primary"${lack > 0 ? ' disabled' : ''}>Comprar por 🪙 ${c.price}</button>${lack > 0 ? `<p class="warn-text">Te faltan ${lack} doblones.</p>` : ''}`);
+    if (custom) $('shopDraw').onclick = () => G.FlagEditor.open(P.customFlagSrc(), (img, src) => { P.setCustomFlag(img, src); P.equip('flag', 'flag_custom'); G.Audio.init(); G.Audio.play('loot'); renderShop(); });
     // Vista previa: el personaje con el cosmético o el diseño del barco
     const flat = $('shopFlat');
     if (c.slot === 'sail' || c.slot === 'flag') {
@@ -232,7 +284,11 @@
     if (c.slot === 'flag') {
       x.save(); x.translate(32, 30); x.scale(2, 2);
       x.fillStyle = '#111'; x.fillRect(0, 0, 128, 80);
-      G.Shop.drawFlag(x, 128, 80, c.id.replace('flag_', ''));
+      if (c.id === 'flag_custom') {
+        const img = G.Profile.customFlag();
+        if (img) { const im = new Image(); im.onload = () => x.drawImage(im, 32, 30, 256, 160); im.src = img; }
+        else { x.fillStyle = '#f2f2f2'; x.font = '800 9px Nunito, sans-serif'; x.textAlign = 'center'; x.fillText('✏️ Aún no la has dibujado', 64, 44); }
+      } else G.Shop.drawFlag(x, 128, 80, c.id.replace('flag_', ''));
       x.restore();
       x.fillStyle = '#7a5230'; x.fillRect(22, 20, 10, 190);
     } else {
@@ -255,11 +311,12 @@
     $('btnSP').onclick = openSP;
     $('btnSettings').onclick = () => openSettings();
     $('btnShop').onclick = openShop;
+    $('btnNews').onclick = () => G.News.open();
     $('profileChip').onclick = () => openSettings('char');
-    document.querySelectorAll('#menu .back').forEach((b) => (b.onclick = () => { G.Net.disconnect(); Menus.show('menuMain'); }));
+    document.querySelectorAll('#menu .back').forEach((b) => (b.onclick = () => { if (inGame) { Menus.closeInGame(); return; } G.Net.disconnect(); Menus.show('menuMain'); }));
     $('spNew').onclick = () => Menus.openCreate('sp');
     $('btnAch').onclick = () => openAch('menuSP');
-    $('achBack').onclick = () => (achFrom === 'menuSP' ? openSP() : Menus.show(achFrom));
+    $('achBack').onclick = () => (inGame ? Menus.closeInGame() : achFrom === 'menuSP' ? openSP() : Menus.show(achFrom));
     $('achTabs').onclick = (e) => { const b = e.target.closest('button[data-k]'); if (!b) return; achTab = b.dataset.k; openAch(achFrom); };
     // Crear partida
     $('cwDeath').innerHTML = Object.entries(G.Modes.DEATH).filter(([k]) => k !== 'out').map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
@@ -275,7 +332,8 @@
     const slider = (id, key, fmt, after) => { $(id).oninput = () => { G.Profile.setSetting(key, +$(id).value); $(id + 'V').textContent = fmt(+$(id).value); if (after) after(); }; };
     slider('setSens', 'sens', (v) => v.toFixed(2) + '×');
     slider('setFov', 'fov', (v) => v + '°');
-    for (const k of ['Vol', 'Sfx', 'Amb']) slider('set' + k, k.toLowerCase(), (v) => v + '%', () => G.Audio.setVolumes());
+    $('setSubs').onchange = () => G.Profile.setSetting('subs', $('setSubs').checked);
+    for (const k of ['Vol', 'Sfx', 'Amb', 'Voz']) slider('set' + k, k.toLowerCase(), (v) => v + '%', () => G.Audio.setVolumes());
     $('setInvY').onchange = () => G.Profile.setSetting('invY', $('setInvY').checked);
     $('setFps').onchange = () => G.Profile.setSetting('fps', $('setFps').checked);
     $('setQuality').onclick = (e) => { const b = e.target.closest('button[data-q]'); if (b) { G.Main.setQuality(b.dataset.q); renderSettings(); } };
@@ -291,7 +349,7 @@
     if (D) {
       $('btnDownloads').classList.add('hidden');
       // Botón del lanzador (la app antigua añade uno propio si no encuentra este id)
-      if (D.openLauncher) { $('btnLauncher').classList.remove('hidden'); $('btnLauncher').onclick = () => D.openLauncher(); }
+      if (D.openLauncher) { $('btnLauncher').classList.remove('hidden'); $('btnLauncher').onclick = () => { if (G.state.mode !== 'menu') G.Save.save(); D.openLauncher(); }; }
       if (D.checkUpdates) { $('btnCheckUpd').classList.remove('hidden'); $('btnCheckUpd').onclick = () => { D.checkUpdates(); $('setUpdState').textContent = 'Buscando actualizaciones…'; }; }
       const note = $('updateNote');
       D.onUpdate((u) => {

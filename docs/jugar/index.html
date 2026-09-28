@@ -71,8 +71,16 @@
       <button id="btnMP" class="btn big">🌐 Multijugador</button>
       <button id="btnSettings" class="btn big">⚙️ Configuración</button>
       <button id="btnShop" class="btn big">🛒 Tienda</button>
+      <button id="btnNews" class="btn big">📰 Novedades</button>
       <p id="updateNote" class="update-note hidden"></p>
       <p class="version muted" id="versionLabel"></p>
+    </div>
+
+    <!-- Novedades de cada versión: miniatura, «Ver contenido» y capturas (news.js) -->
+    <div id="menuNews" class="hidden wide">
+      <div class="panel-head"><h3>📰 Novedades</h3></div>
+      <div id="newsList" class="news-list"></div>
+      <button class="btn small back">Volver</button>
     </div>
 
     <!-- Un jugador: lista de partidas -->
@@ -215,6 +223,8 @@
         <label class="slider-row">Volumen general <input type="range" id="setVol" min="0" max="100" step="1" /><b id="setVolV"></b></label>
         <label class="slider-row">Efectos <input type="range" id="setSfx" min="0" max="100" step="1" /><b id="setSfxV"></b></label>
         <label class="slider-row">Ambiente (mar, viento, lluvia) <input type="range" id="setAmb" min="0" max="100" step="1" /><b id="setAmbV"></b></label>
+        <label class="slider-row">Voces de los personajes <input type="range" id="setVoz" min="0" max="100" step="1" /><b id="setVozV"></b></label>
+        <label class="toggle-row"><input type="checkbox" id="setSubs" /> <span>Subtítulos de las conversaciones entre personajes</span></label>
       </div>
       <div class="set-page hidden" data-p="game">
         <p id="setVersion" class="world-info"></p>
@@ -231,7 +241,7 @@
     <!-- Tienda -->
     <div id="menuShop" class="hidden wide">
       <div class="panel-head"><h3>🛒 Tienda</h3><span class="coins-big" id="shopCoins"></span></div>
-      <p class="muted small-text">Solo cosméticos: no cambian cómo se juega. Los doblones se ganan jugando (días superados, cofres, cacerías…) y con los 🏆 logros.</p>
+      <p class="muted small-text">Cosméticos (las mascotas, además, te ayudan un poco). Los doblones se ganan jugando (días superados, cofres, cacerías…) y con los 🏆 logros.</p>
       <div id="shopTabs" class="tabs"></div>
       <div class="shop-body">
         <div id="shopGrid" class="shop-grid"></div>
@@ -267,18 +277,23 @@
     <div id="statusIcons"></div>
   </div>
 
-  <div id="shipHud" class="hidden"></div>
+  <!-- Columna inferior derecha: barco, estilo de combate y teclas (apilados, sin solaparse) -->
+  <div id="hudRight">
+    <div id="shipHud" class="hidden"></div>
+    <div id="styleHud" class="hidden"></div>
+    <div id="keyhint"><kbd>Tab</kbd> Inventario <kbd>M</kbd> Mapa <kbd>J</kbd> Bitácora <kbd>V</kbd> Cámara <kbd>Esc</kbd> Pausa<span id="keyhintCheats" class="hidden"> <kbd>K</kbd> Trucos</span></div>
+  </div>
   <div id="powerHud" class="hidden"></div>
-  <div id="styleHud" class="hidden"></div>
   <div id="bossBar" class="hidden"><div id="bossName">🐗 Jabalí gigante</div><div class="bar"><i id="bossFill"></i></div></div>
   <div id="heldName"></div>
+  <div id="bubbles"></div>
+  <div id="chatSub"></div>
   <div id="hotbar"></div>
   <div id="crosshair"></div>
   <div id="prompt"></div>
   <div id="messages"></div>
   <div id="banner"></div>
   <div id="vignette"></div>
-  <div id="keyhint"><kbd>Tab</kbd> Inventario <kbd>M</kbd> Mapa <kbd>J</kbd> Bitácora <kbd>V</kbd> Cámara <kbd>Esc</kbd> Pausa<span id="keyhintCheats" class="hidden"> <kbd>K</kbd> Trucos</span></div>
 </div>
 
 <!-- ============ DIÁLOGO ============ -->
@@ -294,22 +309,19 @@
     <button id="invClose" class="close" title="Cerrar (Tab)">✕</button>
     <section class="inv-col">
       <h2>Inventario</h2>
-      <p class="hint" id="invHint">Clic: mover/intercambiar · Clic derecho: usar/comer</p>
+      <div id="craftTabs"></div>
       <div id="chestSec" class="hidden">
         <div class="inv-label" id="chestTitle">📦 Cofre</div>
         <div id="invChest" class="inv-grid chest-grid"></div>
       </div>
-      <div class="inv-label">Equipo <span class="muted" id="eqStats"></span></div>
+      <div class="inv-label inv-first">Equipo <span class="muted" id="eqStats"></span></div>
       <div id="invEquip" class="inv-grid equip-grid"></div>
       <div class="inv-label">Barra rápida (1-8)</div>
       <div id="invHot" class="inv-grid"></div>
       <div class="inv-label">Mochila</div>
       <div id="invBag" class="inv-grid"></div>
-      <div id="itemInfo"><span class="muted">Pasa el ratón sobre un objeto para ver detalles.</span></div>
     </section>
     <section class="craft-col">
-      <h2>Fabricación</h2>
-      <div id="craftTabs"></div>
       <div id="recipes"></div>
     </section>
   </div>
@@ -348,17 +360,18 @@
     <p id="pauseNet" class="muted hidden"></p>
     <div class="menu-buttons">
       <button id="btnResume" class="btn primary">Reanudar</button>
-      <button id="btnSave" class="btn">Guardar partida</button>
+      <button id="btnSave" class="btn">💾 Guardar partida</button>
       <button id="btnPauseCheats" class="btn hidden">🪄 Trucos (K)</button>
       <button id="btnPauseAch" class="btn">🏆 Logros</button>
-      <button id="btnPauseControls" class="btn">Controles</button>
-      <button id="btnPauseQuality" class="btn small">Calidad gráfica: Alta</button>
+      <button id="btnPauseBounty" class="btn">📜 Se busca</button>
+      <button id="btnPauseSettings" class="btn">⚙️ Configuración</button>
       <button id="btnQuit" class="btn small">Guardar y salir al menú</button>
     </div>
-    <div id="pauseControls" class="hidden"><div class="controls-list"></div></div>
-    <div id="pauseAch" class="hidden"><div class="ach-list compact"></div></div>
   </div>
 </div>
+
+<!-- Ventanas del menú abiertas durante la partida (Configuración y Logros): las mismas del menú principal -->
+<div id="gameMenu" class="screen hidden"><div class="menu-card wide-card" id="gameMenuCard"></div></div>
 
 <!-- ============ MUERTE ============ -->
 <div id="dead" class="screen hidden">
@@ -389,9 +402,8 @@
   <div class="cheat-card">
     <button id="cheatsClose" class="close" title="Cerrar (K)">✕</button>
     <h2>🪄 Trucos</h2>
-    <p class="muted small-text">Esta partida tiene los trucos activados: aquí no se consiguen logros ni doblones.</p>
+    <p class="muted small-text">Esta partida tiene los trucos activados: eres inmortal y no pasas hambre ni sed. Aquí no se consiguen logros ni doblones.</p>
     <div id="chToggles" class="ch-toggles"></div>
-    <div class="ch-sec"><b>Rápidos</b><div class="row-btns left"><button id="chHeal" class="btn small">❤️ Curarme</button><button id="chLearn" class="btn small">📜 Aprender todas las recetas</button><button id="chMap" class="btn small">🗺️ Descubrir el mapa</button></div></div>
     <div class="ch-sec"><b>Dar objeto</b><div class="row-btns left"><select id="chItem"></select><input id="chQty" type="number" min="1" max="999" value="10" class="mp-input qty" /><button id="chGive" class="btn small primary">Dar</button></div></div>
     <div class="ch-sec"><b>Hora de esta isla</b><div id="chTime" class="row-btns left"></div></div>
     <div class="ch-sec"><b>Clima</b><div id="chWeather" class="row-btns left"></div></div>
@@ -439,8 +451,8 @@
 
   const files = [
     'js/version.js', 'js/util.js', 'js/profile.js', 'js/models.js', 'js/audio.js', 'js/net.js', 'js/items.js', 'js/islands.js', 'js/world.js', 'js/resources.js',
-    'js/building.js', 'js/landmarks.js', 'js/weather.js', 'js/fishing.js', 'js/animals.js', 'js/creatures.js', 'js/character.js', 'js/equipment.js', 'js/shop.js', 'js/player.js',
-    'js/clock.js', 'js/ships.js', 'js/story.js', 'js/modes.js', 'js/achievements.js', 'js/cheats.js', 'js/styles.js', 'js/prologue.js', 'js/cinema.js', 'js/ui.js', 'js/game.js', 'js/save.js', 'js/menus.js', 'js/main.js'
+    'js/building.js', 'js/landmarks.js', 'js/weather.js', 'js/fishing.js', 'js/animals.js', 'js/bosses.js', 'js/creatures.js', 'js/character.js', 'js/equipment.js', 'js/shop.js', 'js/grip.js', 'js/player.js',
+    'js/clock.js', 'js/ships.js', 'js/story.js', 'js/modes.js', 'js/achievements.js', 'js/cheats.js', 'js/styles.js', 'js/prologue.js', 'js/cinema.js', 'js/lines.js', 'js/voice-list.js', 'js/voice.js', 'js/drops.js', 'js/flageditor.js', 'js/pets.js', 'js/bounty.js', 'js/treasure.js', 'js/quests.js', 'js/seaweather.js', 'js/crew.js', 'js/navy.js', 'js/recipebook.js', 'js/grave.js', 'js/ui.js', 'js/game.js', 'js/save.js', 'js/menus.js', 'js/news.js', 'js/main.js'
   ];
   for (const f of files) {
     await new Promise((ok, fail) => {

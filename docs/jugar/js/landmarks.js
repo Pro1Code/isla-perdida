@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   const G = window.G, U = G.U, M = G.Mdl;
-  const L = (G.Landmarks = { loot: [], caves: [], circles: [], extra: [], anims: [], lights: [], lightPool: [], whirls: [], schools: [] });
+  const L = (G.Landmarks = { loot: [], caves: [], circles: [], extra: [], anims: [], lights: [], lightPool: [], whirls: [], schools: [], surfaces: [], roofs: [] });
   const V3 = THREE.Vector3;
 
   // Botín fijo de los cofres del naufragio de la Isla Perdida (ids 0, 1 y 2) y tablas del resto (con semilla)
@@ -13,11 +13,12 @@
     2: [['hacha_hierro', 1], ['mineral_hierro', 3], ['cuero', 1], ['hierba', 3]],
   };
   const POOLS = {
-    supplies: [['carne_cocida', 2, 4], ['agua_limpia', 1, 3], ['venda', 1, 3], ['antorcha', 1, 2], ['cuerda', 2, 5], ['tabla', 3, 8], ['cuero', 1, 3], ['cataplasma', 1, 2], ['casco_cuero', 1, 1], ['chaqueta_cuero', 1, 1], ['botas_cuero', 1, 1], ['pantalon_cuero', 1, 1]],
+    supplies: [['carne_cocida', 2, 4], ['agua_limpia', 1, 3], ['venda', 1, 3], ['antorcha', 1, 2], ['mechero', 1, 1], ['cuerda', 2, 5], ['tabla', 3, 8], ['cuero', 1, 3], ['cataplasma', 1, 2], ['casco_cuero', 1, 1], ['chaqueta_cuero', 1, 1], ['botas_cuero', 1, 1], ['pantalon_cuero', 1, 1]],
     treasure: [['perla', 1, 3], ['doblon', 3, 12], ['lingote', 1, 3], ['clavos', 4, 10], ['polvora', 2, 5], ['bala_canon', 2, 6], ['tela_vela', 1, 2], ['catalejo', 1, 1], ['bicornio', 1, 1], ['coraza_hierro', 1, 1], ['botas_hierro', 1, 1], ['casco_hierro', 1, 1]],
     sunken: [['doblon', 5, 15], ['perla', 1, 2], ['lingote', 2, 4], ['clavos', 4, 8], ['polvora', 2, 6], ['bala_canon', 3, 8], ['cuerda', 2, 4], ['casaca_capitan', 1, 1], ['bicornio', 1, 1], ['casco_buceo', 1, 1], ['aletas', 1, 1]],
     barrel: [['agua_limpia', 1, 3], ['carne_cocida', 1, 2], ['tabla', 2, 5], ['cuerda', 1, 3], ['polvora', 1, 3], ['doblon', 1, 4], ['pez_asado', 1, 3], ['sandalias', 1, 1], ['sombrero_paja', 1, 1], ['pantalon_fibra', 1, 1]],
   };
+  L.POOLS = POOLS; // el recetario dice qué hay en cada tipo de cofre
   function rollLoot(rnd, pool, n) {
     const P = POOLS[pool].slice(), out = [];
     for (let i = 0; i < n && P.length; i++) {
@@ -31,6 +32,7 @@
     const base = (L.LOOT[id] || []).slice();
     if (G.Story) base.push(...G.Story.lootExtra(id));
     if (G.Modes) base.push(...G.Modes.lootExtra(id));
+    if (G.Treasure) base.push(...G.Treasure.lootExtra(id));
     return base;
   };
 
@@ -80,10 +82,11 @@
     monoglyph('m:perdida', C.wx + Math.sin(a) * C.r * 0.35, C.wz + Math.cos(a) * C.r * 0.35, C.ent, false);
   };
 
-  function track(o) { G.scene.add(o); L.extra.push(o); return o; }
+  // surfaces: lo que hay en el escenario (paredes de chozas, cuevas, ruinas…) donde se puede clavar una antorcha
+  function track(o) { G.scene.add(o); L.extra.push(o); L.surfaces.push(o); return o; }
   // Piezas de escenario reutilizables (campamentos del prólogo en la Isla Perdida)
   L.kit = () => ({ firePit, tikiTorch, hut, totem, dryingRack, camp, track, mats: getMats, circle: (x, z, r) => circle(x, z, r, true) });
-  function add(o, extra) { if (extra) track(o); else G.scene.add(o); return o; }
+  function add(o, extra) { if (extra) track(o); else { G.scene.add(o); L.surfaces.push(o); } return o; }
   function mesh(geo, mat, extra, shadow = true) { const m = new THREE.Mesh(geo, mat); m.castShadow = shadow; m.receiveShadow = true; return add(m, extra); }
   const circle = (x, z, r, extra, y0 = -99, y1 = 99) => L.circles.push({ x, z, r, extra: !!extra, y0, y1 });
 
@@ -153,6 +156,8 @@
   }
   L.caveAt = (x, z) => L.caves.find((C) => Math.abs(x - C.wx) < C.r && Math.abs(z - C.wz) < C.r && Math.hypot(x - C.wx, z - C.wz) < C.r * 0.82) || null;
   L.inCave = (x, z) => !!L.caveAt(x, z);
+  // Bajo el tejado de una choza (no te mojas y las antorchas no se apagan con la lluvia)
+  L.underRoof = (x, z) => L.roofs.some((r) => Math.hypot(x - r.x, z - r.z) < r.r);
   L.nearestCave = (x, z) => { let b = L.caves[0], bd = 1e9; for (const C of L.caves) { const d = Math.hypot(x - C.wx, z - C.wz); if (d < bd) { bd = d; b = C; } } return b; };
   L.blocks = (x, z) => {
     for (const C of L.caves) {
@@ -162,9 +167,18 @@
     }
     return L.circles.some((c) => c.y1 > 0 && Math.abs(x - c.x) < c.r && Math.hypot(x - c.x, z - c.z) < c.r);
   };
-  L.collide = function (pos, rad) {
+  // Techo de la cueva sobre este punto (para no salir volando a través de la roca)
+  L.caveCeil = function (x, z) {
+    const C = L.caveAt(x, z);
+    if (!C) return null;
+    const d = Math.hypot(x - C.wx, z - C.wz);
+    return C.plateau + C.h * Math.sqrt(Math.max(0.05, 1 - (d / C.r) ** 2)) * 0.9 - 0.5;
+  };
+  // air: volando; las paredes de la cueva y los obstáculos sin altura (-99..99) solo chocan hasta su altura real
+  L.collide = function (pos, rad, air) {
     for (const C of L.caves) {
       if (Math.abs(pos.x - C.wx) > C.r * 1.5 || Math.abs(pos.z - C.wz) > C.r * 1.5) continue;
+      if (air && pos.y > C.plateau + C.h) continue;
       const w = caveWall(C, pos.x, pos.z);
       if (!w.door && w.d > 0.01 && w.d > w.Ri - rad && w.d < w.Ro + rad) {
         const target = w.d < (w.Ri + w.Ro) / 2 ? w.Ri - rad : w.Ro + rad;
@@ -173,6 +187,7 @@
     }
     for (const c of L.circles) {
       if (pos.y < c.y0 || pos.y > c.y1) continue;
+      if (air && pos.y > (c.top ??= c.y1 < 99 ? c.y1 : G.height(c.x, c.z) + 6)) continue;
       const dx = pos.x - c.x, dz = pos.z - c.z;
       if (Math.abs(dx) > c.r + rad || Math.abs(dz) > c.r + rad) continue;
       const d = Math.hypot(dx, dz), rr = c.r + rad;
@@ -332,17 +347,52 @@
   }
 
   // ------------------------------------------------------------------ aldea Shandara (Isla Tahuri)
-  function hut(x, z, face, R, H, rnd, chief) {
+  // Materiales de las chozas según la isla: paja y tejido normales, con nieve encima o tiznados de ceniza
+  const HUT_TINT = {
+    snow: { wall: 0xd8ccb8, base: '#e6edf4', stroke: (r) => `hsla(${205 + r * 20},${8 + r * 14}%,${74 + r * 22}%,0.8)`, emissive: 0x5a6068 },
+    ash: { wall: 0x8a7a6a, base: '#5a534c', stroke: (r) => `hsla(${20 + r * 15},${6 + r * 12}%,${18 + r * 26}%,0.8)`, emissive: 0x3a3028 },
+  };
+  function hutMats(style) {
+    const m = getMats(), T = HUT_TINT[style];
+    if (!T) return { wall: m.woven, roof: G.Build.mats.thatch, inner: m.thatchIn };
+    const k = 'hut_' + style;
+    if (!m[k]) {
+      // Tejado con nieve encima o de paja tiznada de ceniza (textura propia: el tinte solo oscurece la paja)
+      const tex = U.canvasTex(256, 256, (c, w, h) => {
+        c.fillStyle = T.base; c.fillRect(0, 0, w, h);
+        for (let i = 0; i < 1400; i++) {
+          const x = Math.random() * w, y = Math.random() * h, l = 10 + Math.random() * 25;
+          c.strokeStyle = T.stroke(Math.random()); c.lineWidth = 1 + Math.random();
+          c.beginPath(); c.moveTo(x, y); c.lineTo(x + (Math.random() - 0.5) * 4, y + l); c.stroke();
+        }
+      });
+      const wall = m.woven.clone(); wall.color.set(T.wall);
+      const roof = new THREE.MeshStandardMaterial({ map: tex, roughness: 1 });
+      const inner = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: T.emissive, emissiveIntensity: 0.35, roughness: 1, side: THREE.BackSide });
+      m[k] = { wall, roof, inner };
+    }
+    return m[k];
+  }
+  function hut(x, z, face, R, H, rnd, chief, style) {
     const m = getMats(), g = new THREE.Group();
     g.position.set(x, G.height(x, z), z); g.rotation.y = face;
-    const wall = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 20, 1, true, 0.45, Math.PI * 2 - 0.9), m.woven);
+    if (!m.thatchIn) m.thatchIn = new THREE.MeshStandardMaterial({ map: G.Build.mats.thatch.map, emissiveMap: G.Build.mats.thatch.map, emissive: 0x6a5438, emissiveIntensity: 0.35, roughness: 1, side: THREE.BackSide });
+    const HM = hutMats(style);
+    const wall = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 20, 1, true, 0.45, Math.PI * 2 - 0.9), HM.wall);
     wall.position.y = H / 2; wall.castShadow = true; wall.receiveShadow = true; g.add(wall);
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(R * 1.3, H * 1.25, 20, 1, true), G.Build.mats.thatch);
+    const roofGeo = new THREE.ConeGeometry(R * 1.3, H * 1.25, 20, 1, true);
+    const roof = new THREE.Mesh(roofGeo, HM.roof);
     roof.position.y = H + H * 0.6; roof.castShadow = true; g.add(roof);
+    // Cara de dentro del tejado (el cono solo se veía desde fuera: dentro parecía que no había techo)
+    // (algo de luz propia: por dentro solo le llega la luz rebotada del suelo)
+    const inner = new THREE.Mesh(roofGeo, HM.inner);
+    inner.position.y = roof.position.y; inner.receiveShadow = true; g.add(inner);
+    L.roofs.push({ x, z, r: R * 1.05 });
     const parts = [];
     // Postes del marco de la puerta, franja de flecos y remate
     for (const s of [-1, 1]) parts.push(M.xf(M.paint(new THREE.CylinderGeometry(0.08, 0.1, H + 0.3, 6), 0x5a4028), Math.sin(s * 0.45) * R, H / 2, Math.cos(s * 0.45) * R));
-    for (let i = 0; i < 30; i++) { const a = (i / 30) * Math.PI * 2; parts.push(M.xf(M.paint(new THREE.ConeGeometry(0.08, 0.5, 3), 0xb8964c), Math.sin(a) * R * 1.28, H + 0.15, Math.cos(a) * R * 1.28, Math.PI)); }
+    const fringe = style === 'snow' ? 0xe8eef4 : style === 'ash' ? 0x7a6a58 : 0xb8964c;
+    for (let i = 0; i < 30; i++) { const a = (i / 30) * Math.PI * 2; parts.push(M.xf(M.paint(new THREE.ConeGeometry(0.08, 0.5, 3), style === 'snow' && i % 3 ? 0xcfe8f4 : fringe), Math.sin(a) * R * 1.28, H + 0.15, Math.cos(a) * R * 1.28, Math.PI)); }
     parts.push(M.xf(M.paint(new THREE.CylinderGeometry(0.06, 0.06, 1.2, 6), 0x5a4028), 0, H * 2.1, 0));
     if (chief) {
       for (let i = 0; i < 7; i++) parts.push(M.xf(M.paint(new THREE.ConeGeometry(0.06, 0.7, 4), i % 2 ? 0xc0302a : 0xf0e0b0), Math.sin(i * 0.9) * 0.15, H * 2.6 + 0.2, Math.cos(i * 0.9) * 0.15, (i - 3) * 0.2));
@@ -468,6 +518,47 @@
       const tip = new THREE.Mesh(M.xf(M.paint(new THREE.ConeGeometry(0.1, 0.35, 6), 0x7a5a34), 0, 2.55, 0), getMats().vc);
       const gg = new THREE.Group(); gg.add(st, tip); gg.position.set(x, G.height(x, z) - 0.2, z); gg.rotation.z = (rnd() - 0.5) * 0.1;
       st.castShadow = true; track(gg);
+    }
+  }
+  // Aldeas de las islas con jefe: los Kyrr (Escarcha, chozas nevadas) y Ceniza (Brasa, chozas tiznadas y una forja)
+  function buildOutpost(isl, rnd) {
+    const V = isl.feat.village, cx = V.wx, cz = V.wz, snow = isl.type === 'escarcha', style = snow ? 'snow' : 'ash';
+    const toSea = Math.atan2(cx - isl.x, cz - isl.z);
+    firePit(cx, cz, true);
+    const n = 5;
+    for (let i = 0; i < n; i++) {
+      const a = toSea + Math.PI * 0.4 + (i / (n - 1)) * Math.PI * 1.2, d = V.r * 0.68;
+      const x = cx + Math.sin(a) * d, z = cz + Math.cos(a) * d;
+      hut(x, z, Math.atan2(cx - x, cz - z), i === 2 ? 2.9 : 2.2, i === 2 ? 2.4 : 2.0, rnd, false, style);
+    }
+    for (let i = 0; i < 4; i++) { const a = toSea + (i - 1.5) * 0.55; tikiTorch(cx + Math.sin(a) * V.r * 0.92, cz + Math.cos(a) * V.r * 0.92); }
+    dryingRack(cx + Math.sin(toSea + 0.7) * 8, cz + Math.cos(toSea + 0.7) * 8, toSea);
+    const parts = [];
+    if (snow) {
+      // Poste de astas de ciervo y montones de nieve
+      parts.push(M.xf(M.paint(new THREE.CylinderGeometry(0.14, 0.18, 3.2, 7), 0x6a5238), 0, 1.6, 0));
+      for (const s of [-1, 1]) parts.push(M.tube([[0, 3.0, 0], [s * 0.35, 3.4, 0.05], [s * 0.55, 3.9, 0], [s * 0.45, 4.3, -0.05]], [0.05, 0.02], 5, 0xe8dcc0, 10), M.tube([[s * 0.4, 3.6, 0], [s * 0.75, 3.8, 0.1]], [0.03, 0.015], 4, 0xe8dcc0, 6));
+      for (let i = 0; i < 6; i++) { const a = rnd() * Math.PI * 2, d = 3 + rnd() * 3; parts.push(M.xf(M.paint(new THREE.SphereGeometry(0.6 + rnd() * 0.5, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), 0xf4f8fc), Math.sin(a) * d, -0.05, Math.cos(a) * d, 0, 0, 0, [1.4, 0.5, 1])); }
+    } else {
+      // Forja de piedra con su yunque y montones de carbón
+      for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2; parts.push(M.xf(M.paint(new THREE.DodecahedronGeometry(0.28), 0x4a4440, 0.1), 3.2 + Math.cos(a) * 0.8, 0.25 + (i % 2) * 0.25, Math.sin(a) * 0.8)); }
+      parts.push(M.xf(M.paint(new THREE.BoxGeometry(0.5, 0.35, 0.3), 0x2a2a2e), 1.8, 0.75, 0.2), M.xf(M.paint(new THREE.CylinderGeometry(0.15, 0.2, 0.6, 6), 0x5a4030), 1.8, 0.3, 0.2));
+      for (let i = 0; i < 5; i++) parts.push(M.xf(M.paint(new THREE.DodecahedronGeometry(0.22), 0x1a1616, 0.1), -3 + (i % 3) * 0.35, 0.15 + Math.floor(i / 3) * 0.25, 1.5 + (i % 2) * 0.3));
+    }
+    const deco = new THREE.Mesh(U.merge(parts), getMats().vc);
+    const da = toSea + Math.PI, dx = cx + Math.sin(da) * 5, dz = cz + Math.cos(da) * 5;
+    deco.position.set(dx, G.height(dx, dz), dz); deco.rotation.y = da; deco.castShadow = true;
+    track(deco);
+    circle(dx, dz, 0.4, true);
+    if (!snow) { const fx = dx + Math.cos(da) * 3.2, fz = dz - Math.sin(da) * 3.2; circle(fx, fz, 1.1, true); const l = L.addLight(fx, G.height(fx, fz) + 1.2, fz, 0xff7a30, 10, 14, true); l.flicker = true; }
+    // Empalizada baja con la entrada hacia el mar
+    for (let i = 0; i < 56; i++) {
+      const a = (i / 56) * Math.PI * 2;
+      if (Math.abs(U.angDiff(a, toSea)) < 0.4 || Math.abs(U.angDiff(a, toSea + Math.PI)) < 0.25 || i % 8 === 0) continue;
+      const x = cx + Math.sin(a) * (V.r + 3), z = cz + Math.cos(a) * (V.r + 3);
+      const st = new THREE.Mesh(M.xf(M.paint(new THREE.CylinderGeometry(0.1, 0.13, 2.0, 6), snow ? 0x6a5238 : 0x3a302a), 0, 1.0, 0), getMats().vc);
+      st.position.set(x, G.height(x, z) - 0.2, z); st.rotation.z = (rnd() - 0.5) * 0.1; st.castShadow = true;
+      track(st);
     }
   }
   function buildTemple(isl, rnd) {
@@ -605,6 +696,7 @@
         if (F.spring) steam(F.spring.wx, F.spring.level, F.spring.wz, 6, 0xffffff, 3, 2.8);
         const ca = rnd() * Math.PI * 2, cx = C.wx + Math.sin(C.ent) * 18, cz = C.wz + Math.cos(C.ent) * 18;
         if (G.height(cx, cz) > 1) { camp(cx, cz, ca, rnd); chest('c:escarcha:camp', cx + 2, cz - 1.5, 'supplies', 2); L.LOOT['c:escarcha:camp'].push(['gorro_piel', 1], ['botas_nieve', 1]); }
+        if (F.village) buildOutpost(isl, U.rng(isl.seed * 13 + 7));
         break;
       }
       case 'brasa': {
@@ -616,6 +708,7 @@
         chest('c:brasa:rim', c.wx + Math.sin(ra + 0.4) * rr, c.wz + Math.cos(ra + 0.4) * rr, 'treasure', 2, true);
         L.LOOT['c:brasa:rim'].push(['botas_lava', 1]);
         for (const lp of F.lava || []) steam(lp.wx, lp.level, lp.wz, 2, 0x8a7a70, 5, 2);
+        if (F.village) buildOutpost(isl, U.rng(isl.seed * 13 + 7));
         break;
       }
       case 'ruinas':
@@ -795,6 +888,8 @@
     L.whirls = [];
     L.schools = [];
     L.drops = [];
+    L.roofs = [];
+    L.surfaces = L.surfaces.filter((o) => o.parent);
   };
 
   // ------------------------------------------------------------------ animación por fotograma

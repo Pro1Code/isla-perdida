@@ -20,6 +20,7 @@
     ['<kbd>Tab</kbd>', 'Inventario y fabricación'],
     ['<kbd>R</kbd>', 'Girar al colocar · cambiar diseño de una pieza · a bordo: poner tus diseños de la Tienda'],
     ['<kbd>X</kbd>', 'Desmontar construcción (recupera la mitad)'],
+    ['<kbd>B</kbd> / <kbd>Mayús</kbd>+<kbd>B</kbd>', 'Soltar el objeto de la mano (uno / todo el montón). Se recoge pasando por encima; desaparece a los 5 minutos'],
     ['<kbd>G</kbd>', 'Poder de la Fruta del Abismo'],
     ['<kbd>V</kbd>', 'Cambiar cámara 1ª / 3ª persona'],
     ['<kbd>M</kbd>', 'Mapa del archipiélago (clic: marcar destino)'],
@@ -52,7 +53,9 @@
       d.dataset.i = i;
       (i < 8 ? el.invHot : el.invBag).appendChild(d);
       d.addEventListener('mousedown', (e) => { e.preventDefault(); UI.slotClick(i, e.button); });
-      d.addEventListener('mouseenter', () => UI.showInfo(i));
+      d.addEventListener('mouseenter', (e) => { UI.hoverSlot = i; UI.tip(e, G.Inv.slots[i]); });
+      d.addEventListener('mousemove', UI.tipMove);
+      d.addEventListener('mouseleave', () => { if (UI.hoverSlot === i) UI.hoverSlot = null; UI.tip(null); });
       d.addEventListener('contextmenu', (e) => e.preventDefault());
     }
     // Ranuras de equipo: clic = quitarse (o ponerse lo seleccionado)
@@ -63,7 +66,9 @@
       d.title = G.Inv.SLOT_NAMES[k];
       el.invEquip.appendChild(d);
       d.addEventListener('mousedown', (e) => { e.preventDefault(); UI.equipClick(k); });
-      d.addEventListener('mouseenter', () => UI.showEquipInfo(k));
+      d.addEventListener('mouseenter', (e) => UI.tip(e, G.Inv.equip[k], G.Inv.SLOT_NAMES[k]));
+      d.addEventListener('mousemove', UI.tipMove);
+      d.addEventListener('mouseleave', () => UI.tip(null));
       d.addEventListener('contextmenu', (e) => e.preventDefault());
     }
     for (let i = 0; i < 16; i++) {
@@ -71,15 +76,28 @@
       d.className = 'slot';
       el.invChest.appendChild(d);
       d.addEventListener('mousedown', (e) => { e.preventDefault(); UI.chestClick(i); });
-      d.addEventListener('mouseenter', () => { const s = UI.chest && UI.chest.items[i]; el.itemInfo.innerHTML = s ? `<b>${G.ITEMS[s.id].i} ${G.ITEMS[s.id].n}</b> ×${s.n}<br><span class="muted">Clic: pasar al inventario</span>` : '<span class="muted">Casilla vacía.</span>'; });
+      d.addEventListener('mouseenter', (e) => UI.tip(e, UI.chest && UI.chest.items[i], null, 'Clic: pasar al inventario'));
+      d.addEventListener('mousemove', UI.tipMove);
+      d.addEventListener('mouseleave', () => UI.tip(null));
       d.addEventListener('contextmenu', (e) => e.preventDefault());
     }
-    el.craftTabs.innerHTML = G.CRAFT_CATS.map(([k, n]) => `<button data-c="${k}">${n}</button>`).join('');
-    el.craftTabs.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { UI.craftCat = b.dataset.c; UI.renderRecipes(); }));
+    el.craftTabs.innerHTML = G.CRAFT_CATS.map(([k, n]) => `<button data-c="${k}">${n}</button>`).join('') + '<button data-c="libro" class="book-tab">📖 Recetario</button>';
+    el.craftTabs.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { UI.craftCat = b.dataset.c; UI.bookShown = false; if (b.dataset.c === 'libro') G.Book.focus = null; UI.renderRecipes(); }));
     el.recipes.addEventListener('click', (e) => {
       const b = e.target.closest('button[data-r]');
-      if (b) G.Game.craft(G.RECIPES[+b.dataset.r]);
+      if (b) { G.Game.craft(G.RECIPES[+b.dataset.r]); return; }
+      const c = e.target.closest('[data-bcat]');
+      if (c) { G.Book.cat = c.dataset.bcat; G.Book.focus = null; UI.bookShown = false; UI.renderRecipes(); return; }
+      // Soltar el objeto seleccionado (botones de su ficha)
+      const a = e.target.closest('[data-act]');
+      if (a) { UI.picked = null; G.Drops.dropSlot(+a.dataset.slot, a.dataset.act === 'drop1' ? 1 : 0); G.Inv.changed(); return; }
+      const k = e.target.closest('[data-book]');
+      if (k) { G.Book.open(k.dataset.book); G.Audio.play('select'); }
     });
+    // Etiqueta con el nombre del objeto al pasar el ratón
+    UI.tipEl = document.createElement('div');
+    UI.tipEl.id = 'hoverTip'; UI.tipEl.className = 'hidden';
+    document.body.appendChild(UI.tipEl);
     $('invClose').addEventListener('click', () => G.Game.closeInventory());
     $('journalClose').addEventListener('click', () => G.Game.closeJournal());
     el.dialogOpts.addEventListener('click', (e) => { const b = e.target.closest('button[data-o]'); if (b) G.Story.choose(+b.dataset.o); });
@@ -123,7 +141,7 @@
     if (!s) return h;
     const it = G.ITEMS[s.id];
     if (!it) return h;
-    h += it.i;
+    h += G.icon(s.id);
     if (s.n > 1) h += `<span class="cnt">${s.n}</span>`;
     if (s.d !== undefined && it.dur < 9999) {
       const f = U.clamp(s.d / it.dur, 0, 1);
@@ -131,6 +149,23 @@
     }
     return h;
   }
+  // Etiqueta al pasar el ratón: solo el nombre (los detalles salen al hacer clic)
+  UI.tip = function (e, s, slotName, hint) {
+    const t = UI.tipEl;
+    if (!t) return;
+    if (!e || (!s && !slotName)) { t.classList.add('hidden'); return; }
+    const it = s && G.ITEMS[s.id];
+    t.innerHTML = it ? `<b>${it.n}</b>${s.n > 1 ? ` ×${s.n}` : ''}<small>${hint || 'Clic: ver detalles'}</small>` : `<b>${slotName}</b><small>Vacío</small>`;
+    t.classList.remove('hidden');
+    UI.tipMove(e);
+  };
+  UI.tipMove = function (e) {
+    const t = UI.tipEl;
+    if (!t || t.classList.contains('hidden')) return;
+    const w = t.offsetWidth, h = t.offsetHeight;
+    t.style.left = Math.min(window.innerWidth - w - 8, e.clientX + 16) + 'px';
+    t.style.top = Math.min(window.innerHeight - h - 8, e.clientY + 18) + 'px';
+  };
   UI.refreshHotbar = function () {
     const kids = el.hotbar.children;
     for (let i = 0; i < 8; i++) {
@@ -140,7 +175,7 @@
   };
   UI.refreshInv = function () {
     UI.refreshHotbar();
-    if (el.inventory.classList.contains('hidden')) return;
+    if (el.inventory.classList.contains('hidden')) { UI.tip(null); return; }
     const all = [...el.invHot.children, ...el.invBag.children];
     all.forEach((d, i) => {
       d.innerHTML = slotHTML(G.Inv.slots[i], i < 8 ? i + 1 : null);
@@ -148,15 +183,14 @@
     });
     [...el.invEquip.children].forEach((d) => {
       const e = G.Inv.equip[d.dataset.slot];
-      d.innerHTML = e ? G.ITEMS[e.id].i : `<span class="eq-ph">${G.Inv.SLOT_ICONS[d.dataset.slot]}</span>`;
+      d.innerHTML = e ? G.icon(e.id) : `<span class="eq-ph">${G.Inv.SLOT_ICONS[d.dataset.slot]}</span>`;
       d.classList.toggle('filled', !!e);
     });
     const ar = G.Inv.eqStat('armor'), co = G.Inv.eqStat('cold'), he = G.Inv.eqStat('heat');
     el.eqStats.textContent = `🛡️ ${Math.round(ar * 100)}% · ❄️ ${Math.round(Math.min(0.9, co) * 100)}% · 🔥 ${Math.round(Math.min(0.9, he) * 100)}%`;
     el.chestSec.classList.toggle('hidden', !UI.chest);
-    el.invHint.textContent = UI.chest ? 'Clic: pasar objetos entre el cofre y tu inventario · Clic derecho: usar/comer' : 'Clic: mover/intercambiar · Clic derecho: usar/comer';
     if (UI.chest) {
-      el.chestTitle.textContent = UI.chest.title || '📦 Cofre';
+      el.chestTitle.textContent = (UI.chest.title || '📦 Cofre') + ' · clic: pasar objetos';
       [...el.invChest.children].forEach((d, i) => { d.classList.toggle('hidden', i >= UI.chest.items.length); d.innerHTML = slotHTML(UI.chest.items[i]); });
     }
     UI.renderRecipes();
@@ -165,7 +199,7 @@
     const S = G.Inv.slots;
     if (UI.picked !== null && S[UI.picked] && G.ITEMS[S[UI.picked].id].eq && G.ITEMS[S[UI.picked].id].eq.slot === slot) { G.Inv.equipFrom(UI.picked); UI.picked = null; }
     else if (UI.picked !== null) { G.UI.msg(`Eso no va en la ranura de ${G.Inv.SLOT_NAMES[slot].toLowerCase()}.`, 'warn', 'eq'); UI.picked = null; G.Inv.changed(); }
-    else G.Inv.unequip(slot);
+    else { const e = G.Inv.equip[slot]; G.Inv.unequip(slot); if (e) G.Book.open(e.id); }
     G.Audio.play('select');
     UI.showEquipInfo(slot);
   };
@@ -186,9 +220,7 @@
   UI.eqDesc = eqDesc;
   UI.showEquipInfo = function (slot) {
     const e = G.Inv.equip[slot];
-    if (!e) { el.itemInfo.innerHTML = `<b>${G.Inv.SLOT_ICONS[slot]} ${G.Inv.SLOT_NAMES[slot]}</b><br><span class="muted">Vacío. Selecciona una prenda en la mochila y haz clic aquí, o clic derecho sobre ella.</span>`; return; }
-    const it = G.ITEMS[e.id];
-    el.itemInfo.innerHTML = `<b>${it.i} ${it.n}</b> <span class="muted">(${G.Inv.SLOT_NAMES[slot].toLowerCase()})</span><br><span class="muted">${it.d}</span><br>${eqDesc(it.eq)}<br><i>Clic: quitártelo</i>`;
+    if (e) { UI.infoSlot = null; G.Book.open(e.id); }
   };
   UI.slotClick = function (i, button) {
     const S = G.Inv.slots;
@@ -233,11 +265,19 @@
     G.Game.openInventory();
     G.Audio.play('place');
   };
+  UI.hoverSlot = null; UI.infoSlot = null;
   UI.showInfo = function (i) {
     const s = G.Inv.slots[i];
-    if (!s) { el.itemInfo.innerHTML = '<span class="muted">Casilla vacía.</span>'; return; }
+    if (!s) return;
+    UI.infoSlot = i;
+    G.Book.open(s.id, i);
+  };
+  // Lo que llevas en la casilla i: cantidad, efectos, durabilidad y botones para soltarlo (va en su ficha del recetario)
+  UI.slotActions = function (i) {
+    const s = G.Inv.slots[i];
+    if (!s) return '<span class="muted">Lo has soltado en el suelo: desaparece a los 5 minutos si nadie lo recoge.</span>';
     const it = G.ITEMS[s.id];
-    let h = `<b>${it.i} ${it.n}</b>${s.n > 1 ? ` ×${s.n}` : ''}<br><span class="muted">${it.d || ''}</span>`;
+    let h = `<b>🎒 En tu ${i < 8 ? 'barra rápida' : 'mochila'}</b>${s.n > 1 ? ` · ×${s.n}` : ''}`;
     if (it.use) {
       const u = it.use, parts = [];
       if (u.hunger) parts.push(`🍖 +${u.hunger}`);
@@ -246,18 +286,23 @@
       if (u.warm) parts.push(`🌡️ +${u.warm}`);
       if (u.stamina) parts.push(`⚡ +${u.stamina}`);
       if (u.sick) parts.push('⚠ puede enfermarte');
-      h += `<br>${parts.join(' · ')} · <i>clic derecho para usar</i>`;
+      h += `<br>${parts.join(' · ')} · <i>clic derecho en la casilla para usar</i>`;
     }
-    if (it.fruit) h += '<br><i>Clic derecho: comer (¡piénsalo bien!)</i>';
-    if (it.eq) h += `<br>${eqDesc(it.eq)}<br><i>Clic derecho: ponértelo (${G.Inv.SLOT_NAMES[it.eq.slot].toLowerCase()})</i>`;
-    if (it.read) h += '<br><i>Clic derecho: leer</i>';
-    if (s.d !== undefined && it.dur < 9999) h += `<br>Durabilidad: ${Math.ceil(s.d)} / ${it.dur}`;
-    h += `<br><button class="btn small" id="dropBtn">Tirar</button>`;
-    el.itemInfo.innerHTML = h;
-    $('dropBtn').onclick = () => { G.Inv.slots[i] = null; UI.picked = null; G.Inv.changed(); el.itemInfo.innerHTML = '<span class="muted">Objeto tirado.</span>'; };
+    if (it.fruit) h += '<br><i>Clic derecho en la casilla: comer (¡piénsalo bien!)</i>';
+    if (it.eq) h += `<br>${eqDesc(it.eq)}<br><i>Clic derecho en la casilla: ponértelo (${G.Inv.SLOT_NAMES[it.eq.slot].toLowerCase()})</i>`;
+    if (it.read) h += '<br><i>Clic derecho en la casilla: leer</i>';
+    if (s.d !== undefined && it.dur < 9999) h += `<br>🔧 Durabilidad: <b>${Math.ceil(s.d)} / ${it.dur}</b>`;
+    h += `<br><button class="btn small" data-act="drop" data-slot="${i}">Soltar al suelo</button>${s.n > 1 ? `<button class="btn small" data-act="drop1" data-slot="${i}">Soltar 1</button>` : ''}<span class="muted small-text">(<kbd>B</kbd> sobre la casilla: 1 · <kbd>Mayús</kbd>+<kbd>B</kbd>: todo)</span>`;
+    return h;
   };
+  const attr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   UI.renderRecipes = function () {
     el.craftTabs.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.c === UI.craftCat));
+    if (UI.craftCat === 'libro') {
+      if (!UI.bookShown) { UI.bookShown = true; G.Book.render(el.recipes); } else G.Book.refreshCounts(el.recipes);
+      return;
+    }
+    UI.bookShown = false;
     el.recipes.innerHTML = G.RECIPES.map((r, idx) => {
       if (r.cat !== UI.craftCat) return '';
       const it = G.ITEMS[r.id];
@@ -266,10 +311,10 @@
       const can = G.Inv.canCraft(r) && near && learned;
       const reqs = Object.entries(r.req).map(([id, n]) => {
         const have = G.Inv.count(id);
-        return `<span class="req ${have >= n ? 'ok' : 'no'}">${G.ITEMS[id].i} ${Math.min(have, 999)}/${n}</span>`;
+        return `<span class="req ${have >= n ? 'ok' : 'no'}" data-book="${id}" title="${attr(G.ITEMS[id].n + ' — cómo conseguirlo (clic para ver más):\n' + G.Book.plain(id))}">${G.icon(id, 'xs')} ${G.ITEMS[id].n} ${Math.min(have, 999)}/${n}</span>`;
       }).join('') + (r.station ? `<span class="req ${near ? 'ok' : 'no'}">${G.STATION_NAMES[r.station]}</span>` : '') + (!learned ? `<span class="req no">🔒 ${r.learn.startsWith('style_') ? 'estilo ' + G.Styles.DEF[r.learn.slice(6)].name : 'receta shandara'}</span>` : '');
       const eqLine = it.eq ? `<div class="ds eq-line">${G.Inv.SLOT_NAMES[it.eq.slot]}: ${eqDesc(it.eq)}</div>` : '';
-      return `<div class="recipe ${can ? 'ok' : ''}"><div class="ic">${it.i}</div><div><div class="nm">${it.n}${r.n > 1 ? ' ×' + r.n : ''}</div><div class="ds">${it.d || ''}</div>${eqLine}${reqs}</div><button data-r="${idx}" ${can ? '' : 'disabled'}>Fabricar</button></div>`;
+      return `<div class="recipe ${can ? 'ok' : ''}"><div class="ic" data-book="${r.id}" title="Ver en el recetario">${G.icon(r.id)}</div><div><div class="nm">${it.n}${r.n > 1 ? ' ×' + r.n : ''}</div><div class="ds">${it.d || ''}</div>${eqLine}${reqs}</div><button data-r="${idx}" ${can ? '' : 'disabled'}>Fabricar</button></div>`;
     }).join('');
   };
 
@@ -361,9 +406,9 @@
   // ------------------------------------------------------------------ diálogos
   UI.showDialog = function (d) {
     el.dialogWho.textContent = d.who || '';
-    el.dialogText.textContent = d.text || '';
+    el.dialogText.textContent = G.stripMood(d.text);
     const opts = d.options && d.options.length ? d.options : [['Continuar', null]];
-    el.dialogOpts.innerHTML = opts.map((o, i) => `<button data-o="${i}"><kbd>${i + 1}</kbd> ${G.Net.esc(o[0])}</button>`).join('');
+    el.dialogOpts.innerHTML = opts.map((o, i) => `<button data-o="${i}"><kbd>${i + 1}</kbd> ${o[2] === 'html' ? o[0] : G.Net.esc(o[0])}</button>`).join('');
     el.dialog.classList.remove('hidden');
     G.Main.releasePointer();
   };
@@ -389,9 +434,11 @@
       <h3>🏝️ Islas descubiertas</h3><ul>${isl || '<li class="muted">Ninguna todavía.</li>'}</ul>
       <h3>🗿 Monoglifos leídos</h3><ul>${monos || '<li class="muted">Aún no sabes leer la escritura antigua.</li>'}</ul>
       <h3>🍇 Frutas del Abismo</h3><ul>${fr}</ul>
+      <h3>📜 Tu recompensa</h3><p><b>${G.Bounty.fmt(G.Bounty.value())} doblones</b> · «${G.Bounty.title()}» <button id="jBounty" class="btn small">Ver mi cartel</button></p>
       <h3>🪶 Tribu Shandara</h3><p>${rep < -20 ? '⚔️ En guerra contigo' : rep > 10 ? '🤝 Aliados' : '😐 Neutrales'}</p>
       <h3>📖 Curiosidades de One Piece</h3><ul>${facts || '<li class="muted">Explora y lee Monoglifos para descubrirlas.</li>'}</ul>`;
     el.journal.classList.remove('hidden');
+    $('jBounty').onclick = () => G.Bounty.open();
   };
   UI.closeJournal = () => el.journal.classList.add('hidden');
 
@@ -430,7 +477,7 @@
     el.dayIcon.textContent = fk === 'snow' ? '❄️' : wx === 'storm' ? '⛈️' : wx === 'rain' ? (fk === 'ash' ? '🌋' : '🌧️') : night ? '🌙' : G.Game.hour() > 17.5 || G.Game.hour() < 7 ? '🌅' : '☀️';
     const boss = G.Creatures.nearBoss();
     el.bossBar.classList.toggle('hidden', !boss);
-    if (boss) { el.bossFill.style.width = U.clamp(boss.hp / boss.d.hp, 0, 1) * 100 + '%'; el.bossName.textContent = (boss.type === 'serpent' ? '🐉 ' : boss.type === 'pirate_boss' ? '🏴‍☠️ ' : '🐗 ') + boss.d.name; }
+    if (boss) { el.bossFill.style.width = U.clamp(boss.hp / boss.d.hp, 0, 1) * 100 + '%'; el.bossName.textContent = ({ serpent: '🐉 ', pirate_boss: '🏴‍☠️ ', marine_boss: '⚓ ', ghost_captain: '👻 ', yeti: '❄️ ', lavadragon: '🐲 ' }[boss.type] || '🐗 ') + boss.d.name; }
 
     const uw = G.World.underwater && !G.state.spectate;
     if (uw !== UI._uw) { UI._uw = uw; document.getElementById('underwater').classList.toggle('hidden', !uw); }
@@ -544,9 +591,11 @@
       if (!seen || (c.opened && c.kind !== 'mono')) continue;
       const [x, y] = toPx(c.x, c.z);
       ctx.font = `${full ? 14 : 11}px sans-serif`; ctx.textAlign = 'center';
-      ctx.fillText(c.kind === 'mono' ? '🗿' : c.kind === 'bottle' ? '🍾' : c.kind === 'barrel' ? '🛢️' : '📦', x, y + 4);
+      ctx.fillText(c.kind === 'mono' ? '🗿' : c.kind === 'bottle' ? '🍾' : c.kind === 'barrel' ? '🛢️' : c.kind === 'board' ? '📋' : '📦', x, y + 4);
     }
     if (G.Prologue) G.Prologue.drawMap(ctx, toPx, full);
+    if (G.Treasure) G.Treasure.drawMap(ctx, toPx, full);
+    if (G.Grave) G.Grave.drawMap(ctx, toPx, full, scale);
     if (G.Modes.active) for (const sd of G.Modes.stands) {
       const [x, y] = toPx(sd.x, sd.z);
       ctx.font = `${full ? 16 : 12}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🏴', x, y);

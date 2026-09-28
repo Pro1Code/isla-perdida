@@ -838,6 +838,7 @@
       const dead = !r.alive || (r.k.bush && !r.berries);
       if (!dead || day < r.respawnDay) continue;
       if (players.some((p) => Math.hypot(r.x - p.x, r.z - p.z) < 8)) continue;
+      if (r.k.solid && G.Build.occupied(r.x, r.z, (r.k.r || 0.5) * r.s * 0.8)) continue; // hay una casa encima
       r.alive = true; r.berries = true; r.hp = r.k.hp || 1;
       R.setMatrix(r);
       changed.push(r);

@@ -244,10 +244,51 @@
   }
   // Bandera pirata (calavera con tibias cruzadas y un toque del color del equipo)
   const flagTexCache = {};
+  const strHash = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); };
   function flagTexture(color, design) {
+    // Bandera dibujada en la pizarra (imagen): se carga y se pinta sobre la tela
+    if (G.Shop && G.Shop.isCustomFlag(design)) {
+      const key = String(color) + ':img' + strHash(design);
+      if (flagTexCache[key]) return flagTexCache[key];
+      const t = U.canvasTex(192, 120, (c, w, h) => { c.fillStyle = '#111'; c.fillRect(0, 0, w, h); });
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      const im = new Image();
+      im.onload = () => {
+        const c = t.image.getContext('2d');
+        c.drawImage(im, 0, 0, 192, 120);
+        if (color) { c.fillStyle = color; c.fillRect(0, 0, 192, 6); c.fillRect(0, 114, 192, 6); }
+        t.needsUpdate = true;
+      };
+      im.src = design;
+      flagTexCache[key] = t;
+      return t;
+    }
+    if (typeof design === 'string' && design.startsWith('data:')) design = null;
     const key = String(color) + ':' + (design || '');
     if (flagTexCache[key]) return flagTexCache[key];
     const t = U.canvasTex(128, 80, (c, w, h) => {
+      if (design === 'fantasma') { // Holandés de las Mareas: tela negra raída con calavera verde
+        const cx = w / 2, cy = h * 0.46, v = '#8dffc0';
+        c.fillStyle = '#0c1210'; c.fillRect(0, 0, w, h);
+        c.fillStyle = '#243a30'; for (let i = 0; i < 7; i++) { const y = 6 + i * 11; c.beginPath(); c.moveTo(w, y); c.lineTo(w - 10 - (i % 3) * 6, y + 5); c.lineTo(w, y + 10); c.fill(); }
+        c.strokeStyle = v; c.lineWidth = 6; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(cx - 24, cy + 24); c.lineTo(cx + 24, cy - 12); c.moveTo(cx - 24, cy - 12); c.lineTo(cx + 24, cy + 24); c.stroke();
+        c.fillStyle = v; c.beginPath(); c.arc(cx, cy, 15, 0, 7); c.fill(); c.fillRect(cx - 8, cy + 8, 16, 9);
+        c.fillStyle = '#0c1210'; c.beginPath(); c.arc(cx - 6, cy, 4.5, 0, 7); c.arc(cx + 6, cy, 4.5, 0, 7); c.fill();
+        c.fillRect(cx - 4, cy + 12, 2, 5); c.fillRect(cx, cy + 12, 2, 5); c.fillRect(cx + 4, cy + 12, 2, 5);
+        return;
+      }
+      if (design === 'marina') { // Marina Blanca: tela blanca, ancla azul marino y gaviota
+        const cx = w / 2, cy = h * 0.46, az = '#1e2a4a';
+        c.fillStyle = '#f4f4f0'; c.fillRect(0, 0, w, h);
+        c.fillStyle = az; c.fillRect(0, 0, w, 5); c.fillRect(0, h - 5, w, 5);
+        c.strokeStyle = az; c.lineWidth = 5; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(cx, cy - 18); c.lineTo(cx, cy + 22); c.moveTo(cx - 11, cy - 10); c.lineTo(cx + 11, cy - 10); c.stroke();
+        c.beginPath(); c.arc(cx, cy + 4, 19, 0.2, Math.PI - 0.2); c.stroke();
+        c.beginPath(); c.arc(cx, cy - 23, 5, 0, 7); c.stroke();
+        c.lineWidth = 3; c.beginPath(); c.arc(cx + 30, cy - 14, 7, Math.PI * 1.1, Math.PI * 1.9); c.arc(cx + 44, cy - 14, 7, Math.PI * 1.1, Math.PI * 1.9); c.stroke();
+        return;
+      }
       c.fillStyle = '#111'; c.fillRect(0, 0, w, h);
       c.fillStyle = color || '#ffffff'; c.fillRect(0, 0, w, 6); c.fillRect(0, h - 6, w, 6);
       if (design && G.Shop && G.Shop.drawFlag(c, w, h, design)) return;
@@ -521,7 +562,7 @@
   S.isAuth = (s) => (!G.Net.active ? true : s.driver ? s.driver === G.Net.myId || !G.Net.peers.has(s.driver) && G.Net.isHost : G.Net.isHost);
   S.data = (s) => ({ id: s.id, type: s.type, x: +s.x.toFixed(2), z: +s.z.toFixed(2), yaw: +s.yaw.toFixed(3), hp: Math.round(s.hp), anchor: s.anchor, crate: s.crate, fuel: s.fuel, net: s.net, netFish: s.netFish,
     building: s.building, placed: [...s.placed], fh: s.fh, sail: s.sailColor, flagColor: s.flagColor, flag: s.flag, team: s.team, flagship: s.flagship, name: s.name, driver: s.driver });
-  S.getState = () => S.list.filter((s) => !s.sinking).map(S.data);
+  S.getState = () => S.list.filter((s) => !s.sinking && !s.navy).map(S.data); // los de la Marina no se guardan
   S.setState = function (arr) { S.clear(); for (const d of arr || []) if (DEF[d.type]) S.create(d); };
   function netState(s) {
     return { t: 'sh', id: s.id, x: +s.x.toFixed(2), z: +s.z.toFixed(2), yaw: +s.yaw.toFixed(3), v: +s.speed.toFixed(2), th: s.throttle, rd: +s.rudder.toFixed(2), an: s.anchor ? 1 : 0, ap: s.ap ? 1 : 0, no: s.netOn ? 1 : 0, fu: Math.round(s.fuel), drv: s.driver };
@@ -556,7 +597,7 @@
     s.mdl = buildModel(s.type, o); s.root = s.mdl.root;
     s.root.traverse((m) => { if (m.isMesh) m.userData.ship = s; });
     for (const k in s.mdl.parts) for (const m of s.mdl.parts[k]) m.userData.realMat = m.material;
-    if (s.type === 'barco' && !s.name.startsWith('*')) s.name = shipName(s.fh);
+    if (s.type === 'barco' && !s.navy && !s.name.startsWith('*')) s.name = shipName(s.fh);
     G.scene.add(s.root);
     S.refreshPieces(s);
     placeRoot(s);
@@ -641,6 +682,8 @@
       if (s.throttle < 0) target = s.throttle * d.speed * 0.25;
     }
     if (s.hp < d.hp * 0.35) target *= 0.6;
+    // Tu tripulación a bordo ayuda a navegar
+    if (G.Crew) target *= 1 + 0.08 * G.Crew.aboardCount(s);
     const acc = s.anchor ? 2.5 : d.accel;
     s.speed += (target - s.speed) * Math.min(1, dt * acc);
     if (d.engine && s.throttle !== 0 && !s.anchor) {
@@ -898,11 +941,11 @@
     const s = tg.s, P = G.Player, hid = G.Inv.heldId();
     if (tg.kind === 'piece') {
       const p = PIECE_OF(s, tg.piece);
-      const need = Object.entries(p[2]).map(([id, n]) => `${G.ITEMS[id].i}${Math.min(G.Inv.count(id), n)}/${n}`).join(' ');
+      const need = Object.entries(p[2]).map(([id, n]) => `${G.icon(id, 'xs')}${Math.min(G.Inv.count(id), n)}/${n}`).join(' ');
       const can = canPlace(s, p);
       let extra = '';
       if (tg.piece === 'mascaron') extra = ` · <kbd>R</kbd> Diseño: ${fhName(s.fh)}`;
-      if (tg.piece === 'bandera') extra = ` · <kbd>R</kbd> Diseño: ${G.Shop.flagName[s.flag || 'clasica']}`;
+      if (tg.piece === 'bandera') extra = ` · <kbd>R</kbd> Diseño: ${G.Shop.flagLabel(s.flag)}`;
       if (tg.piece === 'vela' || tg.piece === 'vela2') extra = ' · <kbd>R</kbd> Color de las velas';
       return `🏗️ <b>${p[1]}</b> ${need} · ` + (can === true ? '<kbd>E</kbd> Colocar pieza' : `<span class="warn">${can}</span>`) + extra;
     }
@@ -992,7 +1035,7 @@
     const next = (list, cur) => list[(list.indexOf(cur) + 1) % list.length];
     if (tg.piece === 'mascaron') { s.fh = next(S.FIGUREHEADS.concat(G.Shop.ownedOf('fh')), s.fh); S.rebuild(s); G.UI.msg(`Mascarón: ${fhName(s.fh)}`, 'info', 'fh'); return true; }
     if (tg.piece === 'vela' || tg.piece === 'vela2') { s.sailColor = next(S.SAILS.concat(G.Shop.ownedOf('sail')), s.sailColor); S.rebuild(s); if (typeof s.sailColor === 'string') G.UI.msg(`Velas: ${G.Shop.sailName[s.sailColor]}`, 'info', 'sail'); return true; }
-    if (tg.piece === 'bandera') { s.flag = next(['clasica'].concat(G.Shop.ownedOf('flag')), s.flag || 'clasica'); if (s.flag === 'clasica') s.flag = null; S.rebuild(s); G.UI.msg(`Bandera: ${G.Shop.flagName[s.flag || 'clasica']}`, 'info', 'flag'); return true; }
+    if (tg.piece === 'bandera') { s.flag = next(['clasica'].concat(G.Shop.ownedOf('flag')), s.flag || 'clasica'); if (s.flag === 'clasica') s.flag = null; S.rebuild(s); G.UI.msg(`Bandera: ${G.Shop.flagLabel(s.flag)}`, 'info', 'flag'); return true; }
     return false;
   };
   // A bordo, R pone al barco los diseños que llevas equipados en la Tienda
@@ -1000,7 +1043,7 @@
     const sail = G.Profile.equipped('sail'), flag = G.Profile.equipped('flag'), fh = G.Profile.equipped('fh');
     if (!sail && !flag && !fh) { G.UI.msg('Compra y equipa velas, banderas o mascarones en la Tienda para decorar tus barcos.', 'info', 'shiplook'); return false; }
     if (sail) s.sailColor = sail.replace('sail_', '');
-    if (flag) s.flag = flag.replace('flag_', '');
+    if (flag) s.flag = G.Shop.flagDesign(flag) || s.flag;
     if (fh && s.type === 'barco') s.fh = fh.replace('fh_', '');
     S.rebuild(s);
     send({ t: 'shLook', id: s.id, fh: s.fh, sail: s.sailColor, flag: s.flag });
@@ -1009,7 +1052,7 @@
   };
 
   // ------------------------------------------------------------------ cañones y proyectiles
-  let ballGeo, ballMat;
+  let ballGeo, ballMat, ghostBallMat;
   function cannonWorld(s, st, P) {
     const c = st.c, o = S.toWorld(s, _lp.set(c.x + Math.sin(c.yaw) * 0.95, s.def.deckY + 0.47, c.z + Math.cos(c.yaw) * 0.95), new V3());
     const yaw = s.yaw + c.yaw + (P ? P.station.aimY : 0), pitch = P ? P.station.aimP : 0.12;
@@ -1023,7 +1066,7 @@
     P.station.aimP = U.clamp(P.station.aimP - dy * 0.002, -0.08, 0.45);
     return true;
   };
-  S.fireCannon = function (s, st) {
+  S.fireCannon = function (s, st, aim) { // aim: { aimY, aimP } cuando dispara la tripulación
     const now = performance.now() / 1000;
     if ((s.reload[st.idx] || 0) > now) { G.UI.msg('Recargando…', 'warn', 'reload'); return; }
     const useFrom = (id) => { if (G.Inv.count(id) > 0) { G.Inv.remove(id, 1); return true; } const i = s.crate.findIndex((c) => c && c.id === id); if (i >= 0) { s.crate[i].n--; if (s.crate[i].n <= 0) s.crate[i] = null; send({ t: 'shCrate', id: s.id, items: s.crate }); return true; } return false; };
@@ -1032,7 +1075,7 @@
     G.Ach.add('cannon');
     useFrom('polvora'); useFrom('bala_canon');
     s.reload[st.idx] = now + 3.5;
-    const { o, dir } = cannonWorld(s, st, G.Player.station && G.Player.station.st === st ? G.Player : null);
+    const { o, dir } = cannonWorld(s, st, aim ? { station: aim } : G.Player.station && G.Player.station.st === st ? G.Player : null);
     const v = dir.multiplyScalar(62).add(_v.set(Math.sin(s.yaw) * s.speed, 0, Math.cos(s.yaw) * s.speed));
     const m = { t: 'cannon', x: o.x, y: o.y, z: o.z, vx: v.x, vy: v.y, vz: v.z, from: G.Net.myId, ship: s.id, team: G.Net.team ?? null };
     send(m);
@@ -1041,7 +1084,8 @@
   };
   function spawnBall(m, mine) {
     if (!ballGeo) { ballGeo = new THREE.SphereGeometry(0.14, 10, 8); ballMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1c, metalness: 0.6, roughness: 0.4 }); }
-    const b = new THREE.Mesh(ballGeo, ballMat);
+    if (m.ghost && !ghostBallMat) ghostBallMat = new THREE.MeshBasicMaterial({ color: 0x8dffc0 });
+    const b = new THREE.Mesh(ballGeo, m.ghost ? ghostBallMat : ballMat);
     b.position.set(m.x, m.y, m.z);
     G.scene.add(b);
     S.proj.push({ m: b, v: new V3(m.vx, m.vy, m.vz), mine, from: m.from, ship: m.ship, team: m.team, t: 0 });
@@ -1060,13 +1104,13 @@
       if (pos.y < ground) hit = 'ground';
       else if (pos.y < G.World.waveHeight(pos.x, pos.z) && ground < -0.3) hit = 'water';
       if (!hit) for (const s of S.list) {
-        if (s.id === p.ship || s.sinking) continue;
+        if (s.id === p.ship || s.sinking || G.Navy.isGhostly(s)) continue;
         if (Math.abs(s.x - pos.x) > s.def.L || Math.abs(s.z - pos.z) > s.def.L) continue;
         const l = S.toLocal(s, pos.x, pos.y, pos.z, _l2);
         if (Math.abs(l.z) < s.def.L / 2 && Math.abs(l.x) < halfW(s.def, l.z) + 0.2 && l.y > -s.def.draft && l.y < s.def.deckY + s.def.rail + 2.5) { hit = 'ship'; if (p.mine) { S.hurt(s, 45, `¡Impacto de cañón en ${s.name}!`, p.from); G.Ach.add('cannonHit'); } break; }
       }
       if (!hit && p.mine) {
-        for (const c of G.Creatures.list) if (!c.dead && Math.hypot(c.x - pos.x, c.z - pos.z) < c.d.hitR + 0.8 && Math.abs(pos.y - (c.y + c.d.bodyY)) < 2.5) { hit = 'creature'; G.Creatures.hurt(c, 70); G.Ach.add('cannonHit'); break; }
+        for (const c of G.Creatures.list) if (!c.dead && G.Creatures.near(c, pos.x, pos.y, pos.z, 0.8, 2.5)) { hit = 'creature'; G.Creatures.hurt(c, 70); G.Ach.add('cannonHit'); break; }
         if (!hit) for (const pr of G.Net.peers.values()) {
           if (pr.dead || Math.hypot(pr.x - pos.x, pr.z - pos.z) > 1.3 || Math.abs(pos.y - pr.y - 1) > 1.4) continue;
           if (G.Modes && !G.Modes.canHurtPlayer(pr.team)) continue;
@@ -1097,6 +1141,7 @@
     }
   }
   S.puff = puff;
+  S.spawnBall = (m, mine) => spawnBall(m, mine);
   function flash(x, y, z) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: G.Build.smokeTex, color: 0xffc060, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     s.position.set(x, y, z); s.raycast = () => {};
@@ -1163,7 +1208,7 @@
     const data = { type, x: pl.x, z: pl.z, yaw: pl.yaw, building: !!it.plano, anchor: true, team: G.Net.team ?? null, flagColor: G.Modes && G.Modes.active ? G.Modes.teamColor(G.Net.team) : null };
     const eqS = G.Profile.equipped('sail'), eqF = G.Profile.equipped('flag'), eqH = G.Profile.equipped('fh');
     if (eqS) data.sail = eqS.replace('sail_', '');
-    if (eqF) data.flag = eqF.replace('flag_', '');
+    if (eqF && G.Shop.flagDesign(eqF)) data.flag = G.Shop.flagDesign(eqF);
     if (eqH && type === 'barco') data.fh = eqH.replace('fh_', '');
     if (!it.plano) data.crate = [{ id: d.rep, n: 2 }];
     const s = S.create(data);
@@ -1189,7 +1234,8 @@
         continue;
       }
       if (s.building) { waterHeave(s); placeRoot(s); continue; }
-      if (S.isAuth(s)) simulate(s, dt);
+      if (s.navy && G.Net.authority()) G.Navy.steer(s, dt); // barcos de la Marina Blanca (navy.js)
+      else if (!s.navy && S.isAuth(s)) simulate(s, dt);
       else {
         // Interpolación + predicción con la velocidad recibida
         const k = 1 - Math.exp(-dt * 6);
