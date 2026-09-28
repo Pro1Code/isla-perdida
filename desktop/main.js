@@ -10,6 +10,7 @@ const fs = require('fs');
 const server = require('./server');
 
 const REPO = 'Pro1Code/isla-perdida';
+const PAGES = `https://${REPO.split('/')[0].toLowerCase()}.github.io/${REPO.split('/')[1]}/`; // página de descargas (y novedades/)
 const ASSET = /^isla-perdida-juego-.+\.zip$/i;
 const ROOT = path.join(__dirname, '..');
 let win = null, srv = null, updateState = { state: 'idle' }, current = null;
@@ -42,16 +43,27 @@ function installed() {
   } catch (e) { /* aún no hay versiones descargadas */ }
   return out.sort((a, b) => cmpVer(b.version, a.version));
 }
-// Lista de versiones publicadas en GitHub (se guarda para poder usar el lanzador sin internet)
+// Lista de versiones publicadas en GitHub (se guarda para poder usar el lanzador sin internet), con su miniatura,
+// notas y capturas de novedades/novedades.json (el mismo archivo que usan la página web y el juego)
 async function remote(force) {
   const cache = readJSON(cacheFile(), null);
   if (cache && !force && Date.now() - cache.time < 10 * 60 * 1000) return cache.list;
   try {
-    const r = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=100`, { headers: { 'User-Agent': 'IslaPerdida-Launcher' } });
+    const [r, news] = await Promise.all([
+      fetch(`https://api.github.com/repos/${REPO}/releases?per_page=100`, { headers: { 'User-Agent': 'IslaPerdida-Launcher' } }),
+      fetch(PAGES + 'novedades/novedades.json', { cache: 'no-cache' }).then((x) => (x.ok ? x.json() : [])).catch(() => []),
+    ]);
     if (!r.ok) throw new Error('HTTP ' + r.status);
+    const nw = new Map((Array.isArray(news) ? news : []).map((n) => [n.version, n]));
+    const abs = (p) => (/^https?:/.test(p) ? p : PAGES + 'novedades/' + p);
     const list = (await r.json()).filter((x) => !x.draft && !x.prerelease).map((x) => {
       const zip = (x.assets || []).find((a) => ASSET.test(a.name));
-      return { version: x.tag_name.replace(/^v/, ''), name: x.name || x.tag_name, date: x.published_at, notes: x.body || '', zip: zip ? zip.browser_download_url : null, size: zip ? zip.size : 0 };
+      const version = x.tag_name.replace(/^v/, ''), n = nw.get(version) || {};
+      return {
+        version, name: n.name || x.name || x.tag_name, date: x.published_at, notes: n.notes || x.body || '',
+        thumb: n.thumb ? abs(n.thumb) : null, images: (n.images || []).map((m) => ({ src: abs(m.src), text: m.text || '' })),
+        zip: zip ? zip.browser_download_url : null, size: zip ? zip.size : 0,
+      };
     }).sort((a, b) => cmpVer(b.version, a.version));
     fs.mkdirSync(dataDir(), { recursive: true });
     fs.writeFileSync(cacheFile(), JSON.stringify({ time: Date.now(), list }));
@@ -195,7 +207,7 @@ ipcMain.on('openFolder', async () => {
   const err = await shell.openPath(dir);
   if (err) shell.showItemInFolder(dir);
 });
-ipcMain.on('openPage', () => shell.openExternal(`https://${REPO.split('/')[0].toLowerCase()}.github.io/${REPO.split('/')[1]}/`));
+ipcMain.on('openPage', () => shell.openExternal(PAGES));
 
 app.whenReady().then(() => { createWindow(); setupUpdater(); });
 app.on('window-all-closed', () => { if (srv) srv.close(); app.quit(); });

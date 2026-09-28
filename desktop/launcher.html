@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://pro1code.github.io" />
 <title>Isla Perdida · Lanzador</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@400;600;800&display=swap" />
 <style>
@@ -21,12 +21,14 @@
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; min-height: 0; display: flex; flex-direction: column; }
   .panel h2 { font-family: 'Cinzel', serif; font-size: 18px; margin: 0 0 10px; }
   #list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
-  .ver { padding: 11px 13px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.03); cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; }
+  .ver { padding: 9px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.03); cursor: pointer; display: flex; gap: 12px; align-items: center; }
+  .ver .mini { width: 88px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 7px; flex: none; background: #0e2a3a; }
+  .ver .vt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .ver:hover { background: rgba(255,255,255,.07); }
   .ver.sel { border-color: var(--accent); background: rgba(242,181,68,.1); }
   .ver b { font-size: 16px; }
-  .ver .nm { color: var(--muted); font-size: 13px; grid-column: 1; }
-  .tags { grid-row: 1 / span 2; grid-column: 2; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  .ver .nm { color: var(--muted); font-size: 13px; }
+  .tags { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
   .tag { font-size: 11.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
   .t-latest { background: var(--accent); color: #1d1406; }
   .t-inst { background: rgba(127,220,111,.18); color: var(--good); }
@@ -34,7 +36,20 @@
   .t-bundled { background: rgba(80,160,230,.2); color: #9fd3ff; }
   #detail h3 { font-family: 'Cinzel', serif; font-size: 26px; margin: 0; }
   #detail .date { color: var(--muted); font-size: 13.5px; margin: 2px 0 12px; }
-  #notes { white-space: pre-wrap; line-height: 1.55; font-size: 14.5px; color: #ddd6c8; overflow-y: auto; flex: 1; padding-right: 6px; }
+  /* Miniatura de la versión, «Ver contenido» y, al desplegarlo, sus novedades y capturas */
+  #dBody { overflow-y: auto; flex: 1; min-height: 0; padding-right: 6px; }
+  #dThumb { display: block; width: auto; height: auto; max-width: 100%; max-height: max(160px, calc(100vh - 440px)); border-radius: 12px; border: 1px solid var(--line); }
+  #btnMore { margin: 12px 0 4px; }
+  #notes { line-height: 1.55; font-size: 14.5px; color: #ddd6c8; user-select: text; }
+  #notes.plain { white-space: pre-wrap; }
+  #notes h4 { font-family: 'Cinzel', serif; font-size: 16px; color: var(--accent); margin: 16px 0 6px; letter-spacing: .4px; }
+  #notes ul { margin: 0; padding-left: 22px; }
+  #notes li { margin: 4px 0; }
+  #notes p { margin: 6px 0; }
+  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .gal figure { margin: 0; }
+  .gal img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+  .gal figcaption { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
   .actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
   .play { font: 900 22px 'Nunito', sans-serif; padding: 15px 44px; border-radius: 14px; border: none; cursor: pointer; background: linear-gradient(180deg, #7fdc6f, #3fa84a); color: #0e2410; box-shadow: 0 8px 24px rgba(63,168,74,.35); }
   .play:disabled { background: rgba(255,255,255,.1); color: var(--muted); box-shadow: none; cursor: default; }
@@ -68,7 +83,11 @@
     <section class="panel" id="detail">
       <h3 id="dTitle">—</h3>
       <div class="date" id="dDate"></div>
-      <div id="notes"></div>
+      <div id="dBody">
+        <img id="dThumb" alt="" />
+        <button class="btn2" id="btnMore">📖 Ver contenido</button>
+        <div id="notes"></div>
+      </div>
       <div class="actions">
         <button class="play" id="btnPlay" disabled>▶ JUGAR</button>
         <button class="btn2 accent" id="btnDl">⬇️ Descargar</button>
@@ -90,7 +109,24 @@
   const D = window.islaDesktop, $ = (id) => document.getElementById(id);
   const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = (d) => (d ? new Date(d).toLocaleDateString('es', { year: 'numeric', month: 'long', day: 'numeric' }) : '');
-  let data = null, sel = null, busy = null;
+  let data = null, sel = null, busy = null, openVer = null, shownVer = null;
+  // Notas en texto: la 1.ª línea es el título, los apartados van EN MAYÚSCULAS y las novedades empiezan por «- »
+  function format(txt) {
+    const out = [];
+    let list = false;
+    const close = () => { if (list) { out.push('</ul>'); list = false; } };
+    String(txt || '').split(/\r?\n/).forEach((raw, i) => {
+      const l = raw.trim();
+      if (!l) { close(); return; }
+      if (i === 0) return;
+      if (l.startsWith('- ')) { if (!list) { out.push('<ul>'); list = true; } out.push(`<li>${esc(l.slice(2))}</li>`); return; }
+      close();
+      const letters = l.replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü]/g, '');
+      out.push(letters.length > 3 && letters === letters.toUpperCase() ? `<h4>${esc(l)}</h4>` : `<p>${esc(l)}</p>`);
+    });
+    close();
+    return out.join('');
+  }
 
   async function load(force) {
     data = await D.versions(force);
@@ -103,13 +139,14 @@
     const L = $('list');
     if (!data.versions.length) { L.innerHTML = '<div class="sub">No hay versiones.</div>'; return; }
     L.innerHTML = data.versions.map((v) => `<div class="ver ${v.version === sel ? 'sel' : ''}" data-v="${esc(v.version)}">
-      <b>${esc(v.version)}</b><span class="nm">${esc((v.name || '').replace(/^Isla Perdida\s*[\d.]*\s*·?\s*/, ''))}</span>
+      ${v.thumb ? `<img class="mini" src="${esc(v.thumb)}" alt="" />` : ''}<div class="vt"><b>${esc(v.version)}</b><span class="nm">${esc((v.name || '').replace(/^Isla Perdida\s*[\d.]*\s*·?\s*/, ''))}</span></div>
       <div class="tags">${v.version === data.latest ? '<span class="tag t-latest">Última</span>' : ''}${v.installed ? `<span class="tag ${v.bundled ? 't-bundled' : 't-inst'}">${v.bundled ? 'Incluida' : 'Instalada'}</span>` : '<span class="tag t-dl">Descargable</span>'}</div></div>`).join('');
     L.querySelectorAll('.ver').forEach((el) => (el.onclick = () => { if (!busy) { sel = el.dataset.v; render(); } }));
+    L.querySelectorAll('.mini').forEach((im) => (im.onerror = () => im.remove())); // sin conexión
     const v = data.versions.find((x) => x.version === sel) || {};
     $('dTitle').textContent = 'Versión ' + (v.version || '—');
     $('dDate').textContent = [v.name && v.name.replace(/^Isla Perdida\s*[\d.]*\s*·?\s*/, ''), fmt(v.date)].filter(Boolean).join(' · ');
-    $('notes').textContent = v.notes || (v.installed ? 'Versión instalada en este equipo.' : 'Sin notas.');
+    renderNotes(v);
     $('btnPlay').disabled = !v.installed || !!busy;
     $('btnPlay').textContent = `▶ JUGAR ${v.version || ''}`;
     $('btnDl').style.display = v.installed ? 'none' : '';
@@ -117,6 +154,28 @@
     $('btnDl').textContent = v.zip ? `⬇️ Descargar${v.size ? ' (' + (v.size / 1048576).toFixed(1) + ' MB)' : ''}` : 'Sin paquete para el lanzador';
     $('btnDel').style.display = v.installed && !v.bundled ? '' : 'none';
     $('btnDel').disabled = !!busy;
+  }
+  // Con miniatura, las novedades se despliegan con «Ver contenido»; sin ella (sin conexión) se ven directamente
+  function renderNotes(v) {
+    const n = $('notes'), th = $('dThumb'), more = $('btnMore');
+    if (shownVer !== v.version) { shownVer = v.version; $('dBody').scrollTop = 0; } // otra versión: arriba del todo
+    const gal = (v.images || []).map((m) => `<figure><a href="${esc(m.src)}" target="_blank"><img loading="lazy" src="${esc(m.src)}" alt="" /></a><figcaption>${esc(m.text)}</figcaption></figure>`).join('');
+    const rich = v.thumb || gal;
+    n.className = rich ? '' : 'plain';
+    if (rich) n.innerHTML = format(v.notes) + (gal ? `<h4>📸 Imágenes</h4><div class="gal">${gal}</div>` : '');
+    else n.textContent = v.notes || (v.installed ? 'Versión instalada en este equipo.' : 'Sin notas.');
+    n.querySelectorAll('.gal img').forEach((im) => (im.onerror = () => im.closest('figure').remove()));
+    const showThumb = () => {
+      const has = !!v.thumb && th.dataset.bad !== v.thumb;
+      th.style.display = has ? '' : 'none';
+      more.style.display = has ? '' : 'none';
+      const open = !has || openVer === v.version;
+      n.style.display = open ? '' : 'none';
+      more.textContent = openVer === v.version ? '🔼 Ocultar contenido' : '📖 Ver contenido';
+    };
+    if (v.thumb && th.getAttribute('src') !== v.thumb) { th.onerror = () => { th.dataset.bad = v.thumb; showThumb(); }; th.src = v.thumb; }
+    showThumb();
+    more.onclick = () => { openVer = openVer === v.version ? null : v.version; showThumb(); if (openVer) more.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   }
   $('btnPlay').onclick = async () => { $("msg").textContent = "Abriendo el juego…"; if (!(await D.play(sel))) $("msg").textContent = "❌ No se pudo abrir esa versión."; };
   $('btnDl').onclick = async () => {

@@ -6,7 +6,7 @@
   const Menus = (G.Menus = {});
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const PANELS = ['menuMain', 'menuSP', 'menuCreate', 'menuAch', 'menuMP', 'menuSettings', 'menuShop'];
+  const PANELS = ['menuMain', 'menuSP', 'menuCreate', 'menuAch', 'menuMP', 'menuSettings', 'menuShop', 'menuNews'];
   const DIFF = ['Fácil', 'Normal', 'Difícil'];
   let current = 'menuMain';
 
@@ -311,6 +311,7 @@
     $('btnSP').onclick = openSP;
     $('btnSettings').onclick = () => openSettings();
     $('btnShop').onclick = openShop;
+    $('btnNews').onclick = () => G.News.open();
     $('profileChip').onclick = () => openSettings('char');
     document.querySelectorAll('#menu .back').forEach((b) => (b.onclick = () => { if (inGame) { Menus.closeInGame(); return; } G.Net.disconnect(); Menus.show('menuMain'); }));
     $('spNew').onclick = () => Menus.openCreate('sp');

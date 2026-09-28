@@ -1,0 +1,113 @@
+[
+ {
+  "version": "2.2.0",
+  "name": "Señores de las Islas",
+  "date": "",
+  "thumb": "2.2.0/miniatura.jpg",
+  "notes": "👑 Señores de las Islas\n\nJEFES DE ISLA\n- Rey de la Escarcha (Isla Escarcha): un yeti de 3,5 m junto a la cueva de hielo. Camina despacio, lanza bloques de hielo, carga corriendo para dar su pisotón helado y, furioso, llama a los lobos de las nieves.\n- Dragón de Brasa (Isla Brasa): mordisco, aliento de fuego que apunta ladera arriba o abajo y, malherido, vuela escupiendo bolas de fuego.\n- Gran Caimán del río (Tahuri, nuevo): acecha en el lago de la selva con solo los ojos fuera del agua. Embestida, coletazo girando sobre sí mismo y, malherido, se esconde en el fondo, se cura y sale de golpe.\n- Todos los jefes (también el jabalí gigante y la capitana Hiena) vuelven a los 30 minutos de derrotarlos.\n- Buscan el camino más corto rodeando rocas, árboles, agua y casas, y ninguno corre más que tú: siempre puedes escapar esprintando.\n\nALDEAS Y ENCARGOS\n- 4 aldeas, una en cada isla con jefe: el campamento de tu tripulación (Isla Perdida), la aldea Shandara (Tahuri) y dos aldeas nuevas, los Kyrr en Escarcha y Ceniza en Brasa, con sus aldeanos.\n- Tablones de encargos sin ventanas: las hojas se leen en la pizarra, se aceptan con un clic y al cumplirlas aparece «COMPLETADO».\n- 15 encargos por aldea que salen de 3 en 3; tras los 15, la misión final es derrotar al jefe de la isla.\n- Nuevo logro épico «Héroe de las aldeas» (4 partes).\n\nEN ALTA MAR\n- Batallas navales: barcos de la Marina Blanca que patrullan, persiguen y disparan andanadas; húndelos o captúralos.\n- El Holandés de las Mareas: un barco fantasma que surge de la niebla de noche, se vuelve niebla y se desvanece al amanecer.\n- Clima peligroso en alta mar: olas altas, rayos en el mástil, golpes de mar, remolinos y bancos de niebla.\n- Tu tripulación (Kaito, Crane y Bastián) te sigue, pelea a tu lado, sube a tu barco y repara el casco.\n\nSUPERVIVENCIA\n- Cofre al morir: tus cosas quedan enterradas bajo una ✖ roja (cávala manteniendo el clic) o flotando con una bandera; tienes 5 minutos.\n- Antorchas clavadas en el suelo o en cualquier pared (con su soporte de hierro); la lluvia las apaga en 3 minutos.\n- Mechero de sílex (1 sílex + 1 fibra): enciende fogatas y antorchas.\n- Recetario en el inventario: los 131 objetos con imagen, cómo conseguirlos y para qué sirven.\n- Inventario reorganizado; al hacer clic en un objeto se abre su ficha.\n- Mapas del tesoro, carteles de «Se busca» con recompensas y mascotas útiles.\n- El día dura 10 minutos (7 de día y 3 de noche); suelta objetos con la tecla B.\n- Nada se atraviesa: los muebles ya no se meten dentro de las paredes.\n\nVOCES Y PERSONAJES\n- Todos los personajes hablan con su propia voz, con jerga marinera y emociones.\n- Conversaciones entre la tripulación, los piratas y los aldeanos cuando pasas cerca.\n\nMEJORAS\n- Mano en primera persona que agarra de verdad cada objeto: puño en los mangos, dedo en el gatillo y objetos en la palma.\n- Iconos nuevos para los 131 objetos, generados desde sus modelos 3D.\n- Tienda: tu propia bandera (pizarra para dibujarla) y mascarones rehechos.\n- Los cofres de las islas enseñan su botín y después sirven para guardar tus cosas.\n- Los techos de las chozas se ven también por dentro y protegen de la lluvia.\n- Trucos con atajos: doble Espacio para volar, doble W para correr más y Ctrl + F para fabricar gratis.\n- La semilla de cada partida se ve y se copia desde la lista de partidas.\n- Navegador: los atajos del navegador (Ctrl + S, Ctrl + P…) ya no interrumpen la partida.\n- Novedades en el menú: cada versión con su miniatura, su contenido y capturas.",
+  "images": [
+   {
+    "src": "2.2.0/yeti.jpg",
+    "text": "Rey de la Escarcha: el yeti de la cueva de hielo de Isla Escarcha. Camina despacio y carga para dar su pisotón helado."
+   },
+   {
+    "src": "2.2.0/dragon.jpg",
+    "text": "Dragón de Brasa: aliento de fuego y, malherido, alza el vuelo escupiendo bolas de fuego."
+   },
+   {
+    "src": "2.2.0/caiman.jpg",
+    "text": "Gran Caimán del río (nuevo): acecha en el lago de la selva de Tahuri con solo los ojos fuera del agua."
+   },
+   {
+    "src": "2.2.0/jabali.jpg",
+    "text": "Jabalí gigante: el jefe de la Isla Perdida. Todos los jefes vuelven a los 30 minutos."
+   },
+   {
+    "src": "2.2.0/tablon.jpg",
+    "text": "Tablones de encargos: las hojas se leen en la pizarra, se aceptan con un clic y al cumplirlas aparece «COMPLETADO»."
+   },
+   {
+    "src": "2.2.0/kyrr.jpg",
+    "text": "Aldea Kyrr (Isla Escarcha): chozas nevadas junto a la hoguera."
+   },
+   {
+    "src": "2.2.0/ceniza.jpg",
+    "text": "Aldea de Ceniza (Isla Brasa): chozas tiznadas, forja y sus aldeanos."
+   },
+   {
+    "src": "2.2.0/holandes.jpg",
+    "text": "El Holandés de las Mareas: un barco fantasma que surge de la niebla de noche en alta mar."
+   },
+   {
+    "src": "2.2.0/cofre.jpg",
+    "text": "Cofre al morir: tus cosas quedan enterradas bajo una ✖ roja; tienes 5 minutos para desenterrarlas."
+   },
+   {
+    "src": "2.2.0/antorchas.jpg",
+    "text": "Antorchas clavadas en la pared, con su soporte de hierro (aquí, dentro de una choza Kyrr de noche)."
+   },
+   {
+    "src": "2.2.0/mano.jpg",
+    "text": "Una mano que agarra de verdad cada objeto: puño en los mangos, dedo en el gatillo y objetos en la palma."
+   }
+  ]
+ },
+ {
+  "version": "2.1.0",
+  "name": "Leyendas del Mar",
+  "date": "2026-09-26",
+  "thumb": "2.1.0/miniatura.jpg",
+  "notes": "🏆 Leyendas del Mar\n\nNUEVO INICIO EN LA ISLA PERDIDA\n- Cinemática de introducción: la Marina Blanca hunde tu barco, la Gaviota Errante, en plena tormenta.\n- Silvano, el viejo ermitaño, te encuentra en la playa y te cuenta la leyenda: Rogan D. Aldor escondió una Fruta del Abismo en la isla.\n- Tu tripulación sobrevivió: la capitana Mara y tres maestros te esperan en su campamento de la costa este.\n- Los piratas de la capitana Hiena acampan en la costa oeste y también buscan la fruta.\n- Busca las 3 pistas de Rogan (el ancla del naufragio, la piedra de la calavera y la que guarda la Hiena) y desentierra su cofre.\n\nESTILOS DE COMBATE (se aprenden con los maestros y suben de nivel)\n- ⚔️ Espadachín (katana, sable): Corte volador y Torbellino.\n- 🔫 Tirador (pistola, mosquete y balas): Disparo certero y Ráfaga.\n- 👊 Luchador (manos vacías): combos, Patada huracán y Salto del tigre.\n- 🔮 Brujo (bastón y maná): Chispa arcana, Rayo y Marea curativa.\n- Técnicas con Q y Z. Muñecos de entrenamiento en los campamentos.\n\nMENÚ NUEVO\n- Un Jugador con varias partidas guardadas (nombre, dificultad, semilla y trucos opcionales).\n- 100 logros (40 comunes, 20 especiales, 20 raros, 15 épicos y 5 legendarios) que dan doblones.\n- Tienda de cosméticos: sombreros, rostro, espalda, mascotas, velas, banderas y mascarones.\n- Multijugador con mundos del anfitrión, unirse por IP y versus.\n- Configuración: personaje, sensibilidad, campo de visión, gráficos, sonido y versiones.\n- Trucos (tecla K) en las partidas que los activen: ahí no se consiguen logros.\n\nY ADEMÁS\n- Pantalla de carga con tomas panorámicas de las islas.\n- Herramientas rediseñadas y un brazo en primera persona que ya no se sale de la pantalla.",
+  "images": [
+   {
+    "src": "2.1.0/silvano.jpg",
+    "text": "Silvano, el ermitaño brujo que te encuentra en la playa."
+   },
+   {
+    "src": "2.1.0/mara.jpg",
+    "text": "La capitana Mara y tu tripulación, en su campamento de la costa este."
+   },
+   {
+    "src": "2.1.0/kaito.jpg",
+    "text": "Kaito, el maestro espadachín, con los muñecos de entrenamiento."
+   },
+   {
+    "src": "2.1.0/hiena.jpg",
+    "text": "La capitana Hiena y sus piratas, en la costa oeste."
+   }
+  ]
+ },
+ {
+  "version": "2.0.1",
+  "name": "Lanzador de versiones",
+  "date": "2026-09-26",
+  "thumb": "2.0.1/miniatura.jpg",
+  "notes": "🗂️ Lanzador de versiones\n\n- La app de Windows ahora abre un lanzador (como Minecraft): puedes descargar varias versiones del juego, tenerlas instaladas a la vez y elegir con cuál jugar.\n- En el menú del juego, \"Cambiar de versión (lanzador)\" te devuelve al lanzador.\n- El navegador siempre juega la última versión.\n- Página de descargas renovada: arriba la última versión y abajo todas las anteriores.\n- LAN: el lobby avisa si algún jugador usa una versión distinta a la del anfitrión.",
+  "images": []
+ },
+ {
+  "version": "2.0.0",
+  "name": "El Archipiélago",
+  "date": "2026-09-26",
+  "thumb": "2.0.0/miniatura.jpg",
+  "notes": "🏝️ El Archipiélago\n\n- Archipiélago nuevo en cada partida: Isla Tahuri (tribu Shandara), Isla Escarcha, Isla Brasa, islotes, arrecife, naufragios y un submarino hundido.\n- Barcos: balsa, canoa, bote de vela, lancha de vapor y barco pirata construido por piezas. Se camina por la cubierta, hay piloto automático, cañones y red de pesca.\n- Cada isla tiene su propio día y noche.\n- LAN hasta 8 jugadores: modo amistoso (con guardado) y versus (bandera, tesoro y barco insignia).\n- Historia: Monoglifos, el Log de Mareas y el misterio del Rey de las Mareas.\n- Frutas del Abismo, ropa y armadura (4 ranuras) y animales nuevos.\n- El juego instalado incluye el servidor LAN y se actualiza solo.",
+  "images": [
+   {
+    "src": "2.0.0/perdida.jpg",
+    "text": "Isla Perdida: donde naufragaste."
+   },
+   {
+    "src": "2.0.0/tahuri.jpg",
+    "text": "Isla Tahuri: selva, ríos y la tribu Shandara."
+   },
+   {
+    "src": "2.0.0/escarcha.jpg",
+    "text": "Isla Escarcha: invierno eterno."
+   },
+   {
+    "src": "2.0.0/brasa.jpg",
+    "text": "Isla Brasa: un volcán activo."
+   }
+  ]
+ }
+]

@@ -1,9 +1,11 @@
 // Publica una versión nueva del juego en GitHub con un solo comando:
 //   node scripts/release.js 2.1.0 "Nombre de la versión"   (el nombre es opcional)
 //   node scripts/release.js 2.1.0 --rehacer                 (vuelve a publicar la misma versión)
-// Antes de ejecutarlo, escribe las novedades en build/release-notes.md.
+// Antes de ejecutarlo, escribe las novedades en build/release-notes.md y pon la miniatura de la versión en
+// web/novedades/X/miniatura.jpg (1280×720), con sus capturas en esa misma carpeta (listadas en novedades.json).
 // Hace esto:
-//   1) cambia la versión (y el nombre) en package.json y js/version.js
+//   1) cambia la versión (y el nombre) en package.json y js/version.js, y completa su entrada en
+//      web/novedades/novedades.json (nombre, fecha y notas) para la página web, el juego y el lanzador
 //   2) regenera docs/ (página de descargas + versión para navegador)
 //   3) guarda los cambios en git y los sube a GitHub
 //   4) compila el instalador y lo publica como nueva versión: las apps instaladas se actualizan solas
@@ -24,6 +26,9 @@ const pkgPath = path.join(ROOT, 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 const newer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i]; return false; };
 if (!redo && !newer(ver, pkg.version)) { console.error(`La versión ${ver} debe ser mayor que la actual (${pkg.version}).`); process.exit(1); }
+// Cada versión lleva su miniatura (resume la actualización en la página, el juego y el lanzador)
+const newsDir = path.join(ROOT, 'web', 'novedades'), newsFile = path.join(newsDir, 'novedades.json');
+if (!fs.existsSync(path.join(newsDir, ver, 'miniatura.jpg'))) { console.error(`Falta la miniatura de la versión: web/novedades/${ver}/miniatura.jpg`); process.exit(1); }
 
 // GitHub CLI: la copia portátil de la carpeta de compilación o la instalada en el sistema
 const ghLocal = path.join(os.homedir(), 'isla-perdida-build', 'tools', 'gh', 'bin', 'gh.exe');
@@ -41,6 +46,19 @@ if (verName) vSrc = vSrc.replace(/G\.VERSION_NAME = '[^']*'/, `G.VERSION_NAME = 
 fs.writeFileSync(vPath, vSrc);
 const title = `Isla Perdida ${ver}` + ((vSrc.match(/G\.VERSION_NAME = '([^']*)'/) || [])[1] ? ` · ${vSrc.match(/G\.VERSION_NAME = '([^']*)'/)[1]}` : '');
 const repo = pkg.build.publish[0].owner + '/' + pkg.build.publish[0].repo;
+// Entrada de la versión en novedades.json: nombre, fecha de hoy y las notas de build/release-notes.md
+const news = fs.existsSync(newsFile) ? JSON.parse(fs.readFileSync(newsFile, 'utf8')) : [];
+let entry = news.find((n) => n.version === ver);
+if (!entry) news.push((entry = { version: ver, images: [] }));
+Object.assign(entry, {
+  name: (vSrc.match(/G\.VERSION_NAME = '([^']*)'/) || [])[1] || entry.name || '',
+  date: redo && entry.date ? entry.date : new Date().toLocaleDateString('sv'),
+  thumb: `${ver}/miniatura.jpg`,
+  notes: fs.readFileSync(path.join(ROOT, 'build', 'release-notes.md'), 'utf8').replace(/\r\n/g, '\n').trim(),
+});
+if (!(entry.images || []).length) console.warn(`Aviso: la versión ${ver} no tiene capturas en novedades.json.`);
+news.sort((a, b) => (newer(a.version, b.version) ? -1 : newer(b.version, a.version) ? 1 : 0));
+fs.writeFileSync(newsFile, JSON.stringify(news, null, 1) + '\n');
 const lPath = path.join(ROOT, 'LEEME.txt');
 fs.writeFileSync(lPath, fs.readFileSync(lPath, 'utf8').replace(/\(versión [\d.]+\)/, `(versión ${ver})`));
 run('node scripts/build-web.js');
