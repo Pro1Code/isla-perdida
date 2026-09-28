@@ -10,7 +10,7 @@
     cam: 'fp', swing: 0, cd: 0, hurtT: 99, stepAcc: 0, bob: 0, dead: false, sick: 0, sprinting: false, moving: false,
     cause: '', shake: 0, hs: 0, exhausted: false, swingCount: 0, ship: null, local: null, station: null, sinking: false, zoom: 0,
   });
-  let camera, vm, vmHand, vmHolder, vmArm, vmId = '__', model, torchLight, lookKey = '';
+  let camera, vm, vmHand, vmHolder, grip, vmId = '__', model, torchLight, lookKey = '';
   // Brazo en primera persona: el golpe gira alrededor del codo, que queda siempre fuera de la pantalla
   // (así solo se ve del antebrazo a la mano). Posiciones en el espacio de la cámara.
   const VM_ELBOW = new THREE.Vector3(0.229, -0.243, -0.197), VM_HAND = new THREE.Vector3(0.0187, 0.0373, -0.3716);
@@ -29,6 +29,8 @@
     vmHolder = new THREE.Group();
     vmHolder.rotation.set(-0.35, 0, 0.25);
     vmHand.add(vmHolder);
+    // Mano con dedos que agarran el objeto y antebrazo hasta el codo (grip.js)
+    grip = G.Grip.create(vm, vmHand);
     vm.scale.setScalar(0.6);
     torchLight = new THREE.PointLight(0xffa04a, 0, 20, 1.6);
     scene.add(torchLight);
@@ -53,10 +55,7 @@
     G.scene.add(model.root);
     G.Equip.apply(model, P.visibleIds());
     curLayer = -1;
-    if (vmArm) { vmHand.remove(vmArm); vmArm.geometry.dispose(); vmArm.material.dispose(); }
-    vmArm = G.Character.fpArm(look.shirt, { skin: look.skin });
-    vmArm.rotation.set(0.1, -0.05, 0);
-    vmHand.add(vmArm);
+    grip.setLook(look.shirt, look.skin);
     vmId = '__';
   };
 
@@ -301,6 +300,7 @@
       if (fp) vmHolder.rotation.set(fp[0], fp[1], fp[2]); else vmHolder.rotation.set(-0.35, 0, 0.25);
       const t = G.makeItemMesh(id);
       if (t) { t.traverse((o) => (o.castShadow = false)); vmHolder.add(t); }
+      grip.hold(t ? id : null, t, vmHolder.rotation); // los dedos se cierran sobre el objeto
       model.hand.clear();
       const t2 = G.makeItemMesh(id);
       if (t2) { t2.rotation.set(Math.PI / 2, 2.12, 0); model.hand.add(t2); t2.traverse((o) => o.layers.set(Math.max(0, curLayer))); }
@@ -320,6 +320,7 @@
       VM_ELBOW.x + Math.cos(P.bob) * 0.01 * bobA,
       VM_ELBOW.y + Math.sin(P.bob * 2) * 0.01 * bobA + sway,
       VM_ELBOW.z);
+    grip.update(dt);
 
     // Antorcha (y el brillo de la Fruta Llama-Llama)
     const torch = id === 'antorcha' || (G.Story && G.Story.fruitOf() === 'llama' && G.World.night > 0.5);

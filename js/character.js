@@ -408,28 +408,4 @@
     o.root.rotation.set(sw * 1.25, (s.yaw || 0) + Math.PI, 0, 'YXZ');
   }
 
-  // ------------------------------------------------------------------ brazo en primera persona (sin esqueleto)
-  Char.fpArm = function (shirt = 0xe6dfcc, opts) {
-    const C = palette(new Col(shirt).getHex(), opts), b = new Builder(), none = () => [[0, 1]];
-    b.tube({
-      y0: 0.44, y1: 0.03, R: 14, N: 18,
-      prof: (t) => { const r = (U.lerp(0.047, 0.029, t) + 0.007 * bump(t, 0.3, 0.2)) * ends(t, 0.05, 0.1); return { rx: r * 0.85, rz: r * 1.05 }; },
-      color: (t, y) => (y > 0.36 ? C.shirt : y > 0.33 ? C.shirtDark : C.skin), weight: none,
-    });
-    const S = (r, w = 14, h = 10) => new THREE.SphereGeometry(r, w, h);
-    const g1 = S(1, 16, 12); g1.scale(0.026, 0.045, 0.04); g1.translate(0, 0.0, 0);
-    b.geo(g1, C.skin, 0);
-    for (let k = 0; k < 4; k++) {
-      const f = new THREE.CapsuleGeometry(0.0095, 0.028, 3, 8);
-      f.rotateZ(Math.PI / 2); f.translate(-0.012, -0.03, -0.028 + k * 0.018);
-      b.geo(f, C.skin, 0);
-    }
-    const th = new THREE.CapsuleGeometry(0.01, 0.03, 3, 8);
-    th.rotateX(-0.9); th.translate(0.02, -0.005, 0.04);
-    b.geo(th, C.skin, 0);
-    const geo = b.build(false);
-    geo.rotateX(Math.PI / 2);
-    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 }));
-    return m;
-  };
 })();
