@@ -135,6 +135,7 @@ button.tag { border: 0; font: inherit; font-weight: 800; cursor: pointer; }
 .ch-toggle.on { border-color: #b36ee0; background: rgba(179,110,224,.18); }
 .ch-toggle input { accent-color: #b36ee0; }
 .ch-toggle small { flex-basis: 100%; font-weight: 600; font-size: 12px; color: var(--muted); }
+.ch-toggle .ch-key { margin-left: auto; font-size: 11.5px; padding: 1px 7px; border-radius: 6px; border: 1px solid var(--line); background: rgba(255,255,255,.08); color: #e6d2f7; font-family: inherit; font-weight: 800; }
 .ch-sec { margin: 12px 0; }
 .ch-sec > b { display: block; font-size: 13px; color: var(--muted); letter-spacing: .5px; margin-bottom: 4px; }
 .mp-input.qty { width: 80px; }

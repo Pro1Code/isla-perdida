@@ -420,10 +420,11 @@
       if (mode === 'playing') {
         if (!Input.locked && e.code !== 'Escape') return;
         if (G.Ships.helmKey(e.code)) return;
+        if (G.Cheats.keyDown(e)) return; // atajos de los trucos (doble Espacio, doble W, Ctrl + F)
         if (e.code === 'Tab' || e.code === 'KeyI') G.Game.openInventory();
         else if ((e.code === 'KeyT' || e.code === 'Enter') && G.Net.active) { e.preventDefault(); Input.keys = {}; G.UI.openChat(); }
         else if (e.code === 'KeyE') G.Game.interact();
-        else if (e.code === 'KeyF') G.Game.useHeld();
+        else if (e.code === 'KeyF' && !e.ctrlKey && !e.metaKey) G.Game.useHeld();
         else if (e.code === 'KeyG') G.Story.usePower();
         else if (e.code === 'KeyV') G.Player.toggleCam();
         else if (e.code === 'KeyM') G.Game.openMap();
@@ -454,8 +455,8 @@
         if (e.code === 'Escape') { if (G.Menus.inGame()) G.Menus.closeInGame(); else resume(); }
       }
     });
-    window.addEventListener('keyup', (e) => { Input.keys[e.code] = false; });
-    window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; });
+    window.addEventListener('keyup', (e) => { Input.keys[e.code] = false; G.Cheats.keyUp(e); });
+    window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; G.Cheats.on.fast = false; });
     canvas.addEventListener('mousedown', (e) => {
       if (G.state.mode !== 'playing') return;
       if (!Input.locked) { Main.lockPointer(); return; }

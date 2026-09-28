@@ -1,21 +1,21 @@
 // Trucos: solo en las partidas creadas con "Activar trucos" (nunca en versus).
 // Se abren con la tecla K o desde la pausa. En esas partidas no se consiguen logros ni doblones.
+// Siempre eres inmortal y no pasas hambre ni sed. Atajos: doble Espacio (volar), doble W (súper
+// velocidad mientras mantengas W) y Ctrl + F (fabricar gratis).
 (function () {
   'use strict';
   const G = window.G;
-  const Ch = (G.Cheats = { on: { god: false, needs: false, fly: false, free: false, fast: false } });
+  const Ch = (G.Cheats = { on: { fly: false, free: false, fast: false } });
   const $ = (id) => document.getElementById(id);
 
   Ch.enabled = () => !!(G.state && G.state.cfg && G.state.cfg.cheats && G.state.gm !== 'versus' && G.state.mode !== 'menu');
-  Ch.flag = (k) => Ch.enabled() && !!Ch.on[k];
+  Ch.flag = (k) => Ch.enabled() && (k === 'god' || k === 'needs' || !!Ch.on[k]); // inmortal y sin hambre ni sed siempre
   Ch.reset = () => { for (const k in Ch.on) Ch.on[k] = false; };
 
   const TOGGLES = [
-    ['god', '🛡️ Invencible', 'No recibes daño.'],
-    ['needs', '🍖 Sin hambre ni sed', 'Hambre, sed, energía y temperatura siempre llenas.'],
-    ['fly', '🕊️ Volar', 'Espacio sube, C o Ctrl baja.'],
-    ['free', '🛠️ Fabricar gratis', 'Fabrica sin materiales, sin estación y sin aprender la receta.'],
-    ['fast', '💨 Súper velocidad', 'Te mueves el doble de rápido.'],
+    ['fly', '🕊️ Volar', 'Doble Espacio', 'Espacio sube, C o Ctrl baja. Doble Espacio otra vez para aterrizar.'],
+    ['fast', '💨 Súper velocidad', 'Doble W', 'Corres el doble de rápido mientras mantengas W.'],
+    ['free', '🛠️ Fabricar gratis', 'Ctrl + F', 'Fabrica sin materiales, sin estación y sin aprender la receta.'],
   ];
   const TIMES = [['🌅 Amanecer', 6], ['☀️ Mediodía', 12], ['🌇 Atardecer', 18.5], ['🌙 Noche', 22.5]];
   const WEATHER = [['☀️ Despejado', 'clear'], ['🌧️ Lluvia', 'rain'], ['⛈️ Tormenta', 'storm']];
@@ -37,7 +37,7 @@
 
   function render() {
     const host = G.Net.authority();
-    $('chToggles').innerHTML = TOGGLES.map(([k, n, d]) => `<label class="ch-toggle${Ch.on[k] ? ' on' : ''}" title="${d}"><input type="checkbox" data-k="${k}"${Ch.on[k] ? ' checked' : ''}/> ${n}<small>${d}</small></label>`).join('');
+    $('chToggles').innerHTML = TOGGLES.map(([k, n, key, d]) => `<label class="ch-toggle${Ch.on[k] ? ' on' : ''}" title="${d}"><input type="checkbox" data-k="${k}"${Ch.on[k] ? ' checked' : ''}/> ${n}<kbd class="ch-key">${key}</kbd><small>${d}</small></label>`).join('');
     $('chTime').innerHTML = TIMES.map(([n, h]) => `<button class="btn small" data-h="${h}"${host ? '' : ' disabled'}>${n}</button>`).join('');
     $('chWeather').innerHTML = WEATHER.map(([n, w]) => `<button class="btn small" data-w="${w}"${host ? '' : ' disabled'}>${n}</button>`).join('');
     $('chHostNote').classList.toggle('hidden', host);
@@ -58,26 +58,6 @@
       Ch.on[k] = e.target.checked;
       if (k === 'fly' && !Ch.on.fly) G.Player.vel.y = 0;
       render();
-    };
-    $('chHeal').onclick = () => {
-      const P = G.Player, S = P.stats;
-      Object.assign(S, { health: 100, hunger: 100, thirst: 100, stamina: 100, temp: 55 });
-      P.sick = 0; P.poison = 0; P.oxy = 100;
-      G.UI.msg('❤️ Estás como nuevo.', 'good');
-    };
-    $('chLearn').onclick = () => {
-      const w = G.state.world;
-      if (!w || !w.story) return;
-      w.story.learned = w.story.learned || {};
-      for (const r of G.RECIPES) if (r.learn) w.story.learned[r.learn] = 1;
-      G.UI.msg('📜 Aprendiste todas las recetas.', 'good');
-    };
-    $('chMap').onclick = () => {
-      const w = G.state.world;
-      if (!w || !w.story) return;
-      w.story.disc = w.story.disc || {};
-      for (const s of G.Arch.islands) w.story.disc[s.id] = 1;
-      G.UI.msg('🗺️ El mapa del archipiélago está completo.', 'good');
     };
     $('chGive').onclick = () => {
       const id = $('chItem').value, n = Math.max(1, Math.min(999, +$('chQty').value || 1));
@@ -110,12 +90,37 @@
     };
   }
 
+  // Atajos de teclado (en partida, con el ratón capturado). Devuelve true si la tecla era un atajo.
+  let lastSpace = 0, lastW = 0;
+  const say = (k) => G.UI.msg(k === 'fly' ? (Ch.on.fly ? '🕊️ <b>Volar</b> activado · <kbd>Espacio</kbd> sube, <kbd>C</kbd>/<kbd>Ctrl</kbd> baja · doble <kbd>Espacio</kbd> para aterrizar' : '🕊️ Volar desactivado')
+    : k === 'free' ? `🛠️ <b>Fabricar gratis</b> ${Ch.on.free ? 'activado' : 'desactivado'}` : '💨 Súper velocidad', 'info', 'ch' + k + (Ch.on[k] ? 1 : 0));
+  Ch.keyDown = function (e) {
+    if (!Ch.enabled() || e.repeat) return false;
+    const now = performance.now();
+    if (e.code === 'KeyF' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault(); // que no se abra el buscador del navegador
+      Ch.on.free = !Ch.on.free; say('free');
+      return true;
+    }
+    if (e.code === 'Space') {
+      if (now - lastSpace < 320) { Ch.on.fly = !Ch.on.fly; if (!Ch.on.fly) G.Player.vel.y = 0; lastSpace = 0; say('fly'); }
+      else lastSpace = now;
+    }
+    if (e.code === 'KeyW') {
+      if (now - lastW < 320 && !Ch.on.fast) { Ch.on.fast = true; say('fast'); }
+      lastW = now;
+    }
+    return false;
+  };
+  // La súper velocidad dura mientras mantienes W
+  Ch.keyUp = (e) => { if (e.code === 'KeyW') Ch.on.fast = false; };
+
   // Efectos que se aplican cada fotograma (los demás se consultan en player.js y game.js)
   Ch.update = function (dt) {
     if (!Ch.enabled()) return;
     const P = G.Player, S = P.stats;
-    if (Ch.on.needs) { S.hunger = 100; S.thirst = 100; S.stamina = 100; S.temp = 55; P.oxy = 100; }
-    if (Ch.on.god) { S.health = Math.max(S.health, 100); P.sick = 0; P.poison = 0; P.oxy = Math.max(P.oxy, 50); }
+    S.hunger = 100; S.thirst = 100; S.stamina = 100; S.temp = 55; P.oxy = 100;
+    S.health = Math.max(S.health, 100); P.sick = 0; P.poison = 0;
   };
 
   document.addEventListener('DOMContentLoaded', bind);

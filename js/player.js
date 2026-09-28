@@ -83,16 +83,18 @@
   };
 
   // ------------------------------------------------------------------ colisiones
-  function collide() {
+  // air: volando (truco); árboles, rocas y lugares solo chocan a su altura
+  function collide(air) {
     const pos = P.pos;
     G.Res.query(pos.x, pos.z, 4, (r) => {
       if (!r.alive || !r.k.solid) return;
+      if (air && pos.y > r.y + (r.k.tree ? 7 : 1.4 * r.s)) return;
       const dx = pos.x - r.x, dz = pos.z - r.z;
       const rr = r.k.r * r.s + P.radius;
       const d2 = dx * dx + dz * dz;
       if (d2 < rr * rr && d2 > 1e-6) { const d = Math.sqrt(d2); pos.x = r.x + dx / d * rr; pos.z = r.z + dz / d * rr; }
     });
-    G.Landmarks.collide(pos, P.radius);
+    G.Landmarks.collide(pos, P.radius, air);
     let ground = G.height(pos.x, pos.z);
     P.onStruct = false;
     const R = P.radius;
@@ -226,7 +228,10 @@
     P.pos.addScaledVector(P.vel, dt);
     const rr = Math.hypot(P.pos.x, P.pos.z), B = G.Arch.BOUND;
     if (rr > B) { P.pos.x *= B / rr; P.pos.z *= B / rr; }
-    const ground = Math.max(G.height(P.pos.x, P.pos.z), G.World.waterLevelAt(P.pos.x, P.pos.z) + 0.1);
+    // Volando también chocas con chozas, paredes, árboles y rocas (pero puedes pasar por encima)
+    const ground = Math.max(collide(true), G.World.waterLevelAt(P.pos.x, P.pos.z) + 0.1);
+    const ceil = G.Landmarks.caveCeil(P.pos.x, P.pos.z);
+    if (ceil !== null && P.pos.y > ceil - 1.9) { P.pos.y = ceil - 1.9; P.vel.y = Math.min(0, P.vel.y); }
     if (P.pos.y < ground) { P.pos.y = ground; P.vel.y = Math.max(0, P.vel.y); }
     P.pos.y = Math.min(P.pos.y, 260);
     P.moving = wl > 0; P.onGround = false; P.swimming = false; P.diving = false; P.sinking = false; P.wading = false; P.sprinting = false;

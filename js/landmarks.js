@@ -167,9 +167,18 @@
     }
     return L.circles.some((c) => c.y1 > 0 && Math.abs(x - c.x) < c.r && Math.hypot(x - c.x, z - c.z) < c.r);
   };
-  L.collide = function (pos, rad) {
+  // Techo de la cueva sobre este punto (para no salir volando a través de la roca)
+  L.caveCeil = function (x, z) {
+    const C = L.caveAt(x, z);
+    if (!C) return null;
+    const d = Math.hypot(x - C.wx, z - C.wz);
+    return C.plateau + C.h * Math.sqrt(Math.max(0.05, 1 - (d / C.r) ** 2)) * 0.9 - 0.5;
+  };
+  // air: volando; las paredes de la cueva y los obstáculos sin altura (-99..99) solo chocan hasta su altura real
+  L.collide = function (pos, rad, air) {
     for (const C of L.caves) {
       if (Math.abs(pos.x - C.wx) > C.r * 1.5 || Math.abs(pos.z - C.wz) > C.r * 1.5) continue;
+      if (air && pos.y > C.plateau + C.h) continue;
       const w = caveWall(C, pos.x, pos.z);
       if (!w.door && w.d > 0.01 && w.d > w.Ri - rad && w.d < w.Ro + rad) {
         const target = w.d < (w.Ri + w.Ro) / 2 ? w.Ri - rad : w.Ro + rad;
@@ -178,6 +187,7 @@
     }
     for (const c of L.circles) {
       if (pos.y < c.y0 || pos.y > c.y1) continue;
+      if (air && pos.y > (c.top ??= c.y1 < 99 ? c.y1 : G.height(c.x, c.z) + 6)) continue;
       const dx = pos.x - c.x, dz = pos.z - c.z;
       if (Math.abs(dx) > c.r + rad || Math.abs(dz) > c.r + rad) continue;
       const d = Math.hypot(dx, dz), rr = c.r + rad;
