@@ -165,11 +165,11 @@
   async function playWorld(w) {
     const cfg = { diff: w.diff, death: w.death || 'half', cheats: !!w.cheats };
     G.Save.setWorld(w);
-    if (w.fresh) { await G.Game.newGame(w.diff, { mode: 'coop', seed: w.seed || undefined, cfg }); return true; }
-    const data = await G.Save.loadWorld(w);
-    if (!data) { await G.Game.newGame(w.diff, { mode: 'coop', seed: w.seed || undefined, cfg }); return true; }
-    await G.Game.loadGame(data, { cfg });
-    G.Cheats.reset();
+    const data = w.fresh ? null : await G.Save.loadWorld(w);
+    if (data) { await G.Game.loadGame(data, { cfg }); G.Cheats.reset(); }
+    else await G.Game.newGame(w.diff, { mode: 'coop', seed: w.seed || undefined, cfg });
+    // La semilla que le tocó (también si se dejó en blanco): se ve en la tarjeta de la partida para copiarla
+    if (G.state.seed && w.seed !== G.state.seed) { w.seed = G.state.seed; G.Worlds.update(w.id, { seed: G.state.seed }); }
     return true;
   }
   Main.playSingle = async function (w) {
@@ -455,6 +455,23 @@
         if (e.code === 'Escape') { if (G.Menus.inGame()) G.Menus.closeInGame(); else resume(); }
       }
     });
+    // Atajos del navegador (Ctrl+S guardar página, Ctrl+P imprimir, Ctrl+D, Ctrl+H, Ctrl+J, Alt+←…): bloqueados para
+    // que no interrumpan la partida. En los campos de texto se permiten los de editar (copiar, pegar, deshacer…).
+    // Recargar (F5 / Ctrl+R) solo se permite en el menú principal. El navegador no deja bloquear Ctrl+W, Ctrl+T ni Ctrl+N.
+    const EDIT = new Set(['KeyA', 'KeyC', 'KeyV', 'KeyX', 'KeyZ', 'KeyY']);
+    window.addEventListener('keydown', (e) => {
+      const t = e.target, typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable), mod = e.ctrlKey || e.metaKey;
+      const reload = e.code === 'F5' || (mod && e.code === 'KeyR');
+      if (reload) { if (G.state.mode !== 'menu') e.preventDefault(); return; }
+      if (mod && e.shiftKey && ['KeyI', 'KeyJ', 'KeyC'].includes(e.code)) return; // herramientas de desarrollador
+      if (mod && (typing || G.state.mode !== 'playing') && EDIT.has(e.code)) return; // copiar, pegar… (en los menús y al escribir)
+      if (mod || (e.altKey && ['ArrowLeft', 'ArrowRight', 'Home', 'KeyD', 'KeyF', 'KeyE'].includes(e.code)) || ['F1', 'F3', 'F6', 'F7', 'F10'].includes(e.code)) e.preventDefault();
+    }, true);
+    // Ctrl + rueda (zoom) y los botones de atrás / adelante del ratón
+    window.addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+    window.addEventListener('mouseup', (e) => { if (e.button === 3 || e.button === 4) e.preventDefault(); });
+    // Si aun así se va a cerrar o recargar la pestaña en plena partida, el navegador pregunta antes (en la app no)
+    if (!window.islaDesktop) window.addEventListener('beforeunload', (e) => { if (G.state && G.state.mode !== 'menu' && !G.Net.active) { e.preventDefault(); e.returnValue = ''; } });
     window.addEventListener('keyup', (e) => { Input.keys[e.code] = false; G.Cheats.keyUp(e); });
     window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; G.Cheats.on.fast = false; });
     canvas.addEventListener('mousedown', (e) => {

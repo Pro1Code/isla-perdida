@@ -258,7 +258,7 @@
     if (!nearAny(P.x, P.z, 170)) return;
     const alive = (t) => list.filter((c) => c.type === t && !c.dead).length;
     const far = !nearAny(P.x, P.z, 45);
-    if (!f.pirateBoss && !list.some((c) => c.type === 'pirate_boss') && (far || !Pr.bossOnce)) { Pr.bossOnce = true; const c = spawn('pirate_boss', P.x + 1, P.z + 2, undefined, 99); c.hx = P.x; c.hz = P.z; c.homeR = 5; }
+    if ((!f.pirateBoss || G.Bosses.canSpawn('pirate_boss')) && !list.some((c) => c.type === 'pirate_boss') && (far || !Pr.bossOnce)) { Pr.bossOnce = true; const c = spawn('pirate_boss', P.x + 1, P.z + 2, undefined, 99); c.hx = P.x; c.hz = P.z; c.homeR = 5; }
     const want = f.pirateBoss ? [2, 1] : [3, 2];
     setTimeout(() => (Pr.crewOnce = true), 0);
     for (const [t, n] of [['pirate', want[0]], ['pirate_gun', want[1]]]) {

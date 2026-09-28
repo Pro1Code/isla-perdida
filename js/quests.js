@@ -117,7 +117,8 @@
     return s;
   };
   const bst = (v) => st().boards[v] || (st().boards[v] = { idx: 0, slots: [], fin: false, wait: 0 });
-  const bossDead = (type) => { const w = G.state.world || {}; return type === 'boss' ? !!w.bossKilled : !!(w.bossesKilled && w.bossesKilled[type]); };
+  // La misión final se cumple al derrotar al jefe después de aceptarla (los jefes vuelven a los 30 minutos)
+  const bossDone = (q) => G.Bosses.kills(q.t) > (q.k0 || 0);
 
   function reward(g, boss) {
     if (boss) return { doblon: 60, coins: 150, extra: ['perla', 3] };
@@ -195,8 +196,10 @@
       q.st = 'active';
       G.Audio.play('select');
       G.UI.msg(`📋 Encargo aceptado: <b>${esc(q.text)}</b>`, 'good', 'questtake');
-      // La misión final ya cumplida (el jefe cayó antes): se cobra al momento
-      if (q.boss && bossDead(q.t)) setTimeout(() => { if (q.st === 'active') complete(q); }, 600);
+      if (q.boss) {
+        q.k0 = G.Bosses.kills(q.t);
+        if (!G.Bosses.canSpawn(q.t)) { const m = Math.ceil((30 * 60 - (G.Bosses.clock() - G.Bosses.killedAt(q.t))) / 60); G.UI.msg(`⏳ El ${VILLAGES[q.v].bossName} volverá dentro de unos ${m} min.`, 'info', 'bossback'); }
+      }
     } else if (q.st === 'active' && q.kind === 'bring') {
       const have = G.Inv.count(q.item);
       if (have < q.n) { G.UI.msg(`Te faltan ${q.n - have} × ${itemName(q.item)}.`, 'warn', 'quest'); G.Audio.play('error'); return; }
@@ -373,7 +376,7 @@
       const z = G.Arch.zoneOf(P.x, P.z);
       for (const q of allActive()) {
         if (q.kind === 'visit' && z && z.id === q.isl) progress(q, 1);
-        else if (q.kind === 'boss' && bossDead(q.t)) complete(q);
+        else if (q.kind === 'boss' && bossDone(q)) complete(q);
       }
       // Tablones: al acercarte por primera vez se llenan; con las 3 cumplidas, salen 3 nuevas
       for (const b of boards) {

@@ -6,6 +6,7 @@
   const G = window.G, U = G.U;
   const C = (G.Creatures = { list: [], timer: 0, nextId: 0 });
   const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss', 'ghost_pirate', 'ghost_gun', 'ghost_captain', 'yeti', 'lavadragon', 'aldeano', 'bigcaiman'];
+  const BOSS_MAX = 6.6; // velocidad máxima de cualquier jefe (el jugador esprinta a 7,2)
   const DEF = (C.DEF = {
     crab: { name: 'Cangrejo', hp: 12, speed: 0.8, run: 2.6, bodyY: 0.2, hitR: 0.5, drops: [['carne_cruda', 1]] },
     boar: { name: 'Jabalí', hp: 45, speed: 1.1, run: 4.8, bodyY: 0.7, hitR: 0.8, dmg: 10, drops: [['carne_cruda', 3], ['cuero', 1]] },
@@ -13,7 +14,7 @@
     snake: { name: 'Serpiente', hp: 14, speed: 0.5, run: 1.8, bodyY: 0.1, hitR: 0.55, dmg: 6, poison: 22, drops: [['carne_cruda', 1]] },
     jaguar: { name: 'Jaguar', hp: 60, speed: 1.4, run: 6.3, bodyY: 0.7, hitR: 0.8, dmg: 16, drops: [['cuero', 2], ['carne_cruda', 3]] },
     shark: { name: 'Tiburón', hp: 55, speed: 2.4, run: 5.4, bodyY: -0.1, hitR: 1.0, dmg: 20, sea: true, drops: [['pez_crudo', 4]] },
-    boss: { name: 'Jabalí gigante', hp: 260, speed: 1.0, run: 5.0, bodyY: 1.3, hitR: 1.5, dmg: 26, boss: true, drops: [['cuero', 5], ['carne_cruda', 8], ['colmillo', 1]] },
+    boss: { name: 'Jabalí gigante', hp: 260, speed: 1.0, run: 5.6, bodyY: 1.3, hitR: 1.5, dmg: 26, boss: true, drops: [['cuero', 5], ['carne_cruda', 8], ['colmillo', 1]] },
     bear: { name: 'Oso blanco', hp: 130, speed: 0.9, run: 3.8, bodyY: 1.0, hitR: 1.1, dmg: 22, drops: [['piel_gruesa', 2], ['carne_cruda', 5]] },
     snowwolf: { name: 'Lobo de las nieves', hp: 42, speed: 1.5, run: 6.0, bodyY: 0.85, hitR: 0.75, dmg: 13, drops: [['piel_gruesa', 1], ['carne_cruda', 2]] },
     seal: { name: 'Foca', hp: 30, speed: 0.4, run: 1.6, bodyY: 0.35, hitR: 0.8, drops: [['grasa', 2], ['carne_cruda', 2]] },
@@ -25,7 +26,7 @@
     whale: { name: 'Ballena', hp: 600, speed: 1.6, run: 3.0, bodyY: -0.6, hitR: 3.6, sea: true, drops: [['grasa', 8], ['carne_cruda', 10]] },
     dolphin: { name: 'Delfín', hp: 40, speed: 4.0, run: 7.5, bodyY: -0.1, hitR: 0.9, sea: true, drops: [['pez_crudo', 2]] },
     jelly: { name: 'Medusa', hp: 8, speed: 0.3, run: 0.5, bodyY: -0.3, hitR: 0.6, dmg: 8, poison: 10, sea: true, drops: [] },
-    serpent: { name: 'Serpiente marina', hp: 200, speed: 3.0, run: 7.5, bodyY: 0.6, hitR: 1.8, dmg: 30, shipDmg: 26, sea: true, drops: [['cuero', 4], ['pez_crudo', 6]] },
+    serpent: { name: 'Serpiente marina', hp: 200, speed: 3.0, run: 6.4, bodyY: 0.6, hitR: 1.8, dmg: 30, shipDmg: 26, sea: true, drops: [['cuero', 4], ['pez_crudo', 6]] },
     villager: { name: 'Aldeano shandara', hp: 70, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.55, dmg: 11, npc: true, drops: [] },
     // Aldeanos de los Kyrr (Escarcha) y de Ceniza (Brasa): gente de paz
     aldeano: { name: 'Aldeano', hp: 70, speed: 1.0, run: 3.0, bodyY: 1.0, hitR: 0.55, npc: true, friendly: true, drops: [] },
@@ -284,9 +285,9 @@
       G.Bosses.manage(I, list, farFromAll, dayOf(id), BH());
       if (I.type === 'perdida' && G.Prologue) G.Prologue.manage(tg, C.spawn);
       if (I.type === 'perdida') {
-        // El jabalí gigante aparece a partir del día 5 hasta que alguien lo derrote
+        // El jabalí gigante aparece a partir del día 5 (y vuelve a los 30 minutos de derrotarlo)
         const wd = G.state.world;
-        if (wd && !wd.bossKilled && dayOf(0) >= 5 && !C.list.some((c) => c.type === 'boss' && !c.dead)) {
+        if (wd && G.Bosses.canSpawn('boss') && dayOf(0) >= 5 && !C.list.some((c) => c.type === 'boss' && !c.dead)) {
           const p = randomPoint(TESTS.grass, who.x, who.z, 60, 0, I);
           if (farFromAll(p, 50)) C.spawn('boss', p.x, p.z);
         }
@@ -442,15 +443,23 @@
     G.Audio.playAt('death', c.x, c.z);
     if (c.type === 'boss') {
       G.state.world.bossKilled = true;
+      G.Bosses.markKilled('boss');
       G.UI.banner('¡Victoria!', 'El jabalí gigante ha caído');
     }
     if (c.type === 'villager') G.Story && G.Story.tribeKilled(c);
     if (c.d.bigBoss) G.Bosses.onKilled(c);
-    if (c.type === 'pirate_boss') { G.UI.banner('¡Capitana Hiena derrotada!', 'Los piratas huyen… y dejan caer un pergamino'); if (G.Prologue) G.Prologue.onBossKilled(); }
-    if (!c.d.drops.length) return;
-    if (peerId !== null && peerId !== undefined) G.Net.send({ t: 'give', to: peerId, items: c.d.drops, kill: c.d.name.toLowerCase(), kt: c.type, boss: c.type === 'boss' });
+    let drops = c.d.drops;
+    if (c.type === 'pirate_boss') {
+      const again = G.Bosses.killedAt('pirate_boss') !== null;
+      if (again) drops = drops.filter((d) => d[0] !== 'pista_3');
+      G.UI.banner('¡Capitana Hiena derrotada!', again ? 'Los piratas vuelven a huir… por ahora' : 'Los piratas huyen… y dejan caer un pergamino');
+      G.Bosses.markKilled('pirate_boss');
+      if (G.Prologue) G.Prologue.onBossKilled();
+    }
+    if (!drops.length) return;
+    if (peerId !== null && peerId !== undefined) G.Net.send({ t: 'give', to: peerId, items: drops, kill: c.d.name.toLowerCase(), kt: c.type, boss: c.type === 'boss' });
     else {
-      for (const [id, n] of c.d.drops) G.Game.give(id, n);
+      for (const [id, n] of drops) G.Game.give(id, n);
       G.state.stats.kills++;
       G.Ach.onKill(c.type);
       G.Bounty.onKill(c.type);
@@ -811,6 +820,8 @@
       const mx = tx - c.x, mz = tz - c.z, md = Math.hypot(mx, mz);
       if (moving && md > 0.3) {
         c.yaw += U.angDiff(c.yaw, Math.atan2(mx, mz)) * Math.min(1, dt * (c.d.sea ? 2.5 : 6));
+        // Ningún jefe corre más que tú (7,2 m/s esprintando): siempre puedes escapar
+        if (c.d.bigBoss || c.d.boss || c.type === 'serpent' || /_boss$|_captain$/.test(c.type)) speed = Math.min(speed, BOSS_MAX);
         const step = speed * dt;
         const nx = c.x + Math.sin(c.yaw) * step, nz = c.z + Math.cos(c.yaw) * step;
         const flying = c.fly > 0.3; // el dragón en vuelo pasa por encima de todo

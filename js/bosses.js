@@ -580,7 +580,7 @@
         G.Creatures.hitTarget(c, t, 34, 'El Gran Caimán del río te arrastró bajo el agua');
         G.Audio.playAt('bite', c.x, c.z, 100);
       }
-      if (S.t < 1.35 && !S.bit) { c.special = true; out.tx = c.x + Math.sin(c.yaw) * 6; out.tz = c.z + Math.cos(c.yaw) * 6; out.speed = 11; out.moving = true; return out; }
+      if (S.t < 2.0 && !S.bit) { c.special = true; out.tx = c.x + Math.sin(c.yaw) * 6; out.tz = c.z + Math.cos(c.yaw) * 6; out.speed = 6.6; out.moving = true; return out; }
       S.st = 'chase'; S.t = 0; S.b = enr ? 4.5 : 6.5; c.special = false;
       return out;
     }
@@ -643,9 +643,9 @@
       return out;
     }
     if (d < 6.5 && Math.abs(ang) > 1.3 && S.cc <= 0) { S.st = 'tail'; S.t = 0; S.hit = false; S.dir = ang > 0 ? -1 : 1; return out; }
-    if (d > 6 && d < 16 && S.b <= 0 && Math.abs(ang) < 0.6) { S.st = 'lunge'; S.t = 0; S.tid = at.id; S.bit = false; G.Audio.playAt('hiss', c.x, c.z, 90); return out; }
+    if (d > 5 && d < 13 && S.b <= 0 && Math.abs(ang) < 0.6) { S.st = 'lunge'; S.t = 0; S.tid = at.id; S.bit = false; G.Audio.playAt('hiss', c.x, c.z, 90); return out; }
     // Se acerca: rápido nadando, despacio en tierra
-    out.tx = at.x; out.tz = at.z; out.speed = inWater ? 4.2 : enr ? 2.4 : 1.9; out.moving = true;
+    out.tx = at.x; out.tz = at.z; out.speed = inWater ? 5.0 : enr ? 2.4 : 1.9; out.moving = true;
     const hx = c.x + Math.sin(c.yaw) * 3.3, hz = c.z + Math.cos(c.yaw) * 3.3;
     if (Math.hypot(at.x - hx, at.z - hz) < 2.3 || d < 2.8) {
       out.moving = false; faceTo(c, at, dt, 5);
@@ -673,8 +673,8 @@
       c.special = false;
       if (S.t < 1.6) { c.flyTarget = 1; out.tx = c.x + Math.sin(c.yaw) * 4; out.tz = c.z + Math.cos(c.yaw) * 4; out.speed = 2; out.moving = true; return out; }
       if (S.t < 11.5) {
-        S.orb = (S.orb ?? Math.atan2(c.z - cz, c.x - cx)) + dt * 0.55;
-        out.tx = cx + Math.cos(S.orb) * 14; out.tz = cz + Math.sin(S.orb) * 14; out.speed = 9; out.moving = true;
+        S.orb = (S.orb ?? Math.atan2(c.z - cz, c.x - cx)) + dt * 0.42;
+        out.tx = cx + Math.cos(S.orb) * 14; out.tz = cz + Math.sin(S.orb) * 14; out.speed = 6.2; out.moving = true;
         for (const k of [3.5, 6.2, 9]) if (S.t >= k && (S.shot || 0) < k) { S.shot = k; if (t) { faceTo(c, t, 1, 1); fireball(c, t); } }
         return out;
       }
@@ -720,11 +720,31 @@
       startBreath(c, 1.8, S.pitch); send({ k: 'breath', id: c.id, dur: 1.8, p: +S.pitch.toFixed(3) });
       return out;
     }
-    out.tx = at.x; out.tz = at.z; out.speed = c.d.run * (enr ? 1.2 : 1); out.moving = true;
+    // Pesado en tierra: camina despacio (sus armas son el aliento y el vuelo)
+    out.tx = at.x; out.tz = at.z; out.speed = enr ? 4.0 : 3.4; out.moving = true;
     if (d < 5.6) { out.moving = false; faceTo(c, at, dt, 6); H.attack(c, at, 6.0); }
     else if (d < 15 && S.b <= 0) faceTo(c, at, dt, 3);
     return out;
   }
+
+  // ------------------------------------------------------------------ reaparición: un jefe derrotado vuelve a los 30 minutos de juego
+  // (reloj de juego de la partida; en las partidas antiguas cuenta desde que se cargan)
+  const RESPAWN = 30 * 60;
+  B.clock = () => (G.state.world && G.state.world.bossClock) || 0;
+  B.killedAt = function (type) {
+    const w = G.state.world || {}, at = w.bossAt && w.bossAt[type];
+    if (at !== undefined) return at;
+    const legacy = type === 'boss' ? w.bossKilled : type === 'pirate_boss' ? w.story && w.story.flags && w.story.flags.pirateBoss : w.bossesKilled && w.bossesKilled[type];
+    return legacy ? 0 : null;
+  };
+  B.canSpawn = (type) => { const k = B.killedAt(type); return k === null || B.clock() - k >= RESPAWN; };
+  B.markKilled = function (type) {
+    const w = G.state.world;
+    if (!w) return;
+    (w.bossAt = w.bossAt || {})[type] = B.clock();
+    (w.bossKills = w.bossKills || {})[type] = (w.bossKills[type] || 0) + 1;
+  };
+  B.kills = (type) => ((G.state.world && G.state.world.bossKills) || {})[type] || 0;
 
   // ------------------------------------------------------------------ guaridas y aparición (lo llama manage() de creatures.js)
   B.lair = function (I, type) {
@@ -754,7 +774,7 @@
   B.manage = function (I, players, farFromAll, day, H) {
     const type = I.type === 'escarcha' ? 'yeti' : I.type === 'brasa' ? 'lavadragon' : I.type === 'tahuri' ? 'bigcaiman' : null;
     const w = G.state.world;
-    if (!type || !w || day < 3 || (w.bossesKilled && w.bossesKilled[type])) return;
+    if (!type || !w || day < 3 || !B.canSpawn(type)) return;
     if (G.Creatures.list.some((c) => c.type === type && !c.dead)) return;
     const L = B.lair(I, type);
     if (!L) return;
@@ -781,6 +801,7 @@
   B.onKilled = function (c) {
     const w = G.state.world;
     if (w) { w.bossesKilled = w.bossesKilled || {}; w.bossesKilled[c.type] = true; }
+    B.markKilled(c.type);
     if (c.type === 'yeti') G.UI.banner('¡El Rey de la Escarcha ha caído!', 'La montaña queda en silencio… y su cueva de hielo es tuya');
     else if (c.type === 'bigcaiman') G.UI.banner('¡El Gran Caimán del río ha caído!', 'El lago de Tahuri vuelve a ser seguro para los Shandara');
     else G.UI.banner('¡El Dragón de Brasa ha caído!', 'El volcán se calma por fin. Nadie volverá a temer sus llamas');
@@ -801,6 +822,7 @@
   // ------------------------------------------------------------------ fotograma
   let lastWorld = null;
   B.update = function (dt) {
+    if (G.state.world) G.state.world.bossClock = B.clock() + dt;
     if (G.state.world !== lastWorld) {
       lastWorld = G.state.world;
       for (const p of B.proj) G.scene.remove(p.m);

@@ -137,7 +137,7 @@
     if (!w) return false;
     const now = Date.now();
     w.fresh = false;
-    Worlds.update(w.id, { day: st.day, played: now, time: (w.time || 0) + Math.round((now - playStart) / 1000), ver: G.VERSION, fresh: false });
+    Worlds.update(w.id, { day: st.day, played: now, time: (w.time || 0) + Math.round((now - playStart) / 1000), ver: G.VERSION, fresh: false, seed: st.seed || w.seed || null });
     w.time = (w.time || 0) + Math.round((now - playStart) / 1000);
     playStart = now;
     // Copia profunda ahora (el mundo sigue cambiando) y escritura en segundo plano
