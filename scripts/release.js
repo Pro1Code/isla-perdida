@@ -36,6 +36,8 @@ const gh = fs.existsSync(ghLocal) ? ghLocal : 'gh';
 let token;
 try { token = execFileSync(gh, ['auth', 'token'], { encoding: 'utf8' }).trim(); } catch (e) { console.error('Inicia sesión primero:  gh auth login --web'); process.exit(1); }
 
+// gh siempre con el token de arriba (en algunas terminales gh no encuentra la sesión guardada)
+const ghRun = (args, opts) => execFileSync(gh, args, Object.assign({ stdio: 'inherit', env: Object.assign({}, process.env, { GH_TOKEN: token }) }, opts || {}));
 const run = (cmd, env) => { console.log('> ' + cmd); execSync(cmd, { cwd: ROOT, stdio: 'inherit', env: Object.assign({}, process.env, env || {}) }); };
 
 pkg.version = ver;
@@ -69,12 +71,15 @@ run(`git -c credential.helper= -c "${fs.existsSync(ghLocal) ? helper : 'credenti
 // La versión se crea en GitHub antes de compilar: si no, electron-builder sube los archivos en paralelo
 // y cada subida intenta crearla a la vez (solo una lo consigue y faltan archivos)
 const head = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
-try { execFileSync(gh, ['release', 'create', 'v' + ver, '-R', repo, '--target', head, '--title', title, '--notes-file', path.join(ROOT, 'build', 'release-notes.md')], { stdio: 'inherit' }); } catch (e) { /* ya existía */ }
+let exists = true;
+try { ghRun(['release', 'view', 'v' + ver, '-R', repo], { stdio: 'ignore' }); } catch (e) { exists = false; }
+// Si no se puede crear, mejor parar aquí que dejar que electron-builder la cree a medias
+if (!exists) ghRun(['release', 'create', 'v' + ver, '-R', repo, '--target', head, '--title', title, '--notes-file', path.join(ROOT, 'build', 'release-notes.md')]);
 run('node scripts/build-desktop.js --publish', { GH_TOKEN: token });
-try { execFileSync(gh, ['release', 'edit', 'v' + ver, '-R', repo, '--title', title, '--notes-file', path.join(ROOT, 'build', 'release-notes.md')], { stdio: 'inherit' }); } catch (e) { /* las notas ya las pone electron-builder */ }
+try { ghRun(['release', 'edit', 'v' + ver, '-R', repo, '--title', title, '--notes-file', path.join(ROOT, 'build', 'release-notes.md')]); } catch (e) { /* las notas ya las pone electron-builder */ }
 // Paquete del juego para el lanzador (solo lo necesario para jugar: index.html, js, css, lib, img, audio)
 const zip = path.join(os.tmpdir(), `isla-perdida-juego-${ver}.zip`);
 run(`git archive --format=zip -o "${zip}" HEAD index.html js css lib img audio`);
-execFileSync(gh, ['release', 'upload', 'v' + ver, zip, '--clobber', '-R', repo], { stdio: 'inherit' });
+ghRun(['release', 'upload', 'v' + ver, zip, '--clobber', '-R', repo]);
 fs.rmSync(zip, { force: true });
 console.log(`\n✅ Versión ${ver} publicada. La página de descargas la mostrará en unos minutos.`);
