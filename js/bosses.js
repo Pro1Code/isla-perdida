@@ -212,37 +212,32 @@
   };
 
   // ------------------------------------------------------------------ animación extra (lo llama animate() de creatures.js)
+  // Devuelve cuánto sube o baja el jefe; los brazos, las alas y la mandíbula los mueve su esqueleto (fauna.js)
+  // con c.armUp (brazos en alto), c.fly (vuelo) y c.jawK (mandíbula de 0 a 1)
   B.animate = function (c, dt, now) {
     let off = 0;
+    c.pitchOver = null;
     if (c.type === 'yeti') {
       if (c.jumpT !== undefined && c.jumpT < 0.6) { c.jumpT += dt; off += Math.sin(Math.PI * Math.min(1, c.jumpT / 0.6)) * 2.4; }
       // Brazos en alto al preparar el salto o el lanzamiento
       c.armUp = U.lerp(c.armUp || 0, c.special ? 1 : 0, Math.min(1, dt * 8));
-      if (c.armUp > 0.02) for (const a of c.arms) a.rotation.x = U.lerp(a.rotation.x, -2.6, c.armUp);
-      c.bodyMesh.scale.set(1, 1 + Math.sin(now / 700) * 0.012, 1);
+      c.jawK = U.lerp(c.jawK || 0, c.special ? 1 : c.lunge > 0 ? Math.sin((c.lunge / 0.3) * Math.PI) : 0, Math.min(1, dt * 10));
     } else if (c.type === 'bigcaiman') {
       // En el lago asoman solo los ojos y el lomo; al esconderse se sumerge del todo
       const wl = G.World.inLakeWater(c.x, c.z) ? G.World.waterLevelAt(c.x, c.z) : null;
       const dive = G.Net.authority() ? !!c.flyTarget : !!c.flyNet;
       c.swimOff = U.lerp(c.swimOff || 0, wl === null ? 0 : Math.max(0, wl - (dive ? 2.6 : 0.78) - c.y), Math.min(1, dt * 3));
       off += c.swimOff;
-      const open = c.special ? 0.62 : c.lunge > 0 ? 0.55 * Math.sin((c.lunge / 0.3) * Math.PI) : 0.03 + Math.max(0, Math.sin(now / 2200 + c.id)) * 0.05;
-      c.jaw.rotation.x = U.lerp(c.jaw.rotation.x, open, Math.min(1, dt * 10));
+      const open = c.special ? 1 : c.lunge > 0 ? 0.9 * Math.sin((c.lunge / 0.3) * Math.PI) : 0.05 + Math.max(0, Math.sin(now / 2200 + c.id)) * 0.08;
+      c.jawK = U.lerp(c.jawK || 0, open, Math.min(1, dt * 10));
     } else {
       const want = G.Net.authority() ? (c.flyTarget || 0) : (c.flyNet ? 1 : 0);
       c.fly = U.lerp(c.fly || 0, want, Math.min(1, dt * 0.9));
       const fl = U.smooth(0.05, 0.6, c.fly);
       off += c.fly * FLY + Math.sin(now / 420) * 0.4 * fl;
-      const flap = Math.sin(now / (fl > 0.3 ? 170 : 900));
-      c.wings.forEach((w, k) => {
-        const s = k ? 1 : -1;
-        w.rotation.y = s * U.lerp(0.95, 0.05, fl);
-        w.rotation.z = s * (U.lerp(0.55, 0.15, fl) + flap * U.lerp(0.04, 0.7, fl));
-      });
-      if (fl > 0.2) for (const l of c.legs) l.rotation.x = U.lerp(l.rotation.x, 0.75, fl);
-      const open = c.special ? 0.55 : c.lunge > 0 ? 0.45 * Math.sin((c.lunge / 0.3) * Math.PI) : 0.04;
-      c.jaw.rotation.x = U.lerp(c.jaw.rotation.x, open, Math.min(1, dt * 10));
-      c.g.rotation.x = -0.1 * fl;
+      const open = c.special ? 1 : c.lunge > 0 ? 0.85 * Math.sin((c.lunge / 0.3) * Math.PI) : 0.06;
+      c.jawK = U.lerp(c.jawK || 0, open, Math.min(1, dt * 10));
+      if (fl > 0.02) c.pitchOver = -0.1 * fl;
     }
     return off;
   };

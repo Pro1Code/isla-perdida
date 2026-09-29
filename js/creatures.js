@@ -188,7 +188,8 @@
       npc: () => G.Prologue.human('npc', extra || 0), pirate: () => G.Prologue.human('pirate', extra || 0), pirate_gun: () => G.Prologue.human('pirate_gun', extra || 0),
       pirate_boss: () => G.Prologue.human('pirate_boss', extra || 0), marine: () => G.Prologue.human('marine', extra || 0), marine_gun: () => G.Prologue.human('marine_gun', extra || 0), marine_boss: () => G.Prologue.human('marine_boss', extra || 0), ghost_pirate: () => G.Prologue.human('ghost_pirate', extra || 0), ghost_gun: () => G.Prologue.human('ghost_gun', extra || 0), ghost_captain: () => G.Prologue.human('ghost_captain', extra || 0), dummy: () => G.Prologue.dummy(extra || 0),
     };
-    const m = build[type]();
+    // Especies ya rehechas con esqueleto y piel realista (fauna.js); el resto, con los modelos de siempre
+    const m = G.Fauna && G.Fauna.has(type) ? G.Fauna.build(type) : build[type]();
     const d = DEF[type];
     const s = G.Arch.landOf(x, z);
     const c = Object.assign(m, {
@@ -217,7 +218,7 @@
     const c = C.list[i];
     G.scene.remove(c.g);
     if (c.model) { c.model.dispose(); c.feathers.dispose(); }
-    else c.g.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+    else c.g.traverse((o) => { if (o.isMesh) { if (!o.geometry.userData.shared) o.geometry.dispose(); o.material.dispose(); if (o.skeleton) o.skeleton.dispose(); } });
     C.list.splice(i, 1);
   }
   C.byId = (id) => C.list.find((c) => c.id === id);
@@ -469,8 +470,70 @@
     }
   }
 
+  // ------------------------------------------------------------------ animación de los animales con esqueleto (fauna.js / rig.js)
+  function animateRig(c, dt, night) {
+    const T = c.type, rig = c.rig, s = c.g.scale.x;
+    const cam = G.camera.position, far = c.type === 'boss' || c.d.sea || c.d.bigBoss ? 260 : 140;
+    const dc = Math.hypot(cam.x - c.x, cam.z - c.z);
+    c.g.visible = Math.abs(cam.x - c.x) < far && Math.abs(cam.z - c.z) < far;
+    G.Rig.lod(rig, dc / s);
+    c.lunge = Math.max(0, c.lunge - dt);
+    // Giro (rad/s): la columna se dobla hacia donde gira
+    const dy = c.lastYaw === undefined ? 0 : U.angDiff(c.lastYaw, c.yaw);
+    c.lastYaw = c.yaw;
+    c.turnRate = U.lerp(c.turnRate || 0, dt > 0 ? U.clamp(dy / dt, -4, 4) : 0, Math.min(1, dt * 6));
+    let y = c.y, pOver = null;
+    const now = performance.now();
+    if (c.d.bigBoss) y += G.Bosses.animate(c, dt, now);
+    else if (T === 'shark') y = G.World.waveHeight(c.x, c.z) - 0.45;
+    else if (T === 'serpent') y = G.World.waveHeight(c.x, c.z) - 1.1 + (c.aggro > 0 ? 0.6 : 0);
+    else if (T === 'whale' || T === 'dolphin') {
+      // Salen a respirar: arcos (delfines) o subidas lentas (ballena)
+      const per = T === 'dolphin' ? 1.6 : 12, ph = ((now / 1000 + c.id * 0.7) % per) / per;
+      const arc = T === 'dolphin' ? Math.max(0, Math.sin(ph * Math.PI * 2)) * 1.4 - 0.6 : Math.sin(ph * Math.PI * 2) * 1.2 - 1.6;
+      y = G.World.waveHeight(c.x, c.z) + arc;
+      pOver = T === 'dolphin' ? -Math.cos(ph * Math.PI * 2) * 0.5 : 0;
+    } else if (T === 'snake' && c.lunge > 0) y += Math.sin((c.lunge / 0.3) * Math.PI) * 0.2;
+    c.vy = y;
+    // En cuesta: el cuerpo se inclina y cada pie busca el suelo (solo cerca de la cámara)
+    const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), half = (rig.tpl.o.half || 0.45) * s;
+    const near = c.g.visible && dc < 45 && !c.d.sea;
+    let pitch = pOver ?? 0;
+    if (near) {
+      const hF = G.height(c.x + fx * half, c.z + fz * half), hB = G.height(c.x - fx * half, c.z - fz * half);
+      pitch = U.clamp(-Math.atan2(hF - hB, half * 2), -0.45, 0.45);
+    }
+    if (c.pitchOver !== null && c.pitchOver !== undefined) pOver = c.pitchOver;
+    c.pitch = pOver !== null ? pOver : U.lerp(c.pitch || 0, pitch, Math.min(1, dt * 5));
+    c.g.position.set(c.x, y, c.z);
+    c.g.rotation.order = 'YXZ';
+    c.g.rotation.set(c.pitch, c.yaw + (T === 'crab' || T === 'lavacrab' ? Math.PI / 2 : 0), 0);
+    if (c.wobble > 0) { c.wobble = Math.max(0, c.wobble - dt); c.g.rotation.z = Math.sin(c.wobble * 30) * c.wobble * 0.25; }
+    const cp = Math.cos(c.pitch), sp = Math.sin(c.pitch), lim = (rig.tpl.o.footReach || 0.25);
+    const ground = near ? (lx, lz) => {
+      const wx = c.x + (lx * fz + lz * fx) * s, wz = c.z + (-lx * fx + lz * fz) * s;
+      return U.clamp((G.height(wx, wz) - y + lz * s * sp) / (s * cp), -lim, lim);
+    } : null;
+    if (c.g.visible) {
+      const lunge = c.lunge > 0 ? Math.sin((c.lunge / 0.3) * Math.PI) : 0;
+      const crouch = T === 'jaguar' && c.pounce <= 0 && c.aggro > 0 && c.speedNow < 4 ? 1 : 0;
+      c.crouchK = U.lerp(c.crouchK || 0, crouch, Math.min(1, dt * 5));
+      G.Rig.animate(rig, dt, { speed: c.speedNow / s, turn: c.turnRate, lunge, jaw: c.jawK !== undefined ? c.jawK : Math.max(lunge, c.special ? 1 : 0), crouch: c.crouchK, fear: c.fear, ground, noLegs: c.fly > 0.4, c });
+      rig.mat.userData.u.uTime.value += dt;
+    }
+    if (c.flash > 0) c.flash -= dt;
+    if (c.mat.emissive) {
+      if (c.flash > 0) c.mat.emissive.setRGB(0.6, 0, 0);
+      else if (T === 'lavacrab') c.mat.emissive.setRGB(0.25, 0.06, 0);
+      else if (T === 'salamander') c.mat.emissive.setRGB(0.23, 0.05, 0);
+      else c.mat.emissive.setRGB(0, 0, 0);
+    }
+    if (c.eyeMat) c.eyeMat.emissive.setRGB(night ? 1.6 : 0, night ? 1.1 : 0, 0);
+  }
+
   // ------------------------------------------------------------------ animación común
   function animate(c, dt, night) {
+    if (c.rig) { animateRig(c, dt, night); return; }
     const T = c.type;
     c.phase += c.speedNow * dt * (T === 'crab' || T === 'lavacrab' ? 9 : T === 'jaguar' ? 2.6 : T === 'monkey' || T === 'salamander' ? 5 : T === 'yeti' ? 1.8 : T === 'lavadragon' ? 1.5 : T === 'bigcaiman' ? 2.4 : 3.2);
     const amp = Math.min(1, c.speedNow / 2) * 0.6;
@@ -537,6 +600,7 @@
   const _vp = new THREE.Vector3(), _deck = new THREE.Vector3(), _deckW = new THREE.Vector3();
   function animateDeath(c, dt) {
     c.deadT += dt;
+    if (c.rig && !c.deadPose) { c.deadPose = true; G.Rig.animate(c.rig, 0, { dead: true }); }
     if (c.d.bigBoss) G.Bosses.death(c, dt);
     if (c.model) { c.g.rotation.x = -Math.min(Math.PI / 2, c.deadT * 3); if (c.deadT > 4) c.g.position.y -= dt * 0.8; return; }
     if (c.d.sea) { c.g.position.y -= dt * 0.8; c.g.rotation.z = Math.min(Math.PI, c.deadT * 2); return; }
