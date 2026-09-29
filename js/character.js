@@ -1,4 +1,4 @@
-// Personaje humano con esqueleto (SkinnedMesh, 17 huesos, ~8.000 vértices) y animación procedural:
+// Personaje humano con esqueleto (SkinnedMesh, 17 huesos) esculpido con sdf.js y animación procedural:
 // caminar, correr, reposo con respiración, salto, nado y golpe, con transiciones suaves entre estados.
 (function () {
   'use strict';
@@ -17,280 +17,161 @@
   const B = {};
   BONES.forEach(([n], i) => (B[n] = i));
 
-  // ------------------------------------------------------------------ constructor de malla con pesos de piel
-  class Builder {
-    constructor() { this.pos = []; this.col = []; this.si = []; this.sw = []; this.idx = []; }
-    get count() { return this.pos.length / 3; }
-    vert(x, y, z, c, w) {
-      this.pos.push(x, y, z);
-      this.col.push(c.r, c.g, c.b);
-      const a = w[0], b = w[1] || [0, 0], s = a[1] + b[1] || 1;
-      this.si.push(a[0], b[0], 0, 0);
-      this.sw.push(a[1] / s, b[1] / s, 0, 0);
-    }
-    // Tubo vertical de arriba (y0) a abajo (y1) con sección elíptica/superelíptica variable y extremos cerrados
-    tube({ x = 0, z = 0, y0, y1, R, N, prof, color, weight, exp = 2 }) {
-      const start = this.count, e = 2 / exp;
-      for (let i = 0; i <= R; i++) {
-        const t = i / R, y = y0 + (y1 - y0) * t, p = prof(t, y);
-        for (let j = 0; j < N; j++) {
-          const a = (j / N) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
-          const lx = Math.sign(ca) * Math.pow(Math.abs(ca), e) * p.rx + (p.dx || 0);
-          const lz = Math.sign(sa) * Math.pow(Math.abs(sa), e) * p.rz + (p.dz || 0);
-          this.vert(x + lx, y, z + lz, color(t, y, lx, lz), weight(t, y, x + lx, z + lz));
-        }
-      }
-      for (let i = 0; i < R; i++) for (let j = 0; j < N; j++) {
-        const a = start + i * N + j, b = start + i * N + ((j + 1) % N), c = a + N, d = b + N;
-        this.idx.push(a, b, c, b, d, c);
-      }
-      const p0 = prof(0, y0), p1 = prof(1, y1);
-      const top = this.count;
-      this.vert(x + (p0.dx || 0), y0, z + (p0.dz || 0), color(0, y0, 0, 0), weight(0, y0, x, z));
-      const bot = this.count;
-      this.vert(x + (p1.dx || 0), y1, z + (p1.dz || 0), color(1, y1, 0, 0), weight(1, y1, x, z));
-      for (let j = 0; j < N; j++) {
-        this.idx.push(top, start + ((j + 1) % N), start + j);
-        const o = start + R * N;
-        this.idx.push(bot, o + j, o + ((j + 1) % N));
-      }
-    }
-    // Añade una geometría de three.js ya colocada, asociada a un solo hueso
-    geo(g, color, bone, deform) {
-      const start = this.count, p = g.attributes.position, v = new THREE.Vector3();
-      for (let i = 0; i < p.count; i++) {
-        v.fromBufferAttribute(p, i);
-        if (deform) deform(v);
-        this.vert(v.x, v.y, v.z, typeof color === 'function' ? color(v) : color, [[bone, 1]]);
-      }
-      if (g.index) for (let i = 0; i < g.index.count; i++) this.idx.push(start + g.index.getX(i));
-      else for (let i = 0; i < p.count; i++) this.idx.push(start + i);
-      g.dispose();
-    }
-    build(skinned) {
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
-      g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
-      if (skinned) {
-        g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(this.si, 4));
-        g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(this.sw, 4));
-      }
-      g.setIndex(this.idx);
-      g.computeVertexNormals();
-      return g;
-    }
-  }
-
-  // ------------------------------------------------------------------ utilidades de forma
+  // ------------------------------------------------------------------ cuerpo esculpido (sdf.js + rig.js)
+  // Una sola malla para todas las personas: anatomía real (cara con cejas, nariz, labios, orejas y ojos; cuello,
+  // trapecios, pecho, hombros, brazos con bíceps, manos con cinco dedos, muslos, rodillas, gemelos y botas).
+  // Los colores de piel, camisa, pantalón y pelo van en el material, así cada aldeano o pirata usa la misma malla.
+  // Mantiene los 17 huesos y las medidas de antes (sombreros, corazas, capas y armas encajan igual).
   const sm = U.smooth;
-  const bump = (t, c, w) => Math.exp(-(((t - c) / w) ** 2));
-  // Redondea los extremos de un tubo (0 → radio completo)
-  const ends = (t, a = 0.12, b = 0.12) => {
-    let k = 1;
-    if (t < a) k *= Math.sqrt(Math.max(0, 1 - ((a - t) / a) ** 2));
-    if (t > 1 - b) k *= Math.sqrt(Math.max(0, 1 - ((t - (1 - b)) / b) ** 2));
-    return Math.max(k, 0.12);
-  };
-  // Interpolación suave de una tabla [[y, valor], ...]
-  function table(tab, y) {
-    if (y >= tab[0][0]) return tab[0][1];
-    for (let i = 1; i < tab.length; i++) {
-      if (y >= tab[i][0]) {
-        const [y0, v0] = tab[i - 1], [y1, v1] = tab[i];
-        const t = (y - y0) / (y1 - y0), s = t * t * (3 - 2 * t);
-        return v0 + (v1 - v0) * s;
-      }
-    }
-    return tab[tab.length - 1][1];
-  }
-  const blend = (b1, b2, w) => (w <= 0.001 ? [[b1, 1]] : w >= 0.999 ? [[b2, 1]] : [[b1, 1 - w], [b2, w]]);
-
-  // ------------------------------------------------------------------ paleta
-  function palette(shirt, o = {}) {
-    const skin = o.skin ?? 0xc68d67, pants = o.pants ?? 0x3b5270;
-    return {
-      skin: new Col(skin), skinDark: new Col(skin).multiplyScalar(0.85), shirt: new Col(shirt), shirtDark: new Col(shirt).multiplyScalar(0.72),
-      pants: new Col(pants), pantsDark: new Col(pants).multiplyScalar(0.75), belt: new Col(0x3b2a1a), buckle: new Col(0xb8963c),
-      boot: new Col(0x3a2a1c), bootSole: new Col(0x1e1610), hair: new Col(0x2a1b12), stubble: new Col(0x4a3526),
-      lips: new Col(0x9a5548), eyeW: new Col(0xf2efe8), iris: new Col(0x3b2c20), brow: new Col(0x24170f),
-    };
-  }
-
-  // ------------------------------------------------------------------ geometría del cuerpo
-  const geoCache = new Map();
-  function bodyGeometry(shirt, o = {}) {
-    const key = shirt + ':' + (o.skin ?? '') + ':' + (o.pants ?? '');
-    if (geoCache.has(key)) return geoCache.get(key);
-    const C = palette(shirt, o), b = new Builder(), tmp = new Col();
-
-    // Torso (caderas → hombros) con sección superelíptica
-    const RX = [[1.58, 0.05], [1.555, 0.1], [1.52, 0.165], [1.48, 0.198], [1.42, 0.196], [1.36, 0.184], [1.26, 0.168], [1.13, 0.148], [1.02, 0.16], [0.94, 0.168], [0.88, 0.14], [0.84, 0.07]];
-    const RZ = [[1.58, 0.048], [1.555, 0.075], [1.52, 0.098], [1.48, 0.112], [1.42, 0.12], [1.36, 0.128], [1.26, 0.124], [1.13, 0.106], [1.02, 0.112], [0.94, 0.115], [0.88, 0.1], [0.84, 0.06]];
-    const DZ = [[1.58, -0.012], [1.44, 0.0], [1.3, 0.018], [1.13, 0.008], [0.98, -0.012], [0.84, 0]];
-    b.tube({
-      y0: 1.58, y1: 0.84, R: 32, N: 32, exp: 2.5,
-      prof: (t, y) => ({ rx: table(RX, y), rz: table(RZ, y), dz: table(DZ, y) }),
-      color: (t, y, x, z) => {
-        if (y > 1.555) return C.skin;
-        if (y > 1.525) return C.shirtDark; // cuello de la camisa
-        if (y < 0.985) return C.pants;
-        if (y < 1.03) return Math.abs(x) < 0.025 && z > 0.05 ? C.buckle : C.belt;
-        if (y < 1.07) return tmp.copy(C.shirt).lerp(C.shirtDark, 0.35); // faldón
-        return C.shirt;
-      },
-      weight: (t, y, x) => {
-        let w;
-        if (y < 0.98) w = [[B.hips, 1]];
-        else if (y < 1.12) w = blend(B.hips, B.spine, sm(0.98, 1.12, y));
-        else if (y < 1.3) w = blend(B.spine, B.chest, sm(1.12, 1.3, y));
-        else if (y < 1.47) w = [[B.chest, 1]];
-        else w = blend(B.chest, B.neck, sm(1.49, 1.58, y) * 0.8);
-        const ax = Math.abs(x);
-        if (y > 1.34 && ax > 0.13) { // los hombros acompañan al brazo
-          const aw = sm(0.13, 0.2, ax) * sm(1.34, 1.47, y) * 0.55;
-          w = [[w[0][0], 1 - aw], [x > 0 ? B.uaL : B.uaR, aw]];
-        }
-        return w;
-      },
-    });
-
-    // Cuello
-    b.tube({
-      y0: 1.66, y1: 1.5, R: 6, N: 18,
-      prof: (t) => ({ rx: 0.052 + t * 0.01, rz: 0.05 + t * 0.008, dz: 0.004 }),
-      color: () => C.skin,
-      weight: (t, y) => blend(B.neck, B.head, sm(1.6, 1.67, y) * 0.9),
-    });
-
-    // Cabeza deformada (mandíbula, pómulos, nuca) con barba incipiente y labios
-    b.geo(new THREE.SphereGeometry(1, 40, 30), (v) => v.userData, B.head, (v) => {
-      const ux = v.x, uy = v.y, uz = v.z;
-      let X = ux * 0.092, Y = uy * 0.118, Z = uz * 0.106;
-      if (uy < -0.05) { const k = (-uy - 0.05) / 0.95; X *= 1 - 0.2 * k * k - 0.08 * k; Z *= 1 - 0.06 * k; if (uz > 0) Z += 0.01 * k * uz; }
-      if (uz < 0 && uy > -0.2) Z *= 1.07;
-      X *= 1 + 0.05 * bump(uy, 0.02, 0.25) * Math.max(0, uz);
-      if (uz > 0.55 && Math.abs(ux) > 0.18 && Math.abs(ux) < 0.55 && uy > 0.08 && uy < 0.34) Z -= 0.005;
-      let c = C.skin;
-      if (uy < -0.28 && uz > -0.1) c = tmp.copy(C.skin).lerp(C.stubble, 0.45 * sm(-0.28, -0.5, uy));
-      if (Math.abs(ux) < 0.24 && uy < -0.36 && uy > -0.47 && uz > 0.8) c = C.lips;
-      v.userData = c.clone();
-      v.set(X, Y + 1.725, Z + 0.012);
-    });
-    // Nariz, orejas, ojos, cejas
-    const S = (r, w = 10, h = 8) => new THREE.SphereGeometry(r, w, h);
-    const place = (g, x, y, z, sx = 1, sy = 1, sz = 1, rx = 0, ry = 0, rz = 0) => {
-      g.scale(sx, sy, sz); g.rotateX(rx); g.rotateY(ry); g.rotateZ(rz); g.translate(x, y, z); return g;
-    };
-    b.geo(place(S(0.012), 0, 1.713, 0.111, 0.8, 1.7, 1.2, -0.3), C.skinDark, B.head);
-    b.geo(place(S(0.014), 0, 1.697, 0.112, 1.25, 0.6, 0.8), C.skin, B.head);
-    for (const s of [-1, 1]) {
-      b.geo(place(S(0.02, 10, 8), s * 0.094, 1.722, 0.0, 0.55, 1.5, 1.0, 0, s * 0.3), C.skinDark, B.head);
-      b.geo(place(S(0.0155), s * 0.034, 1.738, 0.094, 1.1, 0.8, 1), C.eyeW, B.head);
-      b.geo(place(S(0.0085, 8, 6), s * 0.034, 1.738, 0.108), C.iris, B.head);
-      b.geo(place(new THREE.CapsuleGeometry(0.0045, 0.03, 3, 6), s * 0.035, 1.76, 0.104, 1, 1, 1, 0, 0, Math.PI / 2 + s * 0.12), C.brow, B.head);
-    }
-    // Pelo (casquete desordenado que cubre más la nuca)
-    const nh = U.makeNoise(31);
-    const hair = new THREE.SphereGeometry(1, 36, 18, 0, Math.PI * 2, 0, Math.PI * 0.55);
-    hair.rotateX(-0.62);
-    b.geo(hair, (v) => tmp.copy(C.hair).multiplyScalar(0.85 + 0.3 * (nh(v.x * 40, v.z * 40) * 0.5 + 0.5)).clone(), B.head, (v) => {
-      const k = 1 + 0.07 * (nh(v.x * 4 + 2, v.y * 4 + v.z * 3) * 0.5 + 0.5);
-      v.set(v.x * 0.1 * k, v.y * 0.124 * k + 1.73, v.z * 0.114 * k + 0.002);
-    });
-
-    // Brazos y manos
+  // fem: cuerpo de mujer (hombros y cintura más estrechos, caderas más anchas, rasgos más suaves y pelo largo)
+  function sculpt(fem) {
+    const S = G.Sdf, R = G.Rig, F = G.Fauna, M = G.Mdl;
+    const b = R.animal(fem ? 'humanF' : 'human');
+    const q = (m, f) => (fem ? f : m), ar = q(1, 0.87);
+    for (const [n, par, pos] of BONES) b.bone(n, par >= 0 ? BONES[par][0] : null, pos, n === 'head' ? [0, 1.86, 0] : n[0] === 'h' && n[1] !== 'i' ? [pos[0], 0.77, 0] : n.startsWith('ft') ? [pos[0], 0.02, 0.17] : null);
+    const SK = 0, SH = 1, PA = 2, HA = 3; // zonas de color: piel, camisa, pantalón, pelo
+    const cloth = { fur: 0.3 }, skin = { fur: 0 };
+    const belt = 0x3b2a1a, buckle = 0xb8963c, boot = 0x3a2a1c, sole = 0x1e1610;
+    // Tronco: pelvis, vientre, costillas, pecho, espalda y trapecios
+    b.p(
+      S.ell([0, 0.97, q(-0.005, -0.012)], [q(0.162, 0.175), 0.11, q(0.104, 0.112)], Object.assign({ bone: 'hips', k: 0.05, reg: PA, color: 0xffffff, bb: 0.08 }, cloth)),
+      S.ell([0, 1.11, 0.012], [q(0.142, 0.122), 0.12, q(0.098, 0.09)], Object.assign({ bone: 'spine', k: 0.06, reg: SH, color: 0xffffff, bb: 0.09 }, cloth)),
+      S.ell([0, 1.3, 0.0], [q(0.162, 0.145), q(0.19, 0.18), q(0.112, 0.102)], Object.assign({ bone: 'chest', k: 0.06, reg: SH, color: 0xffffff, bb: 0.09 }, cloth)),
+      fem ? null : S.ell([0, 1.36, 0.036], [0.155, 0.085, 0.095], Object.assign({ bone: 'chest', k: 0.05, reg: SH, color: 0xffffff }, cloth)),
+      fem ? S.ell([0.052, 1.335, 0.07], [0.055, 0.05, 0.048], Object.assign({ bone: 'chest', k: 0.04, reg: SH, color: 0xffffff }, cloth)) : null,
+      fem ? S.ell([-0.052, 1.335, 0.07], [0.055, 0.05, 0.048], Object.assign({ bone: 'chest', k: 0.04, reg: SH, color: 0xffffff }, cloth)) : null,
+      S.ell([0, 1.45, -0.03], [q(0.15, 0.13), 0.07, 0.08], Object.assign({ bone: 'chest', k: 0.05, reg: SH, color: 0xffffff }, cloth)),
+      S.cone([0.03, 1.5, -0.015], [q(0.175, 0.162), 1.445, -0.008], q(0.05, 0.044), q(0.042, 0.036), Object.assign({ bone: 'chest', k: 0.04, reg: SH, color: 0xffffff }, cloth)),
+      S.cone([-0.03, 1.5, -0.015], [-q(0.175, 0.162), 1.445, -0.008], q(0.05, 0.044), q(0.042, 0.036), Object.assign({ bone: 'chest', k: 0.04, reg: SH, color: 0xffffff }, cloth)),
+      S.ell([q(0.15, 0.14), 1.43, 0.0], [q(0.06, 0.05), 0.065, q(0.068, 0.06)], Object.assign({ bone: 'chest', k: 0.04, reg: SH, color: 0xffffff }, cloth)),
+      S.ell([-q(0.15, 0.14), 1.43, 0.0], [q(0.06, 0.05), 0.065, q(0.068, 0.06)], Object.assign({ bone: 'chest', k: 0.04, reg: SH, color: 0xffffff }, cloth)),
+      // Cinturón con hebilla y faldón de la camisa
+      S.ell([0, 1.005, 0.0], [0.166, 0.026, 0.11], { bone: 'hips', k: 0.012, color: belt, fur: 0.1, fixed: true }),
+      S.ell([0, 1.005, 0.108], [0.02, 0.018, 0.01], { paint: true, soft: 0.004, color: buckle, fixed: true, paintFur: true, fur: 0 }),
+      S.ell([0, 1.05, 0.0], [0.16, 0.03, 0.12], { paint: true, soft: 0.02, reg: SH, color: 0xb8b8b8 }),
+      // Cuello de la camisa y cuello
+      S.ell([0, 1.525, 0.0], [0.075, 0.03, 0.068], { paint: true, soft: 0.012, reg: SH, color: 0xb8b8b8 }),
+      S.cone([0, 1.47, 0.0], [0, 1.58, 0.01], q(0.058, 0.05), q(0.052, 0.045), Object.assign({ bone: 'neck', k: 0.03, reg: SK, color: 0xffffff, bb: 0.04 }, skin)),
+      S.cone([0, 1.505, 0.06], [0, 1.455, 0.085], 0.03, 0.006, { paint: true, soft: 0.01, sx: 1.2, reg: SK, color: 0xffffff }),
+    );
+    // Piernas: muslo con cuádriceps, rodilla, gemelo, pantalón remangado y bota
     for (const s of [1, -1]) {
-      const x = s * 0.2, ua = s > 0 ? B.uaL : B.uaR, fa = s > 0 ? B.faL : B.faR, hd = s > 0 ? B.hL : B.hR;
-      b.tube({
-        x, y0: 1.49, y1: 1.13, R: 16, N: 18,
-        prof: (t) => {
-          const r = (U.lerp(0.056, 0.043, t) + 0.006 * bump(t, 0.2, 0.15) + 0.006 * bump(t, 0.52, 0.2)) * ends(t, 0.2, 0.1);
-          return { rx: r * 0.95, rz: r, dx: -s * 0.006 * bump(t, 0.15, 0.15) };
-        },
-        color: (t, y) => (y > 1.29 ? C.shirt : y > 1.26 ? C.shirtDark : C.skin),
-        weight: (t, y) => (y > 1.42 ? blend(ua, B.chest, sm(1.42, 1.49, y) * 0.5) : y < 1.22 ? blend(ua, fa, sm(1.22, 1.13, y) * 0.5) : [[ua, 1]]),
-      });
-      b.tube({
-        x, y0: 1.21, y1: 0.895, R: 13, N: 18,
-        prof: (t) => {
-          const r = (U.lerp(0.045, 0.029, t) + 0.007 * bump(t, 0.22, 0.2)) * ends(t, 0.1, 0.1);
-          return { rx: r * 0.85, rz: r * 1.05 };
-        },
-        color: () => C.skin,
-        weight: (t, y) => (y > 1.12 ? blend(fa, ua, sm(1.12, 1.21, y) * 0.5) : y < 0.95 ? blend(fa, hd, sm(0.95, 0.895, y) * 0.5) : [[fa, 1]]),
-      });
-      // Mano: palma, dedos y pulgar
-      b.geo(place(S(1, 16, 12), x, 0.868, 0.004, 0.021, 0.048, 0.04), C.skin, hd);
+      const L = s > 0 ? 'L' : 'R', x = s * 0.095;
+      b.p(
+        S.cone([x, 0.96, 0.0], [x, 0.53, 0.012], q(0.088, 0.092), q(0.058, 0.054), Object.assign({ bone: 'th' + L, k: 0.03, reg: PA, color: 0xffffff, bb: 0.05 }, cloth)),
+        S.ell([x, 0.76, 0.035], [0.058, 0.13, 0.05], Object.assign({ bone: 'th' + L, k: 0.03, reg: PA, color: 0xffffff }, cloth)),
+        S.sph([x, 0.51, 0.016], 0.055, Object.assign({ bone: 'sh' + L, k: 0.025, reg: PA, color: 0xffffff, bb: 0.03 }, cloth)),
+        S.ell([x, 0.415, 0.0], [0.064, 0.022, 0.064], Object.assign({ bone: 'sh' + L, k: 0.012, reg: PA, color: 0xc0c0c0 }, cloth)),
+        S.cone([x, 0.5, 0.0], [x, 0.1, -0.004], 0.052, 0.036, Object.assign({ bone: 'sh' + L, k: 0.02, reg: SK, color: 0xffffff, bb: 0.03 }, skin)),
+        S.ell([x, 0.35, -0.03], [0.048, 0.1, 0.048], Object.assign({ bone: 'sh' + L, k: 0.025, reg: SK, color: 0xffffff }, skin)),
+        S.ell([x, 0.47, 0.0], [0.07, 0.05, 0.07], { paint: true, soft: 0.01, reg: PA, color: 0xffffff }),
+        S.cone([x, 0.175, 0.0], [x, 0.06, 0.004], 0.049, 0.046, { bone: 'sh' + L, k: 0.015, color: boot, fur: 0.1, fixed: true }),
+        S.ell([x, 0.05, 0.048], [0.052, 0.048, 0.124], { bone: 'ft' + L, k: 0.02, color: boot, fur: 0.1, fixed: true }),
+        S.ell([x, 0.008, 0.048], [0.056, 0.012, 0.13], { paint: true, soft: 0.006, color: sole, fixed: true }),
+        S.ell([x, 0.075, 0.03], [0.075, 0.105, 0.17], { paint: true, soft: 0.008, color: boot, fixed: true }),
+      );
+    }
+    // Brazos (grupo propio: no se funden con el costado): deltoides, bíceps, codo, antebrazo; manga corta
+    for (const s of [1, -1]) {
+      const L = s > 0 ? 'L' : 'R', x = s * 0.2, gA = 'arm' + L, gH = 'hand' + L;
+      b.p(
+        S.ell([s * 0.186, 1.425, 0.0], [0.052 * ar, 0.07, 0.058 * ar], Object.assign({ grp: gA, bone: 'ua' + L, k: 0.03, reg: SH, color: 0xffffff }, cloth)),
+        S.cone([x, 1.44, 0.0], [x, 1.18, 0.0], 0.052 * ar, 0.043 * ar, Object.assign({ grp: gA, bone: 'ua' + L, k: 0.02, reg: SK, color: 0xffffff, bb: 0.03 }, skin)),
+        S.ell([x, 1.31, 0.02], [0.04 * ar, 0.07, 0.044 * ar], Object.assign({ grp: gA, bone: 'ua' + L, k: 0.02, reg: SK, color: 0xffffff }, skin)),
+        S.ell([x, 1.4, 0.0], [0.075, 0.13, 0.075], { grp: gA, paint: true, soft: 0.008, reg: SH, color: 0xffffff, paintFur: true, fur: 0.3 }),
+        S.ell([x, 1.27, 0.0], [0.058, 0.016, 0.058], Object.assign({ grp: gA, bone: 'ua' + L, k: 0.008, reg: SH, color: 0xb8b8b8 }, cloth)),
+        S.sph([x, 1.17, -0.008], 0.041, Object.assign({ grp: gA, bone: 'fa' + L, k: 0.015, reg: SK, color: 0xffffff, bb: 0.025 }, skin)),
+        S.cone([x, 1.17, 0.0], [x, 0.935, 0.0], 0.044 * ar, 0.028 * ar, Object.assign({ grp: gA, bone: 'fa' + L, k: 0.015, reg: SK, color: 0xffffff, bb: 0.025, sx: 0.9 }, skin)),
+        S.ell([x, 1.1, 0.01], [0.038 * ar, 0.06, 0.04 * ar], Object.assign({ grp: gA, bone: 'fa' + L, k: 0.015, reg: SK, color: 0xffffff }, skin)),
+      );
+      // Mano: palma, cuatro dedos algo doblados y pulgar
+      b.p(S.ell([x, 0.868, 0.004], [0.021, 0.046, 0.04], Object.assign({ grp: gH, bone: 'h' + L, k: 0.012, reg: SK, color: 0xffffff }, skin)));
       for (let k = 0; k < 4; k++) {
-        const len = [0.036, 0.042, 0.04, 0.032][k];
-        b.geo(place(new THREE.CapsuleGeometry(0.0085, len, 3, 8), x - s * 0.002, 0.815 - len * 0.3, -0.026 + k * 0.0175, 1, 1, 1, 0.08 * (k - 1.5), 0, s * 0.12), C.skin, hd);
+        const z = -0.026 + k * 0.0175, len = [0.036, 0.042, 0.04, 0.032][k];
+        b.p(S.cone([x - s * 0.002, 0.828, z], [x - s * 0.001, 0.828 - len, z + 0.012], 0.0085, 0.0072, Object.assign({ grp: gH, bone: 'h' + L, k: 0.006, reg: SK, color: 0xffffff }, skin)));
       }
-      b.geo(place(new THREE.CapsuleGeometry(0.0095, 0.03, 3, 8), x + s * 0.004, 0.86, 0.04, 1, 1, 1, -0.6, 0, s * 0.25), C.skin, hd);
+      b.p(S.cone([x + s * 0.004, 0.878, 0.034], [x + s * 0.012, 0.832, 0.056], 0.0098, 0.0082, Object.assign({ grp: gH, bone: 'h' + L, k: 0.008, reg: SK, color: 0xffffff }, skin)));
     }
+    // Cabeza (grupo propio con más detalle): cráneo, frente, arcos de las cejas, pómulos, nariz, labios, mandíbula, orejas
+    const HD = { grp: 'head', bone: 'head', reg: SK, color: 0xffffff, fur: 0 };
+    const hd = (o) => Object.assign({}, HD, o || {});
+    b.p(
+      S.ell([0, 1.742, -0.004], [0.088, 0.105, 0.1], hd({ k: 0.03 })),
+      S.ell([0, 1.7, 0.036], [0.077, 0.093, 0.08], hd({ k: 0.03 })),
+      S.ell([0, 1.79, 0.048], [0.07, 0.045, 0.058], hd({ k: 0.025 })),
+      S.ell([0, 1.765, 0.084], [0.064, 0.013, 0.024], hd({ k: 0.012 })),
+      S.ell([0, 1.642, 0.046], [q(0.064, 0.056), 0.035, 0.058], hd({ k: 0.02 })),
+      S.ell([0, 1.627, 0.084], [q(0.022, 0.017), q(0.02, 0.017), 0.02], hd({ k: 0.012 })),
+      S.cone([0, 1.59, 0.0], [0, 1.66, 0.02], 0.055, 0.05, hd({ k: 0.02 })),
+      // Nariz: caballete, punta y aletas con las fosas
+      S.cone([0, 1.758, 0.094], [0, 1.708, 0.117], 0.0095, 0.0135, hd({ k: 0.008 })),
+      S.sph([0, 1.701, 0.119], 0.0145, hd({ k: 0.008 })),
+      S.ell([0.012, 1.698, 0.108], [0.01, 0.0085, 0.01], hd({ k: 0.006 })),
+      S.ell([-0.012, 1.698, 0.108], [0.01, 0.0085, 0.01], hd({ k: 0.006 })),
+      S.ell([0.0075, 1.692, 0.12], [0.004, 0.003, 0.004], { grp: 'head', paint: true, soft: 0.002, reg: SK, color: 0x5a3a30 }),
+      S.ell([-0.0075, 1.692, 0.12], [0.004, 0.003, 0.004], { grp: 'head', paint: true, soft: 0.002, reg: SK, color: 0x5a3a30 }),
+      // Labios (tono rojizo sobre el color de la piel) y la línea de la boca
+      S.ell([0, 1.669, 0.097], [0.021, q(0.0058, 0.0072), 0.011], hd({ k: 0.006, color: q(0xcf8f84, 0xd88478) })),
+      S.ell([0, 1.659, 0.095], [0.019, q(0.0068, 0.0085), q(0.011, 0.012)], hd({ k: 0.006, color: q(0xcf8f84, 0xd88478) })),
+      S.cone([-0.02, 1.6645, 0.104], [0.02, 1.6645, 0.104], 0.0018, 0.0018, { grp: 'head', paint: true, soft: 0.0018, reg: SK, color: 0x6a3a34 }),
+      // Barba incipiente y cejas
 
-    // Piernas y botas
+      S.ell([0.035, 1.767, 0.092], [0.023, 0.0055, 0.014], { grp: 'head', paint: true, soft: 0.004, reg: HA, color: 0xffffff }),
+      S.ell([-0.035, 1.767, 0.092], [0.023, 0.0055, 0.014], { grp: 'head', paint: true, soft: 0.004, reg: HA, color: 0xffffff }),
+    );
     for (const s of [1, -1]) {
-      const x = s * 0.095, th = s > 0 ? B.thL : B.thR, sh = s > 0 ? B.shL : B.shR, ft = s > 0 ? B.ftL : B.ftR;
-      b.tube({
-        x, y0: 0.99, y1: 0.47, R: 18, N: 20,
-        prof: (t) => {
-          const r = (U.lerp(0.09, 0.057, t) + 0.006 * bump(t, 0.35, 0.25)) * ends(t, 0.08, 0.1);
-          return { rx: r * 0.94, rz: r * 1.03, dz: -0.006 * bump(t, 0.4, 0.3), dx: s * 0.004 * t };
-        },
-        color: () => C.pants,
-        weight: (t, y) => (y > 0.86 ? blend(th, B.hips, sm(0.86, 0.99, y) * 0.6) : y < 0.56 ? blend(th, sh, sm(0.56, 0.47, y) * 0.5) : [[th, 1]]),
-      });
-      b.tube({
-        x, y0: 0.55, y1: 0.03, R: 22, N: 20,
-        prof: (t, y) => {
-          const calf = 0.017 * bump(t, 0.3, 0.17);
-          let r = U.lerp(0.054, 0.035, t);
-          if (y < 0.16) r = Math.max(r, 0.047 - (0.16 - y) * 0.05); // caña de la bota
-          if (y > 0.4) r = Math.max(r, 0.058); // pantalón remangado
-          r *= ends(t, 0.08, 0.06);
-          return { rx: r * 0.92, rz: (r + calf) * 1.0, dz: -calf * 0.7 };
-        },
-        color: (t, y) => (y > 0.43 ? C.pants : y > 0.4 ? C.pantsDark : y > 0.16 ? C.skin : C.boot),
-        weight: (t, y) => (y > 0.46 ? blend(sh, th, sm(0.46, 0.55, y) * 0.5) : y < 0.12 ? blend(sh, ft, sm(0.12, 0.05, y) * 0.5) : [[sh, 1]]),
-      });
-      // Pie de la bota con suela
-      b.geo(place(S(1, 22, 14), x, 0.05, 0.045, 0.05, 0.05, 0.125), (v) => (v.y < 0.02 ? C.bootSole : C.boot), ft, (v) => { if (v.y < 0.006) v.y = 0.006; });
+      b.p(
+        S.ell([s * 0.048, 1.7, 0.07], [0.034, 0.03, 0.033], hd({ k: 0.016 })),
+        S.sph([s * 0.034, 1.737, 0.084], 0.0158, { grp: 'head', sub: true, k: 0.006 }),
+        S.ell([s * 0.034, 1.7505, 0.084], [0.0175, 0.0075, 0.0115], hd({ k: 0.004 })),
+        S.ell([s * 0.034, 1.7232, 0.0855], [0.0155, 0.0045, 0.0095], hd({ k: 0.004 })),
+        S.ell([s * 0.091, 1.72, 0.0], [0.012, 0.03, 0.02], hd({ k: 0.008 })),
+        S.ell([s * 0.098, 1.722, 0.004], [0.006, 0.019, 0.011], { grp: 'head', sub: true, k: 0.004 }),
+      );
+      b.part(F.eye(0.0114, [s * 0.034, 1.7368, 0.0838], [s * 0.06, 0, 1], 0x3b2c20, { sclera: 0xe8e2d8, pupilR: 0.24, irisR: 0.55 }), { bone: 'head' });
     }
-    const geo = b.build(true);
-    geoCache.set(key, geo);
-    return geo;
+    // Pelo: casquete desordenado que cubre más la nuca, con patillas
+    b.p(
+      S.ell([0, 1.797, -0.012], [0.1, 0.077, 0.104], hd({ k: 0.02, reg: HA, fur: 1, hair: [0, 0.3, -1] })),
+      S.ell([0, 1.745, -0.052], [0.095, 0.08, 0.074], hd({ k: 0.025, reg: HA, fur: 1, hair: [0, -1, -0.2] })),
+      S.ell([0.083, 1.745, -0.01], [0.022, 0.05, 0.06], hd({ k: 0.015, reg: HA, fur: 1, hair: [0, -1, 0] })),
+      S.ell([-0.083, 1.745, -0.01], [0.022, 0.05, 0.06], hd({ k: 0.015, reg: HA, fur: 1, hair: [0, -1, 0] })),
+      S.ell([0, 1.842, 0.03], [0.07, 0.03, 0.06], hd({ k: 0.02, reg: HA, fur: 1, hair: [0, 0.2, 1] })),
+      // Melena larga hasta los hombros (mujeres)
+      fem ? S.cone([0, 1.76, -0.07], [0, 1.52, -0.085], 0.088, 0.07, hd({ k: 0.04, reg: HA, fur: 1, sx: 1.15, hair: [0, -1, 0] })) : null,
+      fem ? S.ell([0.07, 1.64, -0.035], [0.03, 0.09, 0.05], hd({ k: 0.03, reg: HA, fur: 1, hair: [0, -1, 0] })) : null,
+      fem ? S.ell([-0.07, 1.64, -0.035], [0.03, 0.09, 0.05], hd({ k: 0.03, reg: HA, fur: 1, hair: [0, -1, 0] })) : null,
+    );
+    void M;
+    return b.done({
+      h: 0.019, hg: { head: 0.0068, armL: 0.012, armR: 0.012, handL: 0.0065, handR: 0.0065 }, cb: 0.008, bb: 0.05, ao: 0.018, aoMin: 0.5,
+      lodK: 2.4, lodDist: 12,
+    });
   }
+  const tpl = (fem) => G.Rig.get(fem ? 'humanF' : 'human', () => sculpt(!!fem));
+  Char.prepare = () => { G.Rig.prepare('human', () => sculpt(false)); G.Rig.prepare('humanF', () => sculpt(true)); };
 
   // ------------------------------------------------------------------ creación
-  // opts = { skin, pants } (colores opcionales, p. ej. para los aldeanos)
+  // opts = { skin, pants, hair, female } (colores opcionales, p. ej. para los aldeanos; female: cuerpo de mujer)
   Char.create = function (shirt = 0xe6dfcc, opts) {
-    const geo = bodyGeometry(new Col(shirt).getHex(), opts);
-    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0 });
-    const mesh = new THREE.SkinnedMesh(geo, mat);
-    const bones = BONES.map(([name]) => { const bo = new THREE.Bone(); bo.name = name; return bo; });
-    BONES.forEach(([, parent, p], i) => {
-      const pp = parent >= 0 ? BONES[parent][2] : [0, 0, 0];
-      bones[i].position.set(p[0] - pp[0], p[1] - pp[1], p[2] - pp[2]);
-      if (parent >= 0) bones[parent].add(bones[i]);
-    });
-    mesh.add(bones[0]);
-    mesh.updateMatrixWorld(true);
-    mesh.bind(new THREE.Skeleton(bones));
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.frustumCulled = false;
-    const root = new THREE.Group();
-    root.add(mesh);
+    opts = opts || {};
+    const mat = G.Rig.material({ human: true, skin: opts.skin ?? 0xc68d67, shirt, pants: opts.pants ?? 0x3b5270, hair: opts.hair ?? 0x2a1b12, furFreq: 420, fur: 1, bump: 0.004, sheen: 0.25, rough: 0.8, gloss: 0.55 });
+    const rig = G.Rig.instance(tpl(opts.female), mat);
+    const bones = rig.bones, mesh = rig.mesh;
+    const root = rig.g;
     const hand = new THREE.Group();
     hand.position.set(0, -0.06, 0.005);
     bones[B.hR].add(hand);
     const o = {
-      root, mesh, bones, hand, mat,
+      root, mesh, bones, hand, mat, rig,
       phase: 0, t: Math.random() * 10, walkW: 0, runW: 0, airW: 0, swimW: 0,
       rot: bones.map(() => new THREE.Vector3()), tgt: bones.map(() => new THREE.Vector3()),
     };
-    o.update = (dt, s) => animate(o, dt, s);
-    o.dispose = () => { mat.dispose(); };
+    o.update = (dt, s) => {
+      animate(o, dt, s);
+      if (G.camera) G.Rig.lod(rig, G.camera.position.distanceTo(root.position));
+    };
+    o.dispose = () => { mat.dispose(); mesh.skeleton.dispose(); };
     return o;
   };
 

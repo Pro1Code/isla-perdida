@@ -62,23 +62,23 @@
   C.VILLAGERS = [
     { name: 'Anciano Kalgor', role: 'chief', shirt: 0xb08a4a, pants: 0x6a4a2a },
     { name: 'Wypar', role: 'guard', shirt: 0x8a2a2a, pants: 0x3a2a1a },
-    { name: 'Aisha', role: 'villager', shirt: 0x2a7a6a, pants: 0x5a4028 },
+    { name: 'Aisha', role: 'villager', shirt: 0x2a7a6a, pants: 0x5a4028, female: true },
     { name: 'Kamakiro', role: 'guard', shirt: 0x5a3a7a, pants: 0x3a2a1a },
     { name: 'Genbu', role: 'trader', shirt: 0xc8962a, pants: 0x4a3620 },
-    { name: 'Laka', role: 'villager', shirt: 0x3a6aa0, pants: 0x5a4028 },
+    { name: 'Laka', role: 'villager', shirt: 0x3a6aa0, pants: 0x5a4028, female: true },
     { name: 'Brahan', role: 'villager', shirt: 0x6a8a2a, pants: 0x3a2a1a },
   ];
 
   // Aldeanos de las otras aldeas (extra = posición en esta lista)
   C.ALDEANOS = [
-    { tribe: 'escarcha', name: 'Anciana Hild', role: 'elder', shirt: 0x6a7a8a, pants: 0x4a4a52, skin: 0xe6c2a0 },
-    { tribe: 'escarcha', name: 'Sigrun', role: 'villager', shirt: 0x8a3a3a, pants: 0x4a4038, skin: 0xf0d0b0 },
+    { tribe: 'escarcha', name: 'Anciana Hild', role: 'elder', shirt: 0x6a7a8a, pants: 0x4a4a52, skin: 0xe6c2a0, female: true, hair: 0xd8d4cc },
+    { tribe: 'escarcha', name: 'Sigrun', role: 'villager', shirt: 0x8a3a3a, pants: 0x4a4038, skin: 0xf0d0b0, female: true, hair: 0xc89a4a },
     { tribe: 'escarcha', name: 'Toke', role: 'villager', shirt: 0x3a5a7a, pants: 0x3a3430, skin: 0xe8c4a0 },
     { tribe: 'escarcha', name: 'Bram', role: 'villager', shirt: 0x5a6a3a, pants: 0x3a3430, skin: 0xdcb48e },
     { tribe: 'brasa', name: 'Maestro Hollín', role: 'elder', shirt: 0x3a3230, pants: 0x2a2220, skin: 0xa8704a },
     { tribe: 'brasa', name: 'Tizón', role: 'villager', shirt: 0x8a2a1a, pants: 0x2a2220, skin: 0xb07a50 },
     { tribe: 'brasa', name: 'Ascua', role: 'villager', shirt: 0xc86a2a, pants: 0x3a2a20, skin: 0x9a6440 },
-    { tribe: 'brasa', name: 'Chispa', role: 'villager', shirt: 0xd8a030, pants: 0x3a2a20, skin: 0xb88660 },
+    { tribe: 'brasa', name: 'Chispa', role: 'villager', shirt: 0xd8a030, pants: 0x3a2a20, skin: 0xb88660, female: true },
   ];
 
   // ------------------------------------------------------------------ modelos (ver animals.js)
@@ -92,7 +92,7 @@
   // Aldeano: personaje humano con tocado de plumas
   function villager(extra) {
     const v = C.VILLAGERS[extra % C.VILLAGERS.length] || C.VILLAGERS[0];
-    const model = G.Character.create(v.shirt, { skin: 0x9a6440, pants: v.pants });
+    const model = G.Character.create(v.shirt, { skin: 0x9a6440, pants: v.pants, female: !!v.female, hair: 0x1a1210 });
     const fm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
     const parts = [P(new THREE.TorusGeometry(0.1, 0.018, 6, 16), 0xc0302a, 0, 0.1, 0, [Math.PI / 2, 0, 0])];
     const n = v.role === 'chief' ? 9 : 4;
@@ -116,7 +116,7 @@
   // Aldeano Kyrr (gorro de piel) o de Ceniza (pañuelo rojo tiznado); los ancianos llevan bastón
   function aldeano(extra) {
     const v = C.ALDEANOS[extra % C.ALDEANOS.length] || C.ALDEANOS[0];
-    const model = G.Character.create(v.shirt, { skin: v.skin, pants: v.pants });
+    const model = G.Character.create(v.shirt, { skin: v.skin, pants: v.pants, female: !!v.female, hair: v.hair });
     const fm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
     const parts = v.tribe === 'escarcha'
       ? [P(new THREE.SphereGeometry(0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), 0xd8d0c0, 0, 0.1, 0), P(new THREE.TorusGeometry(0.13, 0.035, 6, 14), 0xf0ece4, 0, 0.1, 0, [Math.PI / 2, 0, 0])]
@@ -180,11 +180,9 @@
   C.spawn = function (type, x, z, id, extra) {
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: type === 'shark' || type === 'dolphin' || type === 'whale' ? 0.5 : 0.9 });
     const A = G.Animals;
+    // Animales: fauna.js (esqueleto y piel); aquí solo la medusa, las personas y los muñecos
     const build = {
-      boar: () => A.boar(mat), boss: () => A.boar(mat, true), wolf: () => A.wolf(mat), jaguar: () => A.jaguar(mat), snake: () => A.snake(mat), shark: () => A.shark(mat), crab: () => A.crab(mat),
-      bear: () => A.bear(mat), snowwolf: () => A.wolf(mat, 0xdfe4ea, 0xf6f8fb, 0xc4ccd6), seal: () => A.seal(mat), monkey: () => A.monkey(mat), caiman: () => A.caiman(mat), frog: () => A.frog(mat),
-      salamander: () => A.salamander(mat), lavacrab: () => A.crab(mat, 0x3a2a24, 0x241814, true), whale: () => A.whale(mat), dolphin: () => A.dolphin(mat),
-      jelly: () => A.jelly(), serpent: () => A.serpent(mat), yeti: () => G.Bosses.yeti(mat), lavadragon: () => G.Bosses.dragon(mat), bigcaiman: () => G.Bosses.caiman(mat), villager: () => villager(extra || 0), aldeano: () => aldeano(extra || 0),
+      jelly: () => A.jelly(), villager: () => villager(extra || 0), aldeano: () => aldeano(extra || 0),
       npc: () => G.Prologue.human('npc', extra || 0), pirate: () => G.Prologue.human('pirate', extra || 0), pirate_gun: () => G.Prologue.human('pirate_gun', extra || 0),
       pirate_boss: () => G.Prologue.human('pirate_boss', extra || 0), marine: () => G.Prologue.human('marine', extra || 0), marine_gun: () => G.Prologue.human('marine_gun', extra || 0), marine_boss: () => G.Prologue.human('marine_boss', extra || 0), ghost_pirate: () => G.Prologue.human('ghost_pirate', extra || 0), ghost_gun: () => G.Prologue.human('ghost_gun', extra || 0), ghost_captain: () => G.Prologue.human('ghost_captain', extra || 0), dummy: () => G.Prologue.dummy(extra || 0),
     };

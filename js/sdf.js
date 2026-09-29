@@ -216,7 +216,7 @@
     const U2lerp = (a, b, t) => a + (b - a) * t, aoM = (o.ao || 0.03) * 5.5 + h;
     const aoL = new Array(nv), aoS = new Array(nv);
     if (o.ao !== 0) for (let v = 0; v < nv; v++) { if ((v & 255) === 255) yield; const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2]; aoL[v] = near(uni, x, y, z, x, y, z, aoM); aoS[v] = near(sub, x, y, z, x, y, z, aoM); }
-    const COL = new Float32Array(nv * 3), SUR = new Float32Array(nv * 3), HAIR = new Float32Array(nv * 3), SI = new Uint16Array(nv * 4), SW = new Float32Array(nv * 4);
+    const COL = new Float32Array(nv * 3), SUR = new Float32Array(nv * 3), HAIR = new Float32Array(nv * 3), SI = new Uint16Array(nv * 4), SW = new Float32Array(nv * 4), REG = new Float32Array(nv * 4);
     const c = new Col(), tmp = new Col();
     for (let v = 0; v < nv; v++) {
       if ((v & 127) === 127) yield;
@@ -227,12 +227,14 @@
       // La nitidez del color la marca la pieza más cercana (trufa, pezuñas o garras con borde nítido)
       const tauC = (pmin && pmin.cb) || cbW;
       let wsum = 0, r = 0, g = 0, b = 0, fu = 0, pa = 0, ps = 0, hx = 0, hy = 0, hz = 0;
+      const rg = [0, 0, 0, 0];
       const bw = {};
       for (let i = 0; i < L.length; i++) {
         const p = L[i], dd = ds[i] - dmin;
         const wc = Math.exp(-dd / Math.min(tauC, p.cb || cbW));
         if (p.col) { r += p.col.r * wc; g += p.col.g * wc; b += p.col.b * wc; } else { r += wc * 0.5; g += wc * 0.5; b += wc * 0.5; }
         fu += p.fur * wc; pa += p.pat * wc; ps += p.ps * wc;
+        if (p.reg !== undefined) rg[p.reg] += wc;
         const s = hx * p.ax.x + hy * p.ax.y + hz * p.ax.z < 0 ? -1 : 1;
         hx += p.ax.x * wc * s; hy += p.ax.y * wc * s; hz += p.ax.z * wc * s;
         wsum += wc;
@@ -240,12 +242,14 @@
       }
       c.setRGB(r / wsum, g / wsum, b / wsum);
       let fur = fu / wsum, pat = pa / wsum, psc = ps / wsum;
+      for (let q = 0; q < 4; q++) rg[q] /= wsum;
       for (const p of paint) {
         if (x < p.min[0] - p.soft || x > p.max[0] + p.soft || y < p.min[1] - p.soft || y > p.max[1] + p.soft || z < p.min[2] - p.soft || z > p.max[2] + p.soft) continue;
         const d = dist(p, x, y, z), t = 1 - Math.min(1, Math.max(0, (d + p.soft) / (2 * p.soft)));
         if (t <= 0) continue;
         const k = t * t * (3 - 2 * t) * (p.amt ?? 1);
         if (p.col) c.lerp(tmp.copy(p.col), k);
+        if (p.reg !== undefined || p.fixed) for (let q = 0; q < 4; q++) rg[q] += ((p.reg === q ? 1 : 0) - rg[q]) * k;
         if (p.fur !== undefined && p.paintFur) fur += (p.fur - fur) * k;
         if (p.pat !== undefined && p.paintPat) pat += (p.pat - pat) * k;
       }
@@ -264,6 +268,7 @@
       if (o.color) o.color(c, x, y, z, NR[v * 3], NR[v * 3 + 1], NR[v * 3 + 2]);
       COL[v * 3] = c.r; COL[v * 3 + 1] = c.g; COL[v * 3 + 2] = c.b;
       SUR[v * 3] = fur; SUR[v * 3 + 1] = pat; SUR[v * 3 + 2] = psc;
+      for (let q = 0; q < 4; q++) REG[v * 4 + q] = rg[q];
       const hl = Math.hypot(hx, hy, hz) || 1;
       HAIR[v * 3] = hx / hl; HAIR[v * 3 + 1] = hy / hl; HAIR[v * 3 + 2] = hz / hl;
       const top = Object.entries(bw).sort((a, b2) => b2[1] - a[1]).slice(0, 4);
@@ -276,11 +281,11 @@
     }
     const tD = performance.now();
     // 5) Geometría (triángulos sueltos, como el resto de piezas de models.js)
-    const T = idx.length, out = { pos: new Float32Array(T * 3), nrm: new Float32Array(T * 3), col: new Float32Array(T * 3), sur: new Float32Array(T * 3), hair: new Float32Array(T * 3), si: new Uint16Array(T * 4), sw: new Float32Array(T * 4) };
+    const T = idx.length, out = { pos: new Float32Array(T * 3), nrm: new Float32Array(T * 3), col: new Float32Array(T * 3), sur: new Float32Array(T * 3), hair: new Float32Array(T * 3), si: new Uint16Array(T * 4), sw: new Float32Array(T * 4), reg: new Float32Array(T * 4) };
     for (let t = 0; t < T; t++) {
       const v = idx[t];
       for (let a = 0; a < 3; a++) { out.pos[t * 3 + a] = P[v * 3 + a]; out.nrm[t * 3 + a] = NR[v * 3 + a]; out.col[t * 3 + a] = COL[v * 3 + a]; out.sur[t * 3 + a] = SUR[v * 3 + a]; out.hair[t * 3 + a] = HAIR[v * 3 + a]; }
-      for (let a = 0; a < 4; a++) { out.si[t * 4 + a] = SI[v * 4 + a]; out.sw[t * 4 + a] = SW[v * 4 + a]; }
+      for (let a = 0; a < 4; a++) { out.si[t * 4 + a] = SI[v * 4 + a]; out.sw[t * 4 + a] = SW[v * 4 + a]; out.reg[t * 4 + a] = REG[v * 4 + a]; }
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(out.pos, 3));
@@ -290,6 +295,7 @@
     geo.setAttribute('aHair', new THREE.BufferAttribute(out.hair, 3));
     geo.setAttribute('skinIndex', new THREE.BufferAttribute(out.si, 4));
     geo.setAttribute('skinWeight', new THREE.BufferAttribute(out.sw, 4));
+    geo.setAttribute('aReg', new THREE.BufferAttribute(out.reg, 4));
     S.last = { ms: Math.round(performance.now() - t0), tris: T / 3, grid: [nx, ny, nz], evals, fase: [tA - t0, tB - tA, tC - tB, tD - tC].map(Math.round) };
     return geo;
   };

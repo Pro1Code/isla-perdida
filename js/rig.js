@@ -67,7 +67,10 @@
     geo.setAttribute('aHair', new THREE.BufferAttribute(hair, 3));
     geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
     geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
-    for (const k of Object.keys(geo.attributes)) if (!['position', 'normal', 'color', 'aSurf', 'aHair', 'skinIndex', 'skinWeight'].includes(k)) geo.deleteAttribute(k);
+    const reg = new Float32Array(n * 4);
+    if (o.reg !== undefined) for (let v = 0; v < n; v++) reg[v * 4 + o.reg] = 1;
+    geo.setAttribute('aReg', new THREE.BufferAttribute(reg, 4));
+    for (const k of Object.keys(geo.attributes)) if (!['position', 'normal', 'color', 'aSurf', 'aHair', 'skinIndex', 'skinWeight', 'aReg'].includes(k)) geo.deleteAttribute(k);
     return geo;
   }
   function* build(b, o) {
@@ -75,7 +78,14 @@
     // Dos niveles de detalle: la malla fina de cerca y otra más ligera (celdas más grandes) de lejos
     const mkGeo = function* (h) {
       const geos = [];
-      if (b.prims.length) geos.push(yield* G.Sdf.meshGen(b.prims, { h, bones: b.map, cb: o.cb, bb: o.bb, color: o.color, ao: o.ao, aoMin: o.aoMin }));
+      // Grupos de primitivas (p.grp) que no se funden entre sí, cada uno con su tamaño de celda (o.hg)
+      const groups = new Map();
+      for (const p of b.prims) { const k = p.grp || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
+      for (const [k, list] of groups) {
+        if (!list.some((p) => !p.sub && !p.paint)) continue;
+        const hk = o.hg && o.hg[k] ? h * (o.hg[k] / (o.h || 0.02)) : h;
+        geos.push(yield* G.Sdf.meshGen(list, { h: hk, bones: b.map, cb: o.cb, bb: o.bb, color: o.color, ao: o.ao, aoMin: o.aoMin }));
+      }
       yield;
       for (const pt of b.parts) { geos.push(prepPart(b, pt.geo.clone(), pt.o)); yield; }
       const g = window.mergeGeometries(geos, false);
@@ -153,6 +163,10 @@
   const SKIN_VS = `
 attribute vec3 aSurf;
 attribute vec3 aHair;
+#ifdef HUMAN
+attribute vec4 aReg;
+varying vec4 vReg;
+#endif
 varying vec3 vRest;
 varying vec3 vSurf;
 varying vec3 vHair;
@@ -161,6 +175,13 @@ varying vec3 vHair;
 varying vec3 vRest;
 varying vec3 vSurf;
 varying vec3 vHair;
+#ifdef HUMAN
+varying vec4 vReg;
+uniform vec3 uSkin;
+uniform vec3 uShirt;
+uniform vec3 uPants;
+uniform vec3 uHairC;
+#endif
 uniform float uFurFreq;
 uniform float uFurAmt;
 uniform float uBump;
@@ -199,6 +220,12 @@ vec3 rgBump(vec3 surf_pos, vec3 surf_norm, float hgt, float fd) {
 }
 `;
   const SKIN_COLOR = `
+#ifdef HUMAN
+  {
+    float fw = clamp(1.0 - vReg.x - vReg.y - vReg.z - vReg.w, 0.0, 1.0);
+    diffuseColor.rgb *= vReg.x * uSkin + vReg.y * uShirt + vReg.z * uPants + vReg.w * uHairC + vec3(fw);
+  }
+#endif
   vec3 hd = normalize(vHair + vec3(1e-4));
   // Pelo: mechones (se ven de lejos) y hebras finas (solo de cerca, para que no parpadeen)
   vec3 fq = vRest * uFurFreq;
@@ -290,11 +317,17 @@ vec3 rgBump(vec3 surf_pos, vec3 surf_norm, float hgt, float fd) {
     const pats = o.pattern ? String(o.pattern).split('+') : [];
     mat.defines = {};
     for (const p of pats) mat.defines['PAT_' + p.toUpperCase()] = '';
+    // Personas: los colores de piel, camisa, pantalón y pelo van en el material (la malla es la misma para todos)
+    if (o.human) {
+      mat.defines.HUMAN = '';
+      Object.assign(u, { uSkin: { value: new Col(o.skin ?? 0xc68d67) }, uShirt: { value: new Col(o.shirt ?? 0xe6dfcc) }, uPants: { value: new Col(o.pants ?? 0x3b5270) }, uHairC: { value: new Col(o.hair ?? 0x2a1b12) } });
+      pats.push('human');
+    }
     mat.userData.u = u;
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, u);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + SKIN_VS)
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRest = position; vSurf = aSurf; vHair = aHair;');
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRest = position; vSurf = aSurf; vHair = aHair;' + (o.human ? '\nvReg = aReg;' : ''));
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + SKIN_FS)
         .replace('#include <color_fragment>', '#include <color_fragment>\n' + SKIN_COLOR)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(uGloss, roughnessFactor * (0.85 + 0.3 * furH) - glossK * 0.25, clamp(vSurf.x + (1.0 - vSurf.x) * 0.0, 0.0, 1.0));')

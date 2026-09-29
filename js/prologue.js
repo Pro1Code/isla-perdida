@@ -19,7 +19,7 @@
   // Náufragos (tipo 'npc'): extra = índice
   Pr.NPCS = [
     { key: 'silvano', name: 'Silvano, el ermitaño', role: 'hermit', style: 'magic', shirt: '#4a3a6a', skin: '#c68d67', pants: '#3a2e4a', cos: ['npc_capucha', 'npc_barba', 'npc_tunica'], hold: 'baston' },
-    { key: 'mara', name: 'Capitana Mara', role: 'captain', shirt: '#a01e1e', skin: '#e6b48e', pants: '#2a2a2e', cos: ['cos_tricornio', 'cos_capa'] },
+    { key: 'mara', name: 'Capitana Mara', role: 'captain', shirt: '#a01e1e', skin: '#e6b48e', pants: '#2a2a2e', cos: ['cos_tricornio', 'cos_capa'], female: true, hair: '#6a3a1a' },
     { key: 'kaito', name: 'Kaito, el espadachín', role: 'trainer', style: 'sword', shirt: '#e6dfcc', skin: '#c68d67', pants: '#2e4a3a', cos: ['cos_bandana'], hold: 'katana' },
     { key: 'crane', name: 'Crane, el artillero', role: 'trainer', style: 'gun', shirt: '#5a4632', skin: '#a8704a', pants: '#3b5270', cos: ['cos_ala_ancha', 'cos_parche'], hold: 'mosquete' },
     { key: 'bastian', name: 'Bastián, el cocinero', role: 'trainer', style: 'fist', shirt: '#f4f4f0', skin: '#f3d2b4', pants: '#2a2a2e', cos: ['cos_gorro_chef', 'cos_bigote'] },
@@ -52,7 +52,7 @@
     // Marines de la Marina Blanca (uniforme blanco y azul)
     if (type === 'marine_boss') return { name: 'Comodoro de la Marina Blanca', role: 'boss', shirt: '#f4f4f0', skin: pick(['#e6b48e', '#c68d67']), pants: '#1e2a4a', cos: ['cos_gorra_marina', 'cos_abrigo_alm', 'cos_bigote'], hold: 'katana' };
     if (type === 'marine' || type === 'marine_gun') return { name: type === 'marine_gun' ? 'Tirador de la Marina' : 'Marine de la Marina Blanca', role: 'marine', shirt: '#f2f2ee', skin: pick(['#f3d2b4', '#e6b48e', '#c68d67', '#a8704a']), pants: '#1e2a4a', cos: ['cos_gorra_marina'], hold: type === 'marine_gun' ? 'mosquete' : 'sable' };
-    if (type === 'pirate_boss') return { name: 'Capitana Hiena', role: 'boss', shirt: '#2a2a2e', skin: '#e6b48e', pants: '#5a1a1a', cos: ['cos_tricornio', 'cos_capa', 'cos_parche'], hold: 'sable' };
+    if (type === 'pirate_boss') return { name: 'Capitana Hiena', role: 'boss', shirt: '#2a2a2e', skin: '#e6b48e', pants: '#5a1a1a', cos: ['cos_tricornio', 'cos_capa', 'cos_parche'], hold: 'sable', female: true, hair: '#1a1210' };
     return {
       name: type === 'pirate_gun' ? 'Pirata tirador' : 'Pirata de la Hiena', role: 'pirate',
       shirt: pick(['#7a2a2a', '#2a2a2e', '#5a4632', '#3a4a6a', '#6a5a3a', '#e6dfcc']), skin: pick(['#e6b48e', '#c68d67', '#a8704a', '#7e4d30']), pants: pick(['#2a2a2e', '#4a3a2a', '#3a2a1a', '#3b5270']),
@@ -62,7 +62,7 @@
   }
   Pr.human = function (type, extra) {
     const d = type === 'npc' ? Pr.NPCS[(extra || 0) % Pr.NPCS.length] : pirateLook(type, extra || 0);
-    const model = G.Character.create(hx(d.shirt), { skin: hx(d.skin), pants: hx(d.pants) });
+    const model = G.Character.create(hx(d.shirt), { skin: hx(d.skin), pants: hx(d.pants), female: !!d.female, hair: d.hair ? hx(d.hair) : undefined });
     G.Equip.apply(model, d.cos || []);
     if (d.hold) { const t = G.makeItemMesh(d.hold); if (t) { t.rotation.set(Math.PI / 2, 2.12, 0); model.hand.add(t); } }
     const out = { g: model.root, legs: [], head: null, model, vinfo: { name: d.name, role: d.role }, feathers: { dispose() {} }, hold: !!d.hold };
