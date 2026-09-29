@@ -244,7 +244,7 @@
         else {
           const isl = +val, c = G.Clock.of(isl);
           const newDay = c && c.t * 24 >= 19;
-          const day = c ? c.day + (newDay ? 1 : 0) : G.state.day;
+          const day = c ? c.day + (newDay && isl === 0 ? 1 : 0) : G.state.day;
           const m = { t: 'wake', isl, day, tt: 6.5 / 24 };
           Net.send(m); G.Game.wake(m);
           if (newDay) G.Game.onNewDay(isl);
