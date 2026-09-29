@@ -181,6 +181,7 @@ uniform vec3 uSkin;
 uniform vec3 uShirt;
 uniform vec3 uPants;
 uniform vec3 uHairC;
+uniform float uRim;
 #endif
 uniform float uFurFreq;
 uniform float uFurAmt;
@@ -320,7 +321,8 @@ vec3 rgBump(vec3 surf_pos, vec3 surf_norm, float hgt, float fd) {
     // Personas: los colores de piel, camisa, pantalón y pelo van en el material (la malla es la misma para todos)
     if (o.human) {
       mat.defines.HUMAN = '';
-      Object.assign(u, { uSkin: { value: new Col(o.skin ?? 0xc68d67) }, uShirt: { value: new Col(o.shirt ?? 0xe6dfcc) }, uPants: { value: new Col(o.pants ?? 0x3b5270) }, uHairC: { value: new Col(o.hair ?? 0x2a1b12) } });
+      Object.assign(u, { uSkin: { value: new Col(o.skin ?? 0xc68d67) }, uShirt: { value: new Col(o.shirt ?? 0xe6dfcc) }, uPants: { value: new Col(o.pants ?? 0x3b5270) }, uHairC: { value: new Col(o.hair ?? 0x2a1b12) },
+        uRim: { value: o.rim ?? 0.1 } });
       pats.push('human');
     }
     mat.userData.u = u;
@@ -332,7 +334,9 @@ vec3 rgBump(vec3 surf_pos, vec3 surf_norm, float hgt, float fd) {
         .replace('#include <color_fragment>', '#include <color_fragment>\n' + SKIN_COLOR)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(uGloss, roughnessFactor * (0.85 + 0.3 * furH) - glossK * 0.25, clamp(vSurf.x + (1.0 - vSurf.x) * 0.0, 0.0, 1.0));')
         .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = rgBump(-vViewPosition, normal, bumpH * uBump, faceDirection);\nfloat rgFres = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 2.5);\ndiffuseColor.rgb *= 1.0 + rgFres * uSheen * furK;')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += uLava * lavaK * (0.75 + 0.25 * sin(uTime * 2.0 + vRest.x * 3.0 + vRest.z * 2.0));');
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += uLava * lavaK * (0.75 + 0.25 * sin(uTime * 2.0 + vRest.x * 3.0 + vRest.z * 2.0));'
+          // Personas: luz de contorno suave (como en los juegos estilizados: la silueta se despega del fondo)
+          + '\n#ifdef HUMAN\ntotalEmissiveRadiance += (0.35 + 0.65 * diffuseColor.rgb) * pow(rgFres, 1.6) * uRim;\n#endif');
     };
     mat.customProgramCacheKey = () => 'rigskin-' + pats.join('+');
     return mat;
@@ -426,7 +430,10 @@ vec3 rgBump(vec3 surf_pos, vec3 surf_norm, float hgt, float fd) {
     for (const k in gaits) { rig.gw[k] = U.lerp(rig.gw[k] || 0, want[k] / (wsum || 1), Math.min(1, dt * 6)); }
     let stride = 0, lift = 0, gs = 0;
     for (const k in gaits) { stride += gaits[k].stride * rig.gw[k]; lift += (gaits[k].lift || 0.08) * rig.gw[k]; gs += rig.gw[k]; }
-    stride /= gs || 1; lift /= gs || 1;
+    // Pasos algo más cortos y rápidos (como en los juegos: se lee mejor el movimiento y no parece a cámara lenta),
+    // y el pie sube un poco más en un arco limpio
+    stride = (stride / (gs || 1)) * 0.78; lift /= gs || 1;
+    st.dt = dt;
     const move = U.smooth(0.03, 0.35, speed);
     rig.phase = (rig.phase + (speed * dt) / Math.max(0.05, stride)) % 1;
     const ph = rig.phase;
@@ -481,6 +488,7 @@ vec3 rgBump(vec3 surf_pos, vec3 surf_norm, float hgt, float fd) {
     if (o.post) o.post(rig, st, dt, ph, move); // retoques después de las patas (patas recogidas al volar…)
   };
 
+  const _mD = new V3(), _mA = new V3(); // sin crear vectores nuevos en cada fotograma (evita tirones del recolector)
   function legIK(rig, L, st, ph, stride, lift, move, gaits) {
     const idx = L.idx, n = idx.length;
     // Fase y objetivo combinando los pasos activos
@@ -492,7 +500,7 @@ vec3 rgBump(vec3 surf_pos, vec3 surf_norm, float hgt, float fd) {
       const p = (ph + off) % 1, sweep = stride * duty;
       let z, y, f;
       if (p < duty) { const s = p / duty; z = sweep * (0.5 - s); y = 0; f = 0; }
-      else { const s = (p - duty) / (1 - duty); z = sweep * (sm(s) - 0.5); y = Math.sin(Math.pow(s, 0.8) * Math.PI) * (gt.lift || lift); f = Math.pow(Math.sin(Math.pow(s, 0.65) * Math.PI), 1.5); }
+      else { const s = (p - duty) / (1 - duty); z = sweep * (sm(s) - 0.5); y = Math.sin(s * Math.PI) * (gt.lift || lift) * 1.3; f = Math.sin(s * Math.PI); }
       dz += z * w; dy += y * w; flex += f * w; wsum += w;
     }
     dz = (dz / (wsum || 1)) * move; dy = (dy / (wsum || 1)) * move; flex = (flex / (wsum || 1)) * move;
@@ -500,14 +508,17 @@ vec3 rgBump(vec3 surf_pos, vec3 surf_norm, float hgt, float fd) {
     const T = _v.copy(J[tgt]);
     T.z += dz + (L.reach || 0) * (st.lunge || 0);
     T.y += dy;
-    if (st.ground) T.y += st.ground(J[tgt].x, J[tgt].z + dz);
+    // Suelo bajo el pie, suavizado (sin saltitos de un fotograma a otro en terreno irregular)
+    const gy = st.ground ? st.ground(J[tgt].x, J[tgt].z + dz) : 0, gk = rig.gy || (rig.gy = {});
+    gk[L.key] = gk[L.key] === undefined ? gy : U.lerp(gk[L.key], gy, Math.min(1, (st.dt || 0.016) * 14));
+    T.y += gk[L.key];
     // Pie / pezuña (último hueso): plano en el apoyo, se dobla hacia atrás al levantarlo
     const footDir = rotX(_v2.copy(L.dir[n - 1]), flex * (L.toeFlex ?? (L.front ? 1.3 : 0.6)));
     if (n === 4) {
       // Caña / metatarso: se pliega al levantar la pata (la delantera hacia atrás, la trasera hacia delante);
       // el objetivo es la muñeca / el corvejón y el pie sube al plegarse
-      const metaDir = rotX(new V3().copy(L.dir[2]), flex * (L.metaFlex ?? (L.front ? 1.1 : -0.55)));
-      const A = new V3().copy(T).addScaledVector(L.dir[2], -L.len[2]);
+      const metaDir = rotX(_mD.copy(L.dir[2]), flex * (L.metaFlex ?? (L.front ? 1.1 : -0.55)));
+      const A = _mA.copy(T).addScaledVector(L.dir[2], -L.len[2]);
       A.y += dy * (L.front ? -0.35 : -0.2);
       twoBone(rig, L, A);
       aim(rig, idx[2], L.dir[2], metaDir);

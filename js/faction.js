@@ -122,7 +122,7 @@
     G.Audio.init(); G.Audio.play('win');
     if (side === 'marina') G.UI.banner('⚓ Marina Blanca', 'Cadete infiltrado · Los barcos de la Marina son tus aliados y todos los piratas, tus enemigos');
     else G.UI.banner('🏴‍☠️ Pirata', 'La Marina te persigue · Atento a las aguas de cada hermandad: unas son aliadas y otras enemigas');
-    setTimeout(() => G.UI.msg('🛡️ <b>Combate</b>: mantén <kbd>Clic derecho</kbd> con un arma de cuerpo a cuerpo (o sin nada en la mano) para cubrirte. Si lo pulsas justo antes del golpe, haces una <b>parada perfecta</b>.', 'info', 'parryTip'), 5000);
+    setTimeout(() => G.UI.msg('⚔️ <b>Combate</b> (con un arma o las manos vacías): <kbd>Clic</kbd> combo · <kbd>Clic derecho</kbd> golpe pesado · <kbd>F</kbd> parar (mantener: bloquear) · <kbd>Q</kbd> esquivar · <kbd>T</kbd> fijar enemigo · <kbd>Z</kbd>/<kbd>R</kbd> técnica y definitivo.', 'info', 'parryTip'), 5000);
     G.Bounty.refresh();
     zoneT = 4;
   };

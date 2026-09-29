@@ -178,6 +178,12 @@
       case 'parry': noise(0.05, 'highpass', 3000, 1, 0.5); [1480, 2230, 3310].forEach((f, i) => tone('sine', f, f * 0.985, 0.55 - i * 0.12, 0.2 - i * 0.05, 0, 0.002)); tone('triangle', 740, 700, 0.25, 0.12); break;
       case 'block': noise(0.08, 'bandpass', 1800, 1.2, 0.35); tone('sine', 190, 90, 0.14, 0.35); tone('sine', 1250, 1200, 0.18, 0.08, 0, 0.002); break;
       case 'glint': tone('sine', 2600, 3400, 0.09, 0.07, 0, 0.002); break;
+      // Esquive, golpe pesado, impacto fuerte, aterrizaje y fijar enemigo (combat.js)
+      case 'whoosh': noise(0.28, 'bandpass', 700, 1.2, 0.2, 0, 2600); break;
+      case 'heavySwing': noise(0.32, 'bandpass', 380, 1.1, 0.22, 0, 1500); tone('sine', 140, 70, 0.25, 0.12); break;
+      case 'hitHeavy': tone('sine', 120, 45, 0.3, 0.45); noise(0.18, 'lowpass', 1100, 0.8, 0.35); break;
+      case 'land': noise(0.16, 'lowpass', 500, 0.8, 0.25); tone('sine', 90, 50, 0.14, 0.2); break;
+      case 'lockOn': tone('square', 880, 1320, 0.06, 0.04); tone('square', 1320, 1320, 0.05, 0.04, 0.07); break;
       case 'glintH': tone('sawtooth', 420, 300, 0.3, 0.07, 0, 0.01, 1600); tone('sine', 2100, 2500, 0.12, 0.06, 0, 0.002); break;
     }
   }

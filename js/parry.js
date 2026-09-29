@@ -1,15 +1,17 @@
 // Parry: combate cuerpo a cuerpo con guardia, paradas perfectas y contraataques.
-//  Jugador:
-//   - Clic derecho mantenido (con un arma de cuerpo a cuerpo o sin nada en la mano): guardia. Reduce el daño
-//     de los golpes que vienen de delante, pero gasta energía; sin energía (o ante un golpe fuerte) se rompe.
-//   - Parada perfecta: pulsar justo antes del golpe. No recibes daño, el enemigo queda aturdido y tu siguiente
-//     golpe a ese enemigo es un contraataque (doble de daño, y no lo puede parar).
-//   - Con el estilo Espadachín a nivel 3, una parada perfecta desvía también las balas.
+//  Jugador (tecla F, con un arma de cuerpo a cuerpo o sin nada en la mano; combat.js hace el resto):
+//   - Mantener F: bloqueo. Reduce el daño de los golpes que vienen de delante, pero gasta energía; sin energía
+//     (o ante un golpe pesado) se rompe.
+//   - Parada perfecta: pulsar F justo antes del golpe. No recibes daño, el enemigo queda aturdido y tu siguiente
+//     golpe a ese enemigo es un contraataque (doble de daño, y no lo puede parar). Los golpes pesados también
+//     se pueden parar, con menos margen.
+//   - Desviar: una parada perfecta aparta también las balas; con Espadachín nivel 3 se las devuelve al tirador.
 //  NPC (piratas, marines, fantasmas, capitanes y guerreros shandara):
-//   - Avisan antes de golpear: levantan el arma y brilla (amarillo: se puede parar; rojo: golpe fuerte, que
-//     rompe la guardia: apártate).
-//   - Se cubren y paran tus golpes (más cuanto más repites el mismo ritmo). Si te paran, quedas aturdido
-//     un momento y te contraatacan enseguida (ese golpe también se puede parar).
+//   - Avisan antes de golpear: levantan el arma y brilla (amarillo: golpe normal; rojo: golpe pesado, que
+//     rompe el bloqueo: páralo a tiempo o esquívalo con Q). Los tiradores apuntan antes de disparar.
+//   - Se cubren, paran o esquivan tus golpes (más cuanto más repites el mismo ritmo). Si te paran, quedas
+//     aturdido un momento y te contraatacan enseguida (ese golpe también se puede parar). Contra tu golpe
+//     pesado no les vale cubrirse: o lo paran o lo esquivan, o se les rompe la guardia.
 // El anfitrión decide lo de los NPC; cada jugador decide sus propias paradas.
 (function () {
   'use strict';
@@ -36,6 +38,7 @@
   Pa.down = function () {
     if (Pa.stagger > 0 || !Pa.canGuard()) return false;
     if (G.Player.stats.stamina < 5) { G.UI.msg('😮‍💨 Sin energía para cubrirte.', 'warn', 'guard'); return true; }
+    if (G.Combat.heavyT > 0 || G.Combat.dodgeT > 0) return true;
     Pa.guard = true; Pa.gT = 0;
     return true;
   };
@@ -49,20 +52,28 @@
   Pa.onHit = function (amt, src, info) {
     const P = G.Player;
     if (!info || !Pa.guard || !src || P.dead || !facing(src.x, src.z)) return amt;
-    const perfect = Pa.gT <= win();
+    const perfect = Pa.gT <= win() * (info.heavy ? 0.7 : 1);
     if (info.shot) {
-      if (perfect && G.Styles.active() === 'sword' && G.Styles.level('sword') >= 3) { spark(handPos(), 0xfff2c0, 0.9); G.Audio.play('parry'); G.UI.msg('⚔️ ¡Bala desviada!', 'good', 'parry'); return 0; }
-      return amt;
+      if (perfect) {
+        spark(handPos(), 0xfff2c0, 0.9); G.Audio.play('parry');
+        // Espadachín nivel 3: la bala vuelve al tirador
+        const back = G.Styles.active() === 'sword' && G.Styles.level('sword') >= 3 && info.cid !== undefined ? G.Creatures.byId(info.cid) : null;
+        if (back && !back.dead) { G.Creatures.hurt(back, amt, undefined, {}); G.UI.msg('⚔️ ¡Bala devuelta al tirador!', 'good', 'parry'); } else G.UI.msg('⚔️ ¡Bala desviada!', 'good', 'parry');
+        G.Combat.dmgNum(G.Player.pos.x, G.Player.pos.y + 2, G.Player.pos.z, 0, 'parry', 'DESVÍO');
+        return 0;
+      }
+      return Pa.guard ? amt * 0.5 : amt; // cubriéndote, la bala hace la mitad
     }
     if (!info.melee) return amt;
-    if (perfect && !info.heavy) {
+    if (perfect) {
       // Parada perfecta
       Pa.guard = false;
       Pa.riposte = 1.4; Pa.ripId = info.cid ?? (info.by !== undefined ? 'p' + info.by : null);
       P.stats.stamina = Math.min(100, P.stats.stamina + 8);
       P.shake = Math.max(P.shake, 0.12);
       spark(handPos(), 0xfff2c0, 1.1); flashScreen();
-      G.Audio.play('parry');
+      G.Audio.play('parry'); G.Combat.stopT = Math.max(G.Combat.stopT, 0.09);
+      G.Combat.dmgNum(G.Player.pos.x, G.Player.pos.y + 2, G.Player.pos.z, 0, 'parry', '¡PARADA!');
       G.UI.msg(info.beast ? '🛡️ ¡Parada perfecta!' : '⚔️ ¡Parada perfecta! Contraataca ahora', 'good', 'parry');
       if (info.cid !== undefined && info.cid !== null) stun(info.cid, info.beast ? 0.8 : 1.3);
       if (info.by !== undefined && info.by !== null) G.Net.send({ t: 'parried', to: info.by });
@@ -77,7 +88,8 @@
     G.Audio.play('block');
     if (info.heavy || P.stats.stamina <= 0) {
       Pa.guard = false; Pa.stagger = 0.9;
-      G.UI.msg(info.heavy ? '💥 ¡Golpe fuerte! Te rompió la guardia (el brillo rojo no se para: apártate)' : '💥 ¡Guardia rota! Te quedaste sin energía', 'bad', 'guardbreak');
+      G.UI.msg(info.heavy ? '💥 ¡Golpe pesado! Te rompió el bloqueo (al brillo rojo: páralo justo a tiempo o esquiva con <kbd>Q</kbd>)' : '💥 ¡Guardia rota! Te quedaste sin energía', 'bad', 'guardbreak');
+      G.Combat.dmgNum(G.Player.pos.x, G.Player.pos.y + 2, G.Player.pos.z, 0, 'break', 'GUARDIA ROTA');
     }
     return left;
   };
@@ -101,7 +113,8 @@
   Pa.windup = function (c, t, reach, fast) {
     if (c.windup > 0 || c.stun > 0) return false;
     const lead = LEADER.test(c.type);
-    const heavy = !fast && !c.lastHeavy && Math.random() < (lead ? 0.3 : c.type.startsWith('marine') ? 0.12 : 0.08);
+    const guarding = t.local ? Pa.guard : !!(G.Net.peers.get(t.id) || {}).gd;
+    const heavy = !fast && !c.lastHeavy && Math.random() < (lead ? 0.3 : c.type.startsWith('marine') ? 0.12 : 0.08) * (guarding ? 3 : 1);
     c.lastHeavy = heavy;
     const slow = [1.25, 1, 0.85][G.state.diff] ?? 1;
     c.windup = (fast ? 0.34 : heavy ? 0.85 : 0.55) * slow;
@@ -111,13 +124,14 @@
     // Primera vez que un enemigo te prepara un golpe: consejo
     if (t.local && !Pa.tipped && Math.hypot(t.x - c.x, t.z - c.z) < 5) {
       Pa.tipped = true;
-      G.UI.msg('💡 ¡Va a golpearte! Pulsa <kbd>Clic derecho</kbd> justo antes del golpe para <b>pararlo</b> (o mantenlo para cubrirte). Si brilla en <b style="color:#ff6a5a">rojo</b>, apártate.', 'info', 'parryTip2');
+      G.UI.msg('💡 ¡Va a golpearte! Pulsa <kbd>F</kbd> justo antes del golpe para <b>pararlo</b> (mantén <kbd>F</kbd> para cubrirte) o esquiva con <kbd>Q</kbd>. Si brilla en <b style="color:#ff6a5a">rojo</b> es un golpe pesado: rompe el bloqueo.', 'info', 'parryTip2');
     }
     return true;
   };
   // Termina la preparación: golpea si el objetivo sigue a su alcance
   Pa.strike = function (c, t, CD, cause) {
     c.windup = 0; c.lunge = 0.3; c.cd = (CD || 1.4) + Math.random() * 0.4;
+    c.sd = c.heavy ? 4 : Math.floor(Math.random() * 3); // golpe del NPC: tajo, revés o de arriba (pesado: con todo el cuerpo)
     if (!t || t.dead || Math.hypot(t.x - c.x, t.z - c.z) > (c.wReach || 2) + 0.7 || Math.abs((t.y || 0) - c.y) > 1.8) { G.Audio.playAt('swing', c.x, c.z, 25); return; }
     const amt = c.d.dmg * G.Game.diff().dmg * (c.heavy ? 1.6 : 1), info = { melee: true, cid: c.id, heavy: c.heavy };
     if (t.local) G.Player.damage(amt, c, cause, info);
@@ -149,11 +163,21 @@
     const chance = Math.min(0.75, ((SKILL[c.type] ?? 0.15) + c.readN * 0.1) * k);
     if (Math.random() > chance) return 1;
     c.yaw = toA;
-    const parry = Math.random() < (LEADER.test(c.type) ? 0.55 : 0.4);
+    const r = Math.random(), lead = LEADER.test(c.type);
+    const kind = extra.heavy ? (r < (lead ? 0.45 : 0.3) ? 'parry' : r < 0.7 ? 'dodge' : 'break') : r < (lead ? 0.5 : 0.35) ? 'parry' : r < 0.85 ? 'block' : 'dodge';
+    const parry = kind === 'parry';
     c.readN = 0;
+    npcFx(c, kind);
+    G.Net.send({ t: 'parryFx', id: c.id, k: kind, to: mine ? G.Net.myId : attackerId });
+    if (kind === 'break') { c.stun = Math.max(c.stun || 0, 0.9); c.guardT = 0; return 1.15; } // intentó cubrirse del pesado
+    if (kind === 'dodge') {
+      // Salta hacia atrás (o a un lado) y el golpe no le toca
+      const a = toA + Math.PI + (Math.random() - 0.5) * 1.2, nx = c.x + Math.sin(a) * 1.7, nz = c.z + Math.cos(a) * 1.7;
+      if (!c.deck && G.Creatures.validPos(c.type, nx, nz)) { c.x = nx; c.z = nz; }
+      c.dodgeT = 0.3;
+      return 0;
+    }
     c.guardT = parry ? 0.25 : 0.45;
-    npcFx(c, parry ? 'parry' : 'block');
-    G.Net.send({ t: 'parryFx', id: c.id, k: parry ? 'parry' : 'block', to: mine ? G.Net.myId : attackerId });
     if (!parry) return 0.25;
     // Parada: el atacante queda aturdido y el NPC contraataca enseguida
     if (mine) Pa.staggerMe(0.75, `🛡️ ¡${c.name || c.d.name} te paró el golpe! Cúbrete: va a contraatacar`);
@@ -163,10 +187,13 @@
     return 0;
   };
   // Chispas y sonido de un NPC que se cubre o para
+  const FXTXT = { parry: '¡PARADA!', block: 'BLOQUEO', dodge: 'ESQUIVA', break: 'GUARDIA ROTA' };
   function npcFx(c, k) {
     const a = handOf(c);
-    spark(a, k === 'parry' ? 0xfff2c0 : 0xffd8a0, k === 'parry' ? 1 : 0.6);
-    G.Audio.playAt(k === 'parry' ? 'parry' : 'block', c.x, c.z, 35);
+    if (k === 'dodge') { G.Combat.dust(c.x, c.y + 0.05, c.z, 4, 0.9); G.Audio.playAt('whoosh', c.x, c.z, 30); }
+    else { spark(a, k === 'parry' ? 0xfff2c0 : k === 'break' ? 0xff9a70 : 0xffd8a0, k === 'block' ? 0.6 : 1); G.Audio.playAt(k === 'block' ? 'block' : 'parry', c.x, c.z, 35); }
+    G.Combat.dmgNum(c.x, c.y + 2.1, c.z, 0, k, FXTXT[k]);
+    if (k === 'parry' || k === 'break') G.Combat.stopT = Math.max(G.Combat.stopT, 0.06);
   }
 
   // ------------------------------------------------------------------ red
@@ -174,7 +201,7 @@
     if (m.t === 'parryC' && G.Net.authority()) stun(m.id, m.s || 1.3);
     else if (m.t === 'parryFx') {
       const c = G.Creatures.byId(m.id);
-      if (c) { c.guardNet = 0.4; npcFx(c, m.k); }
+      if (c) { if (m.k === 'parry' || m.k === 'block') c.guardNet = 0.4; if (m.k === 'dodge') c.dodgeT = 0.3; npcFx(c, m.k); }
       if (m.k === 'parry' && m.to === G.Net.myId) Pa.staggerMe(0.75, `🛡️ ¡${c ? c.name || c.d.name : 'Tu enemigo'} te paró el golpe! Cúbrete: va a contraatacar`);
     } else if (m.t === 'parried' && m.to === G.Net.myId) Pa.staggerMe(0.75, `🛡️ ¡${G.Net.esc(G.Net.nameOf(from))} te paró el golpe!`);
   };

@@ -202,6 +202,7 @@
     });
     if (m.vinfo) { c.name = m.vinfo.name; c.role = m.vinfo.role; }
     if (m.ghostMats) c.ghostMats = m.ghostMats;
+    if (m.joints) c.joints = m.joints;
     if (id !== undefined) C.nextId = Math.max(C.nextId, id);
     m.g.position.set(x, c.y, z);
     G.scene.add(m.g);
@@ -384,6 +385,15 @@
     G.Audio.playAt(SOUND[c.type] || 'grunt', c.x, c.z);
     return true;
   }
+  // Los tiradores apuntan un momento (brilla el arma) antes de disparar: da tiempo a esquivar o desviar la bala
+  function aimShot(c, t) {
+    if (c.windup > 0 || c.stun > 0) return;
+    c.wShot = true; c.heavy = false; c.wT = t.id;
+    c.windup = 0.65 * ([1.25, 1, 0.85][G.state.diff] ?? 1);
+    c.cd = c.windup + 0.2;
+    c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
+    G.Parry.glint(c, false);
+  }
   function shootAt(c, t) {
     c.cd = 2.6; c.lunge = 0.3;
     c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
@@ -395,8 +405,8 @@
     G.Audio.playAt('cannon', c.x, c.z, 60);
     if (!hit) return;
     const amt = c.d.dmg * G.Game.diff().dmg;
-    if (t.local) G.Player.damage(amt, c, CAUSE[c.type], { shot: true });
-    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause: CAUSE[c.type], sx: c.x, sz: c.z, shot: 1 });
+    if (t.local) G.Player.damage(amt, c, CAUSE[c.type], { shot: true, cid: c.id });
+    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause: CAUSE[c.type], sx: c.x, sz: c.z, shot: 1, cid: c.id });
   }
   // Un jefe bloqueado prueba a avanzar en diagonal (bordea el obstáculo)
   function sidestep(c, step, speed) {
@@ -428,17 +438,30 @@
     if (c.dead || c.d.friendly) return;
     c.flash = 0.15;
     G.Audio.playAt('hit', c.x, c.z);
-    if (!G.Net.authority()) { G.Net.send({ t: 'hurtC', id: c.id, dmg, poison: extra && extra.poison, mel: extra && extra.melee ? 1 : 0, rip: extra && extra.riposte ? 1 : 0 }); return; }
+    // La parte golpeada reacciona (cabeza, torso, brazo o pierna); el muñeco de paja se balancea en sus articulaciones
+    const react = (k = 1) => {
+      const z = extra && extra.zone;
+      if (c.model && c.model.react) c.model.react(z || 'torso', extra && extra.side, z ? k : 0.6 * k);
+      if (c.joints) G.Combat.reactDummy(c, z || 'torso', extra && extra.side, extra && extra.heavy ? 1.6 : 1);
+    };
+    if (!G.Net.authority()) { react(); G.Net.send({ t: 'hurtC', id: c.id, dmg, poison: extra && extra.poison, mel: extra && extra.melee ? 1 : 0, rip: extra && extra.riposte ? 1 : 0, hv: extra && extra.heavy ? 1 : 0, zn: extra && extra.zone, zs: extra && extra.side }); return; }
     const fromPeer = attackerId !== undefined && attackerId !== G.Net.myId;
     const src = fromPeer ? G.Net.peers.get(attackerId) : G.Player.pos;
     // Piratas, marines y guerreros se cubren o paran los golpes cuerpo a cuerpo (parry.js)
     const def = G.Parry.npcDefend(c, attackerId, extra);
     if (def <= 0) { c.flash = 0; c.aggroId = fromPeer ? attackerId : G.Net.myId; c.aggro = Math.max(c.aggro, 25); return; }
     dmg *= def;
+    react();
+    // Efectos de la zona en las personas y animales: cabeza aturde un instante, un brazo puede cortar el golpe
+    // que preparaba, una pierna le frena
+    const zn = extra && extra.zone, tough = c.d.bigBoss || /_boss$|_captain$/.test(c.type) || c.type === 'boss';
+    if (zn === 'cabeza' && !tough && !c.d.dummy) { c.stun = Math.max(c.stun || 0, 0.3); c.windup = 0; }
+    else if (zn === 'brazo' && c.windup > 0 && Math.random() < 0.35) { c.windup = 0; c.cd = 0.8; }
+    else if (zn === 'pierna') c.slowT = 1.6;
     // Tripulación de un barco aliado atacada a propósito: ese barco te trata ya como enemigo
     if (c.deck && extra && extra.melee && G.Navy.provoked) { const s = G.Ships.byId(c.deck.ship); if (s) G.Navy.provoked(s, fromPeer ? attackerId : G.Net.myId); }
     c.hp -= dmg;
-    if (c.d.dummy) { c.hp = c.d.hp; c.wobble = 0.5; return; }
+    if (c.d.dummy) { c.hp = c.d.hp; if (!c.joints) c.wobble = 0.5; return; }
     if (extra && extra.poison) c.poisoned = Math.max(c.poisoned || 0, extra.poison);
     if (src && c.type !== 'boss' && c.type !== 'whale' && c.type !== 'serpent' && c.type !== 'pirate_boss' && !c.d.bigBoss) {
       const dx = c.x - src.x, dz = c.z - src.z, d = Math.hypot(dx, dz) || 1;
@@ -531,7 +554,16 @@
       const lunge = c.lunge > 0 ? Math.sin((c.lunge / 0.3) * Math.PI) : 0;
       const crouch = T === 'jaguar' && c.pounce <= 0 && c.aggro > 0 && c.speedNow < 4 ? 1 : 0;
       c.crouchK = U.lerp(c.crouchK || 0, crouch, Math.min(1, dt * 5));
-      G.Rig.animate(rig, dt, { speed: c.speedNow / s, turn: c.turnRate, lunge, jaw: c.jawK !== undefined ? c.jawK : Math.max(lunge, c.special ? 1 : 0), crouch: c.crouchK, fear: c.fear, ground, noLegs: c.fly > 0.4, c });
+      // Animación por niveles de distancia: cerca, cada fotograma; lejos, cada 2 o 3 fotogramas con el tiempo
+      // acumulado (a esa distancia se ve igual de fluido y el juego va más suelto)
+      c.animAcc = (c.animAcc || 0) + dt;
+      // Velocidad para la animación, suavizada: al pararse o arrancar las patas no saltan de golpe
+      c.animSpeed = U.lerp(c.animSpeed || 0, c.speedNow, Math.min(1, dt * 7));
+      const every = dc < 28 ? 1 : dc < 70 ? 2 : 3;
+      if (every === 1 || (c.animN = (c.animN || 0) + 1) % every === 0) {
+        G.Rig.animate(rig, c.animAcc, { speed: c.animSpeed / s, turn: c.turnRate, lunge, jaw: c.jawK !== undefined ? c.jawK : Math.max(lunge, c.special ? 1 : 0), crouch: c.crouchK, fear: c.fear, ground, noLegs: c.fly > 0.4, c });
+        c.animAcc = 0;
+      }
       rig.mat.userData.u.uTime.value += dt;
     }
     if (c.flash > 0) c.flash -= dt;
@@ -590,15 +622,23 @@
     c.vy = y;
     if (c.model) {
       c.swing = Math.max(0, (c.swing || 0) - dt / 0.32);
-      if (c.lunge > 0.29) c.swing = 1;
+      if (c.lunge > 0.29) {
+        if (c.swing < 0.9 && c.hold && !/_gun$/.test(c.type)) G.Combat.trailAt(c.x, y + 1.25, c.z, c.yaw + Math.PI, c.sd ?? 2, c.sd === 4);
+        c.swing = 1;
+      }
       c.guardNet = Math.max(0, (c.guardNet || 0) - dt);
-      const wind = G.Net.authority() ? c.windup > 0 : c.windNet, stg = G.Net.authority() ? c.stun > 0 : c.stunNet;
+      c.dodgeT = Math.max(0, (c.dodgeT || 0) - dt);
+      const auth = G.Net.authority(), wind = auth ? c.windup > 0 : c.windNet, stg = auth ? c.stun > 0 : c.stunNet, hv = wind && (auth ? c.heavy : c.heavyNet);
       const grd = (c.guardT || 0) > 0 || c.guardNet > 0;
-      c.model.update(dt, { pos: _vp.set(c.x, y, c.z), yaw: c.yaw + Math.PI, pitch: 0, speed: c.speedNow, onGround: true, swimming: false, swing: c.swing, holding: c.role === 'guard' || !!c.hold, windup: wind ? 1 : 0, guard: grd ? 1 : 0, stagger: stg ? 1 : 0 });
+      c.wK = U.lerp(c.wK || 0, wind && !hv ? 1 : 0, Math.min(1, dt * 12)); c.hK = U.lerp(c.hK || 0, hv ? 1 : 0, Math.min(1, dt * 12));
+      const ma = c.speedNow > 0.3 && c.mvYaw !== undefined ? U.angDiff(c.yaw, c.mvYaw) : 0;
+      c.model.update(dt, { pos: _vp.set(c.x, y, c.z), yaw: c.yaw + Math.PI, pitch: 0, speed: c.speedNow, onGround: true, swimming: false, swing: c.swing, holding: c.role === 'guard' || !!c.hold, windup: c.wK, heavyWind: c.hK, guard: grd ? 1 : 0, stagger: stg ? 1 : 0,
+        swingDir: c.sd ?? 2, dodge: c.dodgeT > 0 ? 1 : 0, dodgeSide: -2, moveAng: ma });
     } else {
       c.g.position.set(c.x, y, c.z);
       c.g.rotation.y = c.yaw + (T === 'crab' || T === 'lavacrab' ? Math.PI / 2 : 0);
       if (c.wobble > 0) { c.wobble = Math.max(0, c.wobble - dt); c.g.rotation.z = Math.sin(c.wobble * 30) * c.wobble * 0.25; }
+      if (c.joints) G.Combat.springs(c, dt);
       if (c.flash > 0) c.flash -= dt;
       if (c.mat.emissive) {
         if (c.flash > 0) c.mat.emissive.setRGB(0.6, 0, 0);
@@ -654,7 +694,10 @@
         else {
           const wt = tg.find((t) => t.id === c.wT && !t.dead);
           if (wt) c.yaw += U.angDiff(c.yaw, Math.atan2(wt.x - c.x, wt.z - c.z)) * Math.min(1, dt * 7);
-          if ((c.windup -= dt) <= 0) G.Parry.strike(c, wt, CD[c.type], CAUSE[c.type]);
+          if ((c.windup -= dt) <= 0) {
+            if (c.wShot) { c.wShot = false; c.windup = 0; if (wt) shootAt(c, wt); }
+            else G.Parry.strike(c, wt, CD[c.type], CAUSE[c.type]);
+          }
         }
         if (!c.deck) c.y = U.lerp(c.y, G.height(c.x, c.z), Math.min(1, dt * 10));
         animate(c, dt, night); continue;
@@ -685,11 +728,16 @@
         if (!at) return false;
         const d = Math.hypot(at.x - c.x, at.z - c.z);
         tx = at.x; tz = at.z; speed = c.d.run; faceT = at;
-        if (d < reach) { moving = false; attack(c, at, reach + 0.1); }
+        if (G.Parry.fights(c) && c.cd > 0.35 && d < 4.2 && !c.deck) {
+          c.orbit = c.orbit || (Math.random() < 0.5 ? 1 : -1);
+          if (Math.random() < dt * 0.35) c.orbit = -c.orbit;
+          const a = Math.atan2(c.x - at.x, c.z - at.z) + c.orbit * 0.75;
+          tx = at.x + Math.sin(a) * 2.7; tz = at.z + Math.cos(a) * 2.7; speed = c.d.speed * 1.7; strafe = true;
+        } else if (d < reach) { moving = false; attack(c, at, reach + 0.1); }
         if (d > keep) c.aggro = 0;
         return true;
       };
-      let faceT = null;
+      let faceT = null, strafe = false;
       // Marines en la cubierta de un barco de la Marina Blanca (navy.js): en su puesto, pelean desde allí
       if (c.deck) {
         if (!G.Navy.placeOnDeck(c)) { removeAt(i); continue; }
@@ -698,7 +746,7 @@
           const t = foe.t;
           c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
           c.aggro = Math.max(c.aggro, 2); c.aggroId = t.id;
-          if (/_gun$/.test(c.type)) { if (foe.d < 32 && c.cd <= 0) shootAt(c, t); }
+          if (/_gun$/.test(c.type)) { if (foe.d < 32 && c.cd <= 0) aimShot(c, t); }
           else if (foe.d < 2.6) attack(c, t, 2.7);
         }
         c.speedNow = 0; animate(c, dt, night); continue;
@@ -786,7 +834,7 @@
             faceT = at;
             if (d < 6) fleeFrom(at, d, c.d.run * 0.8);
             else if (d > 17) { tx = at.x; tz = at.z; speed = c.d.run; }
-            else { moving = false; if (c.cd <= 0) shootAt(c, at); }
+            else { moving = false; if (c.cd <= 0) aimShot(c, at); }
             if (d > 36) c.aggro = 0;
           } else wander(c.homeR || 10);
           break;
@@ -915,11 +963,14 @@
       if (c.aboard && c.follow) { c.speedNow = 0; animate(c, dt, night); continue; }
       const mx = tx - c.x, mz = tz - c.z, md = Math.hypot(mx, mz);
       if (moving && md > 0.3) {
-        c.yaw += U.angDiff(c.yaw, Math.atan2(mx, mz)) * Math.min(1, dt * (c.d.sea ? 2.5 : 6));
+        const hd = Math.atan2(mx, mz);
+        if (strafe && faceT) { c.mvYaw = hd; c.yaw += U.angDiff(c.yaw, Math.atan2(faceT.x - c.x, faceT.z - c.z)) * Math.min(1, dt * 8); }
+        else { c.yaw += U.angDiff(c.yaw, hd) * Math.min(1, dt * (c.d.sea ? 2.5 : 6)); c.mvYaw = c.yaw; }
+        if (c.slowT > 0) { c.slowT -= dt; speed *= 0.6; } // le dieron en una pierna
         // Ningún jefe corre más que tú (7,2 m/s esprintando): siempre puedes escapar
         if (c.d.bigBoss || c.d.boss || c.type === 'serpent' || /_boss$|_captain$/.test(c.type)) speed = Math.min(speed, BOSS_MAX);
         const step = speed * dt;
-        const nx = c.x + Math.sin(c.yaw) * step, nz = c.z + Math.cos(c.yaw) * step;
+        const nx = c.x + Math.sin(c.mvYaw) * step, nz = c.z + Math.cos(c.mvYaw) * step;
         const flying = c.fly > 0.3; // el dragón en vuelo pasa por encima de todo
         if ((flying || validPos(c.type, nx, nz)) && (c.d.sea || flying || (!G.Build.blocked(nx, nz, c.type === 'boss' || c.type === 'bear' ? 0.9 : c.d.bigBoss ? 1.3 : 0.4) && !(c.d.bigBoss && intoRock(c, nx, nz))))) { c.x = nx; c.z = nz; c.speedNow = speed; c.stuck = 0; }
         else if (c.d.bigBoss && sidestep(c, step, speed)) { /* los jefes rodean rocas y paredes en vez de quedarse parados */ }
@@ -967,6 +1018,7 @@
       c.flyNet = !!(fl & 32); c.special = !!(fl & 64);
       const w = !!(fl & 128);
       if (w && !c.windNet) G.Parry.glint(c, !!(fl & 256));
+      c.heavyNet = !!(fl & 256);
       c.windNet = w; c.stunNet = !!(fl & 512);
       if (fl & 1024) c.guardNet = Math.max(c.guardNet || 0, 0.15);
     }
@@ -981,6 +1033,7 @@
       c.x += (c.nx - c.x) * k; c.z += (c.nz - c.z) * k;
       c.yaw += U.angDiff(c.yaw, c.nyaw) * k;
       c.speedNow = U.lerp(c.speedNow, Math.hypot(c.x - ox, c.z - oz) / Math.max(dt, 1e-3), 0.3);
+      if (Math.hypot(c.x - ox, c.z - oz) > 1e-3) c.mvYaw = Math.atan2(c.x - ox, c.z - oz);
       let gy = G.height(c.x, c.z);
       if (c.model && gy < -0.3) for (const s of G.Ships.list) if (!s.sinking && Math.hypot(s.x - c.x, s.z - c.z) < (s.def.L || 5) / 2 + 1) { gy = G.Ships.toWorld(s, _deck.set(0, s.def.deckY + 0.02, 0), _deckW).y; break; }
       c.y = U.lerp(c.y, gy, Math.min(1, dt * 10));
@@ -1008,6 +1061,8 @@
       const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
       return SERP_BODY.map(([k, dy, r]) => ({ x: c.x + fx * k, y: vy + dy, z: c.z + fz * k, r }));
     }
+    // Personas y muñecos de paja: además del cuerpo, la cabeza y las piernas (para acertar en cada zona)
+    if (c.model || (c.joints && c.d.dummy)) return [{ x: c.x, y: c.y + c.d.bodyY, z: c.z, r: c.d.hitR }, { x: c.x, y: c.y + 1.68, z: c.z, r: 0.2 }, { x: c.x, y: c.y + 0.38, z: c.z, r: 0.28 }];
     return [{ x: c.x, y: c.d.sea ? vy + (c.type === 'whale' ? 0.9 : 0.1) : c.y + c.d.bodyY, z: c.z, r: c.d.hitR }];
   };
   // Distancia del rayo (o -1) a la criatura

@@ -83,7 +83,9 @@
     }
     for (const p of G.Net.peers.values()) {
       if (p.dead) continue;
-      const t = raySphere(o, d, p.x, p.y + (p.swim ? 0.3 : 1.0), p.z, 0.6);
+      // Cuerpo y cabeza (para poder acertar a la cabeza)
+      const tb = raySphere(o, d, p.x, p.y + (p.swim ? 0.3 : 1.0), p.z, 0.6), th = p.swim ? -1 : raySphere(o, d, p.x, p.y + 1.68, p.z, 0.22);
+      const t = tb < 0 ? th : th < 0 ? tb : Math.min(tb, th);
       if (t >= 0 && t < bt && t < wreach + 0.4) { bt = t; best = { kind: 'peer', p, t }; }
     }
     for (const c of G.Landmarks.loot) {
@@ -143,7 +145,8 @@
       const p = tg.p;
       let t = `<b style="color:${G.Net.esc(p.color)}">${G.Net.esc(p.name)}</b>`;
       if (p.sinking) t += ' · 🛟 <kbd>E</kbd> ¡Rescatar!';
-      if (G.Modes.active && p.team !== G.Net.team) t += ` · equipo ${G.Modes.teamName(p.team)}` + (G.Modes.canHurtPlayer(p.team) ? ' · <kbd>Clic</kbd> Atacar' : '');
+      else if (G.Duel.available()) t += ' · ' + G.Duel.promptFor(p);
+      if (G.Modes.active && p.team !== G.Net.team) t += ` · equipo ${G.Modes.teamName(p.team)}` + (G.Modes.canHurtPeer(p) ? ' · <kbd>Clic</kbd> Atacar' : '');
       return t;
     }
     if (tg.kind === 'struct') {
@@ -210,7 +213,7 @@
     if (tg.kind === 'loot') { Game.openLoot(tg.c); return; }
     if (tg.kind === 'res') { if (!tg.r.k.tool) G.Res.interact(tg.r); return; }
     if (tg.kind === 'creature') { if (tg.c.d.npc) G.Story.talk(tg.c); return; }
-    if (tg.kind === 'peer') { if (tg.p.sinking) G.Story.rescue(tg.p); return; }
+    if (tg.kind === 'peer') { if (tg.p.sinking) G.Story.rescue(tg.p); else if (G.Duel.available()) G.Duel.interact(tg.p); return; }
     if (['station', 'piece', 'ship'].includes(tg.kind)) { G.Ships.interact(tg); return; }
     if (tg.kind.startsWith('vs')) { G.Modes.interact(tg); return; }
     if (tg.kind === 'water') {
@@ -265,7 +268,7 @@
 
   Game.attack = function () {
     const P = G.Player;
-    if (P.cd > 0 || P.dead || G.Parry.guard || G.Parry.stagger > 0) return;
+    if (P.cd > 0 || P.dead || G.Parry.guard || G.Parry.stagger > 0 || G.Combat.heavyT > 0) return;
     if (G.Story.dialog) return;
     if (G.Grave.aimed()) return; // mirando a la ✖ de un cofre: el clic mantenido cava (grave.js)
     // Clic en una hoja del tablón de encargos: aceptar o entregar
@@ -295,19 +298,32 @@
     P.cd = 0.5;
     P.swing = 1;
     P.swingCount++;
+    P.swingDir = 2; // talar, picar…: de arriba abajo
     G.Audio.play('swing');
     const mul = G.Story.meleeMul();
     if (tg && tg.kind === 'creature' && tg.c.d.friendly) { G.UI.msg(tg.c.type === 'aldeano' ? 'Los aldeanos son gente de paz: no les hagas daño.' : 'No vas a atacar a tu propia gente.', 'warn', 'npcatk'); return; }
     if (tg && tg.kind === 'creature') {
       if (tg.c.d.npc && !G.Story.tribeHostile() && !G.Input.keys.ShiftLeft) { G.UI.msg('Mantén <kbd>Shift</kbd> para atacar a un aldeano (¡la tribu se enfadará!).', 'warn', 'npcatk'); return; }
-      const rip = G.Parry.riposteOn(tg.c.id);
-      G.Creatures.hurt(tg.c, (it && it.dmg ? it.dmg : 5) * mul * (rip ? 2 : 1), undefined, { melee: true, riposte: rip });
+      const c = tg.c, cm = G.Combat.comboStep(), z = G.Combat.zoneFor(tg), rip = G.Parry.riposteOn(c.id);
+      P.cd = cm.fin ? 0.6 : 0.42;
+      G.Combat.trail(cm.n);
+      const dmg = (it && it.dmg ? it.dmg : 5) * mul * z.mul * cm.mul * (rip ? 2 : 1), hp0 = c.hp;
+      G.Creatures.hurt(c, dmg, undefined, { melee: true, riposte: rip, zone: z.zone, side: z.side });
+      const a = G.Creatures.aimPoint(c);
+      if (c.d.dummy || !G.Net.authority() || c.hp < hp0 || c.dead) { G.Combat.hitNum(a.x, a.y + 0.9, a.z, c.d.dummy || !G.Net.authority() ? dmg : hp0 - Math.max(0, c.hp), z.zone, rip ? 'crit' : null, c.d.dummy); G.Combat.impact(a.x, a.y, a.z, false); }
+      if (cm.fin) G.Combat.knock(c, 1.3);
       if (it && it.tool && !it.torch) G.Inv.wear(1);
     } else if (tg && tg.kind === 'peer') {
       const p = tg.p;
-      if (G.Modes.canHurtPlayer(p.team)) {
-        G.Net.send({ t: 'dmgP', to: p.id, amt: (it && it.dmg ? it.dmg : 5) * mul * 0.8 * (G.Parry.riposteOn('p' + p.id) ? 2 : 1), cause: `${G.Net.name} te derrotó`, sx: P.pos.x, sz: P.pos.z, by: G.Net.myId, mel: 1 });
+      if (G.Modes.canHurtPeer(p)) {
+        const cm = G.Combat.comboStep(), z = G.Combat.zoneFor(tg);
+        P.cd = cm.fin ? 0.6 : 0.42;
+        G.Combat.trail(cm.n);
+        const dmg = (it && it.dmg ? it.dmg : 5) * mul * 0.8 * z.mul * cm.mul * (G.Parry.riposteOn('p' + p.id) ? 2 : 1);
+        G.Net.send({ t: 'dmgP', to: p.id, amt: dmg, cause: `${G.Net.name} te derrotó`, sx: P.pos.x, sz: P.pos.z, by: G.Net.myId, mel: 1, zn: z.zone, zs: z.side });
         G.Audio.play('hit');
+        if (p.model && p.model.react) p.model.react(z.zone, z.side, 1);
+        G.Combat.hitNum(p.x, p.y + 2, p.z, dmg, z.zone); G.Combat.impact(p.x, p.y + 1.1, p.z, false);
         if (it && it.tool && !it.torch) G.Inv.wear(1);
       }
     } else if (tg && tg.kind === 'res' && tg.r.k.tool) G.Res.hit(tg.r, held);
@@ -323,7 +339,7 @@
     G.Creatures.forEachAlive((c) => { const t = G.Creatures.rayHit(c, o, d, 0.2); if (t >= 0 && t < bt) { bt = t; best = c; } });
     if (best) { G.Creatures.hurt(best, 8, undefined, { poison: 12 }); G.UI.msg(`🎯 Dardo en el blanco: ${best.d.name} envenenado`, 'good', 'dart'); G.Ach.add('dart'); }
     for (const p of G.Net.peers.values()) {
-      if (p.dead || !G.Modes.canHurtPlayer(p.team)) continue;
+      if (p.dead || !G.Modes.canHurtPeer(p)) continue;
       const t = raySphere(o, d, p.x, p.y + 1, p.z, 0.6);
       if (t >= 0 && t < bt) G.Net.send({ t: 'dmgP', to: p.id, amt: 6, cause: 'Un dardo venenoso', sx: P.pos.x, sz: P.pos.z, poison: 10, by: G.Net.myId });
     }
@@ -751,6 +767,8 @@
     G.Navy.update(dt);
     G.Faction.update(dt);
     G.Parry.update(dt);
+    G.Combat.update(dt);
+    G.Duel.update(dt);
     G.Bosses.update(dt);
     G.Grave.update(dt);
     P.cd = Math.max(0, P.cd - dt);
@@ -867,6 +885,8 @@
     G.Story.close();
     G.Styles.clear();
     G.Parry.clear();
+    G.Combat.clear();
+    G.Duel.clear();
     G.UI.waypoint = null;
   };
   // Genera el archipiélago (con pantalla de carga porque tarda un momento)

@@ -427,21 +427,24 @@
         if (G.Ships.helmKey(e.code)) return;
         if (G.Cheats.keyDown(e)) return; // atajos de los trucos (doble Espacio, doble W, Ctrl + F)
         if (e.code === 'Tab' || e.code === 'KeyI') G.Game.openInventory();
-        else if ((e.code === 'KeyT' || e.code === 'Enter') && G.Net.active) { e.preventDefault(); Input.keys = {}; G.UI.openChat(); }
+        else if (e.code === 'Enter' && G.Net.active) { e.preventDefault(); Input.keys = {}; G.UI.openChat(); }
+        else if (e.code === 'KeyT') { if (!e.repeat) G.Combat.toggleLock(); }
         else if (e.code === 'KeyE') G.Game.interact();
-        else if (e.code === 'KeyF' && !e.ctrlKey && !e.metaKey) G.Game.useHeld();
+        else if (e.code === 'KeyF' && !e.ctrlKey && !e.metaKey) { if (!e.repeat && !G.Combat.fKey()) G.Game.useHeld(); }
         else if (e.code === 'KeyG') G.Story.usePower();
         else if (e.code === 'KeyV') G.Player.toggleCam();
         else if (e.code === 'KeyM') G.Game.openMap();
         else if (e.code === 'KeyJ') G.Game.openJournal();
         else if (e.code === 'KeyX') G.Game.demolish();
         else if (e.code === 'KeyK') G.Cheats.open();
-        else if (e.code === 'KeyQ') G.Styles.tech(0);
+        else if (e.code === 'KeyQ') { if (!e.repeat) G.Combat.dodge(); }
         else if (e.code === 'KeyB') G.Drops.dropHeld(e.shiftKey);
-        else if (e.code === 'KeyZ') G.Styles.tech(1);
+        else if (e.code === 'KeyZ') G.Styles.tech(0);
         else if (e.code === 'KeyR') {
-          const tg = G.Game.target;
-          if (tg && tg.kind === 'piece' && G.Ships.rotatePiece(tg)) G.Audio.play('select');
+          const tg = G.Game.target, hid = G.Inv.heldId();
+          // R: definitivo de tu estilo si llevas su arma (y no estás colocando nada); si no, girar piezas
+          if (G.Styles.active() && !(hid && (G.ITEMS[hid].place || G.Ships.itemType(hid))) && !(tg && tg.kind === 'piece') && !G.Player.ship) G.Styles.tech(1);
+          else if (tg && tg.kind === 'piece' && G.Ships.rotatePiece(tg)) G.Audio.play('select');
           else if (G.Player.ship && !G.Player.station && !G.Ships.itemType(G.Inv.heldId())) { if (G.Ships.applyLook(G.Player.ship)) G.Audio.play('select'); }
           else if (G.Ships.itemType(G.Inv.heldId())) { G.Ships.rot = (G.Ships.rot + Math.PI / 2) % (Math.PI * 2); G.Audio.play('select'); }
           else { G.Build.rotIdx = (G.Build.rotIdx + 1) % 4; G.Audio.play('select'); }
@@ -479,6 +482,7 @@
     if (!window.islaDesktop) window.addEventListener('beforeunload', (e) => { if (G.state && G.state.mode !== 'menu' && !G.Net.active) { e.preventDefault(); e.returnValue = ''; } });
     window.addEventListener('keyup', (e) => { Input.keys[e.code] = false; G.Cheats.keyUp(e); });
     window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; G.Cheats.on.fast = false; G.Parry.up(); });
+    canvas.addEventListener('auxclick', (e) => { if (e.button === 1) e.preventDefault(); });
     canvas.addEventListener('mousedown', (e) => {
       if (G.state.mode !== 'playing') return;
       if (!Input.locked) { Main.lockPointer(); return; }
@@ -486,15 +490,17 @@
       if (e.button === 0) { Input.mouseL = true; G.Game.attack(); }
       else if (e.button === 2) {
         const h = G.Inv.heldId();
-        // Con un arma de cuerpo a cuerpo (o sin nada en la mano): guardia y parada (parry.js)
-        if (h && G.ITEMS[h].spyglass) G.Player.zoom = 1; else if (!G.Parry.down()) G.Game.useHeld();
-      }
+        // Con un arma de cuerpo a cuerpo (o sin nada en la mano): golpe pesado (combat.js); si no, usar el objeto
+        if (h && G.ITEMS[h].spyglass) G.Player.zoom = 1; else if (!G.Combat.heavy()) G.Game.useHeld();
+      } else if (e.button === 1) { e.preventDefault(); G.Combat.toggleLock(); } // rueda: fijar al enemigo
     });
-    window.addEventListener('mouseup', (e) => { if (e.button === 0) Input.mouseL = false; if (e.button === 2) { G.Player.zoom = 0; G.Parry.up(); } });
+    window.addEventListener('mouseup', (e) => { if (e.button === 0) Input.mouseL = false; if (e.button === 2) G.Player.zoom = 0; });
+    window.addEventListener('keyup', (e) => { if (e.code === 'KeyF') G.Parry.up(); });
     window.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('mousemove', (e) => {
       if (!Input.locked || G.state.mode !== 'playing') return;
       if (G.Ships.aimInput(e.movementX, e.movementY)) return;
+      if (G.Combat.lock) return; // con la mirada fijada, el personaje sigue al enemigo
       const P = G.Player, k = (P.zoom ? 0.0006 : 0.0022) * G.Profile.set('sens'), inv = G.Profile.set('invY') ? -1 : 1;
       P.yaw -= e.movementX * k;
       P.pitch = U.clamp(P.pitch - e.movementY * k * inv, -1.45, 1.45);
@@ -586,7 +592,7 @@
     requestAnimationFrame(loop);
     lastFrame = performance.now();
     const dt = Math.min(0.05, clock.getDelta());
-    tick(dt, true);
+    tick(dt * (G.Combat ? G.Combat.timeScale(dt) : 1), true);
     renderer.toneMappingExposure = G.World.exposure;
     renderer.render(scene, camera);
     // FPS y aviso de rendimiento

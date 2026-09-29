@@ -16,6 +16,7 @@
   ];
   const B = {};
   BONES.forEach(([n], i) => (B[n] = i));
+  Char.B = B; // índices de los huesos (combat.js los usa para saber dónde entra un golpe)
 
   // ------------------------------------------------------------------ cuerpo esculpido (sdf.js + rig.js)
   // Una sola malla para todas las personas: anatomía real (cara con cejas, nariz, labios, orejas y ojos; cuello,
@@ -214,6 +215,8 @@
       phase: 0, t: Math.random() * 10, walkW: 0, runW: 0, airW: 0, swimW: 0,
       rot: bones.map(() => new THREE.Vector3()), tgt: bones.map(() => new THREE.Vector3()),
     };
+    // Golpe recibido en una parte del cuerpo: esa articulación reacciona (cabeza, torso, brazo o pierna)
+    o.react = (zone, side, k = 1) => { o.hitZ = zone; o.hitS = side; o.hitK = Math.min(1.3, (o.hitK || 0) * 0.5 + k); };
     o.update = (dt, s) => {
       animate(o, dt, s);
       // lodD: distancia fija para las vistas previas (retrato del cartel, tienda), que no usan la cámara del juego
@@ -225,7 +228,9 @@
   };
 
   // ------------------------------------------------------------------ animación procedural
-  // s = { pos, yaw, pitch, speed, onGround, swimming, swing (1→0), holding, windup, guard, stagger (0..1, parry.js), lodD }
+  // s = { pos, yaw, pitch, speed, onGround, swimming, swing (1→0), holding, windup, guard, stagger (0..1, parry.js), lodD,
+  //       swingDir (0 tajo, 1 revés, 2 de arriba, 3 estocada, 4 pesado), heavyWind, dodge, dodgeSide, land (0..1),
+  //       moveAng (dirección de la marcha respecto a donde miras: de lado y hacia atrás) }
   function animate(o, dt, s) {
     dt = Math.min(dt, 0.1);
     o.t += dt;
@@ -236,7 +241,12 @@
     o.airW += ((s.onGround === false && !s.swimming ? 1 : 0) - o.airW) * k(9);
     o.swimW += ((s.swimming ? 1 : 0) - o.swimW) * k(5);
     const freq = sp > 0.15 ? 0.95 + sp * 0.2 : 0;
-    o.phase += dt * freq * Math.PI * 2;
+    // De lado, las caderas giran hacia donde vas (el pecho sigue mirando al frente); hacia atrás, las piernas
+    // hacen el paso al revés
+    const ma = s.moveAng || 0, backW = sp > 0.3 && Math.abs(ma) > 1.95;
+    const twist = sp > 0.3 ? U.clamp(backW ? U.angDiff(Math.PI, ma) : ma, -1.05, 1.05) : 0;
+    o.twist = U.lerp(o.twist || 0, twist, 1 - Math.exp(-dt * 8));
+    o.phase += dt * freq * Math.PI * 2 * (backW ? -1 : 1);
 
     const T = o.tgt;
     for (const v of T) v.set(0, 0, 0);
@@ -330,16 +340,73 @@
       T[B.thR].x -= 0.3 * stg; T[B.shR].x += 0.35 * stg;
     }
 
-    // Golpe con el brazo derecho (anticipación → impacto → recuperación)
+    // Caderas hacia donde caminas (de lado)
+    T[B.hips].y += o.twist; T[B.spine].y -= o.twist * 0.6; T[B.chest].y -= o.twist * 0.4;
+
+    // Cargando un golpe pesado: el arma bien atrás con las dos manos, las rodillas dobladas (y tiembla un poco)
+    const hw = s.heavyWind || 0;
+    if (hw > 0) {
+      const tr = Math.sin(o.t * 70) * 0.025 * hw;
+      T[B.uaR].x = -2.95 * hw + tr; T[B.uaR].z = -0.2 * hw; T[B.faR].x = -1.5 * hw;
+      T[B.uaL].x = -2.6 * hw - tr; T[B.uaL].z = 0.35 * hw; T[B.faL].x = -1.45 * hw;
+      T[B.chest].y += 0.45 * hw; T[B.spine].x -= 0.16 * hw;
+      T[B.thL].x -= 0.3 * hw; T[B.shL].x += 0.4 * hw; T[B.shR].x += 0.35 * hw;
+      hipY -= 0.07 * hw;
+    }
+
+    // Golpe con el brazo derecho (anticipación → impacto → recuperación). Cada golpe del combo es distinto:
+    // 0 tajo de derecha a izquierda, 1 revés, 2 de arriba abajo, 3 estocada con un paso, 4 golpe pesado
     let swingActive = false;
     if (s.swing > 0) {
       swingActive = true;
-      const p = 1 - s.swing;
-      let a, e, tw;
-      if (p < 0.38) { const q = sm(0, 1, p / 0.38); a = -2.6 * q; e = -1.35 * q; tw = 0.3 * q; }
-      else { const q = 1 - Math.pow(1 - (p - 0.38) / 0.62, 3); a = -2.6 + 2.35 * q; e = -1.35 + 1.15 * q; tw = 0.3 - 0.55 * q; }
-      T[B.uaR].x = a; T[B.uaR].z = -0.28; T[B.faR].x = e;
-      T[B.chest].y += tw; T[B.spine].x += 0.12 * Math.sin(p * Math.PI);
+      const p = 1 - s.swing, dir = s.swingDir || 0;
+      const up = p < 0.36 ? sm(0, 1, p / 0.36) : 1, q = p < 0.36 ? 0 : 1 - Math.pow(1 - (p - 0.36) / 0.64, 3);
+      if (dir === 0 || dir === 1) {
+        const sg = dir === 0 ? 1 : -1, z0 = sg > 0 ? -1.3 : 0.6, z1 = sg > 0 ? 0.6 : -1.3;
+        T[B.uaR].x = -1.35 - 0.25 * Math.sin(p * Math.PI); T[B.uaR].z = p < 0.36 ? U.lerp(-0.25, z0, up) : U.lerp(z0, z1, q); T[B.faR].x = -0.3 - 0.5 * (1 - q);
+        T[B.chest].y += (p < 0.36 ? 0.5 * up : 0.5 - 1.05 * q) * sg; T[B.spine].x += 0.1 * Math.sin(p * Math.PI);
+        T[B.uaL].z += 0.35 * sg * Math.sin(p * Math.PI);
+      } else if (dir === 3) {
+        const back = p < 0.36 ? up : 1 - q;
+        T[B.uaR].x = U.lerp(-1.55, -0.5, back); T[B.faR].x = U.lerp(-0.05, -1.75, back); T[B.uaR].z = -0.12;
+        T[B.chest].y += 0.4 * back - 0.3 * q; T[B.spine].x += 0.22 * q;
+        T[B.thL].x -= 0.55 * q; T[B.shL].x += 0.35 * q; T[B.thR].x += 0.3 * q;
+        T[B.uaL].x += 0.4 * q; T[B.uaL].z += 0.2;
+      } else {
+        const big = dir === 4 ? 1 : 0;
+        let a, e, tw;
+        if (p < 0.36) { a = -2.6 * up; e = -1.35 * up; tw = 0.3 * up; }
+        else { a = -2.6 + (2.35 + 0.45 * big) * q; e = -1.35 + 1.15 * q; tw = 0.3 - (0.55 + 0.2 * big) * q; }
+        T[B.uaR].x = a; T[B.uaR].z = -0.28; T[B.faR].x = e;
+        T[B.chest].y += tw; T[B.spine].x += (0.12 + 0.32 * big) * Math.sin(p * Math.PI);
+        if (big) { T[B.uaL].x = a * 0.85; T[B.uaL].z = 0.3; T[B.faL].x = e; T[B.thL].x -= 0.5 * q; T[B.shL].x += 0.55 * q; T[B.shR].x += 0.45 * q; hipY -= 0.08 * q; }
+      }
+    }
+
+    // Esquive: agachado y echado hacia donde saltas; aterrizaje: las rodillas amortiguan
+    const dg = s.dodge || 0, ds = s.dodgeSide || 0, ld = s.land || 0;
+    if (dg > 0) {
+      const side = Math.abs(ds) === 1 ? ds : 0, lean = ds === 2 ? 0.45 : ds === -2 ? -0.3 : 0.15;
+      T[B.spine].x += lean * dg; T[B.spine].z -= side * 0.4 * dg; T[B.chest].z -= side * 0.2 * dg;
+      T[B.thL].x -= 0.65 * dg; T[B.shL].x += 1.0 * dg; T[B.thR].x -= 0.35 * dg; T[B.shR].x += 0.8 * dg;
+      T[B.uaL].z += 0.55 * dg; T[B.uaR].z -= 0.55 * dg;
+      hipY -= 0.2 * dg;
+    }
+    if (ld > 0) {
+      T[B.thL].x -= 0.5 * ld; T[B.shL].x += 0.95 * ld; T[B.thR].x -= 0.5 * ld; T[B.shR].x += 0.95 * ld; T[B.ftL].x -= 0.4 * ld; T[B.ftR].x -= 0.4 * ld;
+      T[B.spine].x += 0.22 * ld; T[B.uaL].z += 0.25 * ld; T[B.uaR].z -= 0.25 * ld;
+      hipY -= 0.16 * ld;
+    }
+
+    // Golpe recibido: la articulación de la zona golpeada se va hacia atrás y vuelve (o.react)
+    o.hitK = Math.max(0, (o.hitK || 0) - dt * 3.5);
+    const h = o.hitK > 0 ? o.hitK * (1 + 0.25 * Math.sin(o.hitK * 18)) : 0;
+    if (h > 0) {
+      const z = o.hitZ, sd = o.hitS === 'L' ? 1 : o.hitS === 'R' ? -1 : (o.t * 7 | 0) % 2 ? 1 : -1;
+      if (z === 'cabeza') { T[B.head].x -= 0.55 * h; T[B.neck].x -= 0.25 * h; T[B.spine].x -= 0.08 * h; T[B.head].z += 0.15 * h * sd; }
+      else if (z === 'brazo') { const ua = sd > 0 ? B.uaL : B.uaR, fa = sd > 0 ? B.faL : B.faR; T[ua].z += 0.9 * h * sd; T[ua].x += 0.4 * h; T[fa].x -= 0.6 * h; T[B.chest].y += 0.2 * h * sd; }
+      else if (z === 'pierna') { const th = sd > 0 ? B.thL : B.thR, sh = sd > 0 ? B.shL : B.shR; T[th].x += 0.45 * h; T[sh].x += 0.85 * h; T[B.hips].z -= 0.12 * h * sd; hipY -= 0.07 * h; }
+      else { T[B.spine].x -= 0.32 * h; T[B.chest].x -= 0.15 * h; T[B.head].x += 0.2 * h; T[B.uaL].z += 0.35 * h; T[B.uaR].z -= 0.35 * h; }
     }
 
     // Aplicar con suavizado (el golpe es más rápido para que se sienta con impacto)

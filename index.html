@@ -281,7 +281,7 @@
   <div id="hudRight">
     <div id="shipHud" class="hidden"></div>
     <div id="styleHud" class="hidden"></div>
-    <div id="keyhint"><kbd>Tab</kbd> Inventario <kbd>M</kbd> Mapa <kbd>J</kbd> Bitácora <kbd>V</kbd> Cámara <kbd>Esc</kbd> Pausa<span id="keyhintCheats" class="hidden"> <kbd>K</kbd> Creativo</span></div>
+    <div id="keyhint"><kbd>Tab</kbd> Inventario <kbd>M</kbd> Mapa <kbd>J</kbd> Bitácora <kbd>V</kbd> Cámara <kbd>F</kbd> Parar <kbd>Q</kbd> Esquivar <kbd>T</kbd> Fijar <kbd>Esc</kbd> Pausa<span id="keyhintCheats" class="hidden"> <kbd>K</kbd> Creativo</span></div>
   </div>
   <div id="powerHud" class="hidden"></div>
   <div id="bossBar" class="hidden"><div id="bossName">🐗 Jabalí gigante</div><div class="bar"><i id="bossFill"></i></div></div>
@@ -454,7 +454,7 @@
   const files = [
     'js/version.js', 'js/util.js', 'js/profile.js', 'js/models.js', 'js/audio.js', 'js/net.js', 'js/items.js', 'js/islands.js', 'js/world.js', 'js/resources.js',
     'js/building.js', 'js/landmarks.js', 'js/weather.js', 'js/fishing.js', 'js/sdf.js', 'js/rig.js', 'js/animals.js', 'js/fauna.js', 'js/bosses.js', 'js/creatures.js', 'js/character.js', 'js/equipment.js', 'js/shop.js', 'js/grip.js', 'js/player.js',
-    'js/clock.js', 'js/ships.js', 'js/story.js', 'js/modes.js', 'js/achievements.js', 'js/cheats.js', 'js/styles.js', 'js/prologue.js', 'js/cinema.js', 'js/lines.js', 'js/voice-list.js', 'js/voice.js', 'js/drops.js', 'js/flageditor.js', 'js/pets.js', 'js/bounty.js', 'js/treasure.js', 'js/quests.js', 'js/seaweather.js', 'js/crew.js', 'js/navy.js', 'js/faction.js', 'js/parry.js', 'js/recipebook.js', 'js/grave.js', 'js/ui.js', 'js/game.js', 'js/save.js', 'js/menus.js', 'js/news.js', 'js/main.js'
+    'js/clock.js', 'js/ships.js', 'js/story.js', 'js/modes.js', 'js/achievements.js', 'js/cheats.js', 'js/styles.js', 'js/prologue.js', 'js/cinema.js', 'js/lines.js', 'js/voice-list.js', 'js/voice.js', 'js/drops.js', 'js/flageditor.js', 'js/pets.js', 'js/bounty.js', 'js/treasure.js', 'js/quests.js', 'js/seaweather.js', 'js/crew.js', 'js/navy.js', 'js/faction.js', 'js/parry.js', 'js/combat.js', 'js/duel.js', 'js/recipebook.js', 'js/grave.js', 'js/ui.js', 'js/game.js', 'js/save.js', 'js/menus.js', 'js/news.js', 'js/main.js'
   ];
   for (const f of files) {
     await new Promise((ok, fail) => {

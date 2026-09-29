@@ -98,7 +98,57 @@
     botas_hierro: () => boots(metalC, 0x4a4e52, null, true),
     botas_lava: () => boots((x, y, z) => (Math.sin(x * 60 + y * 40 + z * 30) > 0.9 ? 0xff7a20 : 0x1e1a1c), 0x0e0c0c),
     aletas: () => ['L', 'R'].map((s) => ({ bone: 'ft' + s, geos: [M.ball(0.068, 0xf0c020, 0, -0.03, 0.045, [1, 0.95, 2.1]), M.xf(M.fin([[-0.07, 0], [0.07, 0], [0.11, 0.32], [-0.11, 0.32]], 0.012, 0xf0c020), 0, -0.07, 0.12, Math.PI / 2, 0, 0)] })),
+    // ---------------------------------------------------------------- conjuntos de los personajes (no se venden)
+    // Protagonista: fajín rojo con colas que se mecen, correa cruzada con bolsa y muñequeras
+    heroe_fajin: () => sash(0xb02a2a, 0x7e1a1a),
+    heroe_correa: () => strap(-1, 0x5a3a20, 0xc8a040, true),
+    munequeras: () => ['L', 'R'].map((s) => ({ bone: 'fa' + s, geos: [tube(-0.135, -0.215, 0.034, 0.031, 0xe2d6b8), M.xf(M.paint(new THREE.TorusGeometry(0.034, 0.005, 5, 14), 0x8a6a40), 0, -0.16, 0, Math.PI / 2), M.xf(M.paint(new THREE.TorusGeometry(0.032, 0.005, 5, 14), 0x8a6a40), 0, -0.2, 0, Math.PI / 2)] })),
+    hombrera: () => [{ bone: 'uaL', geos: [M.xf(M.paint(new THREE.SphereGeometry(0.088, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), (x, y) => (y < 0.012 ? 0x3a2414 : 0x6a4226)), 0.01, -0.005, 0, 0, 0, -0.35, [1, 0.72, 1.05]),
+      ...[0, 1, 2].map((i) => M.ball(0.01, 0xc8b070, 0.01 + Math.cos(i * 0.9 - 0.9) * 0.06, 0.035, Math.sin(i * 0.9 - 0.9) * 0.06))] }],
+    // Kaito: chaleco largo abierto, fajín oscuro y la vaina de la katana a la cadera
+    kaito_haori: () => [{ bone: 'chest', geos: [shell([[0.001, -0.5], [0.225, -0.49], [0.215, -0.28], [0.222, 0], [0.222, 0.16], [0.15, 0.255], [0.001, 0.265]], (x, y, z) => (z > 0.09 && Math.abs(x) < 0.07 ? 0xe6dfcc : Math.abs(x) > 0.2 && y > 0.12 ? 0x1e3226 : 0x2e4a3a))] }, ...sash(0x1e2430, 0x141820, true)],
+    kaito_vaina: () => [{ bone: 'hips', geos: [M.xf(M.paint(new THREE.BoxGeometry(0.036, 0.03, 0.78), (x, y, z) => (z > 0.3 ? 0xc8a040 : 0x151518)), 0.19, 0.0, -0.1, -0.55, 0.15, 0), M.xf(M.paint(new THREE.TorusGeometry(0.03, 0.008, 5, 10), 0xc8a040), 0.19, 0.18, 0.2, 0.55)] }],
+    // Crane: bandolera con cartuchos de latón (del hombro izquierdo a la cadera derecha)
+    crane_bandolera: () => strap(1, 0x3a2414, 0xd8b050, false, true),
+    // Bastián: delantal de cocinero y pañuelo al cuello
+    bastian_delantal: () => [{ bone: 'hips', geos: [M.xf(M.paint(new THREE.BoxGeometry(0.3, 0.46, 0.012), (x, y) => (y < -0.2 ? 0xe2dccc : 0xf2eee4)), 0, -0.19, 0.13, -0.08)] },
+      { bone: 'chest', geos: [M.xf(M.paint(new THREE.BoxGeometry(0.2, 0.26, 0.012), 0xf2eee4), 0, -0.02, 0.122, 0.12), M.xf(M.paint(new THREE.BoxGeometry(0.012, 0.22, 0.012), 0xd8d2c2), 0.08, 0.2, 0.06, -0.5), M.xf(M.paint(new THREE.BoxGeometry(0.012, 0.22, 0.012), 0xd8d2c2), -0.08, 0.2, 0.06, -0.5)] }],
+    bastian_panuelo: () => [{ bone: 'neck', geos: [M.xf(M.paint(new THREE.TorusGeometry(0.058, 0.014, 6, 16), 0xb82a24), 0, 0.02, 0.005, Math.PI / 2 - 0.2), M.xf(M.paint(new THREE.ConeGeometry(0.05, 0.09, 3), 0xb82a24), 0, -0.03, 0.062, Math.PI, 0, 0, [1, 1, 0.3])] }],
+    // Capitanes y jefes: charreteras doradas con flecos, fajín, medallas y cinto con pistolas
+    charreteras: () => ['L', 'R'].map((s) => ({ bone: 'ua' + s, metal: true, geos: [M.xf(M.paint(new THREE.CylinderGeometry(0.072, 0.066, 0.022, 16), 0xd8b040), 0, 0.04, 0, 0, 0, s === 'L' ? -0.3 : 0.3),
+      ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => { const a = i / 8 * Math.PI * 2; return M.xf(M.paint(new THREE.CylinderGeometry(0.006, 0.006, 0.05, 4), 0xe8c050), Math.cos(a) * 0.066, 0.01, Math.sin(a) * 0.066); })] })),
+    mara_fajin: () => sash(0xd8a030, 0xa87818),
+    medallas: () => [{ bone: 'chest', metal: true, geos: [...[0, 1, 2].map((i) => M.xf(M.paint(new THREE.CylinderGeometry(0.014, 0.014, 0.006, 10), [0xd8b040, 0xc0c4c8, 0xc87a3a][i]), 0.05 + i * 0.03, 0.1, 0.124, Math.PI / 2)),
+      ...[0, 1, 2].map((i) => M.xf(M.paint(new THREE.BoxGeometry(0.018, 0.02, 0.004), [0x2a4a9a, 0xb02a2a, 0x2a8a4a][i]), 0.05 + i * 0.03, 0.125, 0.125))] }],
+    hiena_cinto: () => [{ bone: 'hips', geos: [...[-1, 1].map((s) => pistol(s * 0.1, 0.03, 0.12, s * 0.4))] }],
+    // Luchadores: fajines de colores y cinto blanco de la Marina
+    fajin_rojo: () => sash(0xa02424, 0x781818),
+    fajin_azul: () => sash(0x2a4a8a, 0x1e3668),
+    fajin_ocre: () => sash(0xc0902a, 0x98701e),
+    fajin_negro: () => sash(0x22222a, 0x16161c),
+    cinto_blanco: () => sash(0xf2f2ee, 0xd8d8d4, true),
   };
+  // Fajín: una banda alrededor de la cintura con un nudo y dos colas que se mecen (short: sin colas)
+  function sash(c1, c2, short) {
+    const out = [{ bone: 'hips', geos: [M.xf(M.paint(new THREE.TorusGeometry(0.16, 0.03, 8, 30), (x, y, z) => (Math.sin(Math.atan2(z, x) * 14) > 0.7 ? c2 : c1)), 0, 0.06, 0, Math.PI / 2, 0, 0, [1.1, 0.74, 1])] }];
+    if (!short) out.push({ bone: 'hips', pos: [0.12, 0.055, 0.085], anim: 'sway', geos: [M.ball(0.032, c2, 0, 0, 0, [1.2, 1, 0.8]), M.xf(M.paint(new THREE.BoxGeometry(0.045, 0.2, 0.012), c1), 0.012, -0.11, 0.004, 0, 0, 0.12), M.xf(M.paint(new THREE.BoxGeometry(0.04, 0.16, 0.012), c2), -0.018, -0.09, 0.008, 0, 0, -0.18)] });
+    return out;
+  }
+  // Correa cruzada del hombro (side −1: derecho, 1: izquierdo) a la cadera contraria; con bolsa o con cartuchos
+  function strap(side, c, metal, pouch, bullets) {
+    const a = -side * 0.54, geos = [];
+    for (const z of [0.124, -0.122]) geos.push(M.xf(M.paint(new THREE.BoxGeometry(0.05, 0.64, 0.012), c), 0, -0.05, z, z > 0 ? 0.08 : -0.08, 0, a));
+    geos.push(M.xf(M.paint(new THREE.BoxGeometry(0.055, 0.014, 0.25), c), side * 0.135, 0.245, 0, 0, 0, side * 0.3));
+    geos.push(M.xf(M.paint(new THREE.BoxGeometry(0.034, 0.03, 0.01), metal), side * 0.02, 0.0, 0.132, 0, 0, a));
+    if (bullets) for (let i = 0; i < 6; i++) { const t = -0.2 + i * 0.08, x = -Math.sin(a) * t, y = -0.05 + Math.cos(a) * t; geos.push(M.xf(M.paint(new THREE.CylinderGeometry(0.008, 0.008, 0.045, 6), metal), x, y, 0.134, 0, 0, a)); }
+    const out = [{ bone: 'chest', geos }];
+    if (pouch) out.push({ bone: 'hips', geos: [M.xf(M.paint(new THREE.BoxGeometry(0.085, 0.075, 0.045), (x, y) => (y > 0.02 ? 0x4a2e18 : c)), -side * 0.13, -0.02, 0.105, 0, side * 0.4, 0), M.ball(0.008, metal, -side * 0.13, 0.02, 0.13)] });
+    return out;
+  }
+  // Pistola al cinto: culata, cañón y guardamonte
+  function pistol(x, y, z, ry) {
+    return [M.xf(M.paint(new THREE.BoxGeometry(0.03, 0.09, 0.035), 0x5a3a20), x, y - 0.03, z, 0.3, ry, 0), M.xf(M.paint(new THREE.CylinderGeometry(0.011, 0.013, 0.2, 8), 0x3a3a40), x, y + 0.06, z + 0.03, 1.87, ry, 0), M.ball(0.014, 0xc8a040, x, y + 0.02, z + 0.02)];
+  }
   function sleeves(c1, c2, long) {
     const out = [];
     for (const s of ['L', 'R']) {
@@ -158,6 +208,8 @@
     look: (m, t) => { const k = Math.sin(t * 0.7) + Math.sin(t * 1.9) * 0.35; m.rotation.set(Math.sin(t * 1.3) * 0.08, Math.abs(k) > 0.9 ? Math.sign(k) * 0.9 : k, 0); },
     tilt: (m, t) => { m.rotation.set(0, Math.sin(t * 0.5) * 0.6, Math.sin(t * 0.9) * 0.25); },
     stalks: (m, t) => { m.rotation.set(Math.sin(t * 1.1) * 0.15, 0, Math.sin(t * 0.8) * 0.2); },
+    // Colas del fajín: se mecen con el viento y al moverse
+    sway: (m, t) => { m.rotation.set(Math.sin(t * 2.3) * 0.12 - 0.05, 0, Math.sin(t * 1.7) * 0.1); },
   };
   // Lo que se ve sobre el personaje: el equipo (cabeza, pecho, piernas, pies) y los cosméticos.
   // Un sombrero cosmético tapa el casco (el casco sigue protegiendo igual).

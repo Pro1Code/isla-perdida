@@ -14,7 +14,7 @@
   // Brazo en primera persona: el golpe gira alrededor del codo, que queda siempre fuera de la pantalla
   // (así solo se ve del antebrazo a la mano). Posiciones en el espacio de la cámara.
   const VM_ELBOW = new THREE.Vector3(0.229, -0.243, -0.197), VM_HAND = new THREE.Vector3(0.0187, 0.0373, -0.3716);
-  const _v = new V3(), _d = new V3();
+  const _v = new V3(), _d = new V3(), _dv = new V3();
 
   P.init = function (scene, cam) {
     camera = cam;
@@ -38,7 +38,8 @@
   };
 
   // Lo que se ve puesto: equipo + cosméticos de la tienda
-  P.visibleIds = () => G.Equip.visibleIds(G.Inv.eqIds(), G.Profile.cosIds());
+  // (el protagonista lleva siempre su conjunto: fajín rojo, correa cruzada con bolsa y muñequeras)
+  P.visibleIds = () => G.Equip.visibleIds(G.Inv.eqIds(), G.Profile.cosIds()).concat(['heroe_fajin', 'heroe_correa', 'munequeras']);
   P.refreshCosmetics = function () {
     if (!model) return;
     const before = model.eqKey;
@@ -151,12 +152,14 @@
     const S = P.stats;
     if (S.stamina <= 0) P.exhausted = true;
     if (P.exhausted && S.stamina > 25) P.exhausted = false;
-    const Pa = G.Parry;
-    P.sprinting = !!(K.ShiftLeft || K.ShiftRight) && P.moving && fwd > 0 && !P.exhausted && !P.swimming && !Pa.guard;
+    const Pa = G.Parry, Cb = G.Combat;
+    P.sprinting = !!(K.ShiftLeft || K.ShiftRight) && P.moving && fwd > 0 && !P.exhausted && !P.swimming && !Pa.guard && !(Cb.heavyT > 0);
     let speed = P.swimming ? (P.diving ? 3.4 : 3.6) * (S.stamina <= 0 ? 0.75 : 1) : P.sprinting ? 7.2 : 4.4;
     // En guardia se avanza despacio; aturdido (te pararon el golpe), casi nada
     if (Pa.guard) speed *= 0.55;
     if (Pa.stagger > 0) speed *= 0.4;
+    if (Cb.heavyT > 0) speed *= 0.5; // cargando un golpe pesado
+    if ((P.slowT = Math.max(0, (P.slowT || 0) - dt)) > 0) speed *= 0.72; // te dieron en una pierna
     if (P.wading) speed *= 0.7;
     if (G.Story) speed *= G.Story.speedMul();
     if (G.Cheats.flag('fast')) speed *= 2;
@@ -164,10 +167,14 @@
     speed *= P.swimming ? G.Inv.eqStat('swim') : G.Inv.eqStat('speed');
     if (!P.swimming && !G.Inv.eqStat('snow') && G.Arch.biomeAt(P.pos.x, P.pos.z) === 'escarcha' && P.pos.y > 1.5) speed *= 0.85;
     const acc = P.onGround || P.swimming ? 12 : 2.5;
-    P.vel.x += (wx * speed - P.vel.x) * Math.min(1, acc * dt);
-    P.vel.z += (wz * speed - P.vel.z) * Math.min(1, acc * dt);
+    // Esquivando (combat.js): un impulso rápido que se frena al final
+    if (Cb.dodgeT > 0 && !P.swimming) { Cb.dodgeVel(_dv); P.vel.x = _dv.x; P.vel.z = _dv.z; }
+    else {
+      P.vel.x += (wx * speed - P.vel.x) * Math.min(1, acc * dt);
+      P.vel.z += (wz * speed - P.vel.z) * Math.min(1, acc * dt);
+    }
     if (!P.swimming) P.vel.y -= 24 * dt;
-    if (K.Space && P.onGround && !P.swimming) { P.vel.y = G.Story ? G.Story.jumpPower(7.2) : 7.2; P.onGround = false; }
+    if (K.Space && P.onGround && !P.swimming) { P.vel.y = G.Story ? G.Story.jumpPower(7.2) : 7.2; P.onGround = false; Cb.dust(P.pos.x, P.pos.y + 0.05, P.pos.z, 2, 0.5); }
     const vyBefore = P.vel.y;
     P.pos.x += P.vel.x * dt; P.pos.z += P.vel.z * dt; P.pos.y += P.vel.y * dt;
     const rr = Math.hypot(P.pos.x, P.pos.z), B = G.Arch.BOUND;
@@ -210,6 +217,7 @@
       if (P.pos.y <= ground) {
         const safe = G.Story ? G.Story.noFallDamage() : false;
         if (vyBefore < -14 && !safe) P.damage((-vyBefore - 14) * 5, null, 'Una caída fatal');
+        if (!P.onGround && vyBefore < -6) Cb.land(-vyBefore); // polvo y rodillas que amortiguan
         P.pos.y = ground; P.vel.y = 0; P.onGround = true;
       } else if (P.onGround && P.vel.y <= 0 && P.pos.y - ground < 0.5) {
         P.pos.y = ground; P.vel.y = 0;
@@ -223,6 +231,7 @@
       P.bob += hs * dt * 2.2;
       if (P.stepAcc > (P.sprinting ? 2.6 : 2.0)) {
         P.stepAcc = 0;
+        if (P.sprinting && P.onGround && !P.wading) Cb.dust(P.pos.x, P.pos.y + 0.05, P.pos.z, 1, 0.45); // polvo al correr
         const biome = G.Arch.biomeAt(P.pos.x, P.pos.z);
         G.Audio.play(P.swimming || P.wading ? 'splash' : P.onStruct ? 'step_wood' : ground < 2.3 ? 'step_sand' : biome === 'escarcha' ? 'step_snow' : 'step_grass', P.swimming ? 0.5 : 1);
       }
@@ -292,6 +301,7 @@
   P.damage = function (amt, src, cause, info) {
     if (P.dead || G.state.mode === 'dead') return 0;
     if (G.Cheats.flag('god')) return 0;
+    if (info && G.Combat.iframes > 0) { G.UI.msg('💨 ¡Esquivado!', 'good', 'dodged'); G.Combat.dmgNum(P.pos.x, P.pos.y + 2, P.pos.z, 0, 'dodge', 'ESQUIVA'); return 0; }
     if (info) { amt = G.Parry.onHit(amt, src, info); if (amt <= 0) return 0; }
     const guarded = G.Parry.guard;
     if (G.Story) amt *= G.Story.damageMul();
@@ -302,11 +312,18 @@
     P.shake = 0.25;
     G.UI.hurtFlash(Math.min(1, amt / 20));
     G.Audio.play('hurt');
+    // La parte del cuerpo golpeada reacciona (y un golpe en la pierna te frena un momento)
+    const zone = info && info.zone;
+    model.react(zone || 'torso', info && info.side, zone ? 1 : Math.min(1, amt / 15));
+    if (zone === 'cabeza') P.shake = 0.45;
+    if (zone === 'pierna') P.slowT = 1.3;
     if (src && !P.ship) {
       const dx = P.pos.x - src.x, dz = P.pos.z - src.z, d = Math.hypot(dx, dz) || 1;
       const k = guarded ? 0.4 : 1; // cubriéndote, el golpe apenas te mueve
       P.vel.x += dx / d * 6 * k; P.vel.z += dz / d * 6 * k; P.vel.y = 3.5 * k; P.onGround = !guarded ? false : P.onGround;
     }
+    // En un duelo nadie muere: quien se queda sin vida pierde (duel.js)
+    if (P.stats.health <= 0 && info && info.by !== undefined && G.Duel && G.Duel.with(info.by)) { P.stats.health = 1; G.Duel.lost(info.by); return amt; }
     if (P.stats.health <= 0) G.Game.die(P.cause);
     return amt;
   };
@@ -338,12 +355,24 @@
     const strike = P.swing > 0 && p >= 0.35 ? Math.sin(Math.min(1, (p - 0.35) / 0.65) * Math.PI) : 0;
     const sway = Math.sin(performance.now() / 900) * 0.005 * (1 - bobA);
     void s;
-    const gk = G.Parry.guardK, sk = G.Parry.staggerK;
-    vm.rotation.set(wind * 0.5 - strike * 0.62 + gk * 0.66 - sk * 0.5, -wind * 0.1 + strike * 0.3 + gk * 0.5, -wind * 0.12 + strike * 0.18 + gk * 0.92 - sk * 0.3);
+    const gk = G.Parry.guardK, sk = G.Parry.staggerK, Cb = G.Combat, dir = P.swingDir || 0;
+    P.hwK = U.lerp(P.hwK || 0, Cb.heavyT > 0 ? 1 : 0, Math.min(1, dt * 14));
+    P.dgK = U.lerp(P.dgK || 0, Cb.dodgeT > 0 ? 1 : 0, Math.min(1, dt * 18));
+    let rx = wind * 0.5 - strike * 0.62, ry = -wind * 0.1 + strike * 0.3, rz = -wind * 0.12 + strike * 0.18, pz = 0;
+    if (P.swing > 0 && (dir === 0 || dir === 1)) {
+      // Tajo (de derecha a izquierda) o revés: el arma cruza la pantalla en horizontal
+      const sg = dir === 0 ? 1 : -1, env = Math.sin(p * Math.PI);
+      const sw = p < 0.3 ? -0.55 * U.smooth(0, 1, p / 0.3) : (-0.55 + 1.4 * U.smooth(0, 1, (p - 0.3) / 0.32)) * (1 - U.smooth(0, 1, (p - 0.7) / 0.3));
+      rx = 0.28 * env; ry = sw * sg; rz = 0.95 * env;
+    } else if (P.swing > 0 && dir === 3) { rx = wind * 0.25 - strike * 0.2; ry = strike * 0.1; rz = 0.1 * strike; pz = -0.2 * strike; } // estocada
+    else if (P.swing > 0 && dir === 4) { rx = wind * 0.95 - strike * 0.95; ry = strike * 0.35; rz = strike * 0.3; } // pesado
+    const tr = P.hwK > 0.5 ? Math.sin(performance.now() / 14) * 0.012 : 0;
+    rx += P.hwK * 0.95 + tr; rz -= P.hwK * 0.2; // cargando el pesado: el arma bien atrás, temblando
+    vm.rotation.set(rx + gk * 0.66 - sk * 0.5, ry + gk * 0.5, rz + gk * 0.92 - sk * 0.3 + P.dgK * 0.25 * Math.sign(Cb.dodgeSide || 1));
     vm.position.set(
       VM_ELBOW.x + Math.cos(P.bob) * 0.01 * bobA - gk * 0.05 + sk * 0.03,
-      VM_ELBOW.y + Math.sin(P.bob * 2) * 0.01 * bobA + sway + gk * 0.05 - sk * 0.05,
-      VM_ELBOW.z);
+      VM_ELBOW.y + Math.sin(P.bob * 2) * 0.01 * bobA + sway + gk * 0.05 - sk * 0.05 + P.hwK * 0.05 - P.dgK * 0.07,
+      VM_ELBOW.z + pz + P.hwK * 0.04);
     grip.update(dt);
 
     // Antorcha (y el brillo de la Fruta Llama-Llama)
@@ -364,22 +393,26 @@
     // Personaje (también en primera persona para que proyecte su sombra)
     const seated = P.station && P.station.st && P.station.st.seat;
     _v.copy(P.pos); if (seated) _v.y -= 0.45;
-    model.update(dt, { pos: _v, yaw: P.yaw, pitch: P.pitch, speed: P.station ? 0 : hs, onGround: P.onGround || P.wading || !!P.ship, swimming: P.swimming, swing: P.swing, holding: !!id, guard: G.Parry.guardK, stagger: G.Parry.staggerK });
+    const moveAng = hs > 0.3 ? U.angDiff(P.yaw, Math.atan2(-P.vel.x, -P.vel.z)) : 0;
+    model.update(dt, { pos: _v, yaw: P.yaw, pitch: P.pitch, speed: P.station ? 0 : hs, onGround: P.onGround || P.wading || !!P.ship, swimming: P.swimming, swing: P.swing, holding: !!id, guard: G.Parry.guardK, stagger: G.Parry.staggerK,
+      swingDir: P.swingDir || 0, heavyWind: P.hwK, dodge: P.dgK, dodgeSide: G.Combat.dodgeSide, land: P.landK || 0, moveAng: G.Combat.dodgeT > 0 ? 0 : moveAng });
     model.root.visible = !P.dead || P.cam !== 'fp';
 
     // Cámara
     P.shake = Math.max(0, P.shake - dt);
     const sh = P.shake * 0.25;
     // Zoom del catalejo
-    const wantFov = P.zoom ? 18 : G.Profile.set('fov');
+    const wantFov = P.zoom ? 18 : G.Profile.set('fov') + G.Combat.fovExtra(dt);
     if (Math.abs(camera.fov - wantFov) > 0.05) { camera.fov = U.lerp(camera.fov, wantFov, Math.min(1, dt * 8)); camera.updateProjectionMatrix(); }
     aimCam = false;
     if (G.Ships && G.Ships.cameraFor(camera)) { setLayer(0); vm.visible = false; return; }
     if (P.cam === 'fp') {
       const bob = P.onGround ? Math.sin(P.bob * 2) * 0.04 * bobA : 0;
       P.eyePos(camera.position);
-      camera.position.y += bob;
-      camera.rotation.set(P.pitch + (Math.random() - 0.5) * sh, P.yaw + (Math.random() - 0.5) * sh, 0, 'YXZ');
+      camera.position.y += bob - (P.landK || 0) * 0.14 - P.dgK * 0.12;
+      const K = G.Input.keys, str = (K.KeyD ? 1 : 0) - (K.KeyA ? 1 : 0);
+      P.roll = U.lerp(P.roll || 0, -str * 0.022 * Math.min(1, hs / 4) - (Math.abs(G.Combat.dodgeSide) === 1 ? G.Combat.dodgeSide * 0.07 * P.dgK : 0), Math.min(1, dt * 8));
+      camera.rotation.set(P.pitch + (Math.random() - 0.5) * sh, P.yaw + (Math.random() - 0.5) * sh, P.roll, 'YXZ');
       setLayer(1);
       vm.visible = !P.dead && !P.zoom;
     } else if (P.cam === 'front') {
