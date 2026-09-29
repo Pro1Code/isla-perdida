@@ -137,7 +137,7 @@
     fpsLow = 0; fpsWarned = false;
     const cheats = G.Cheats.enabled();
     $('keyhintCheats').classList.toggle('hidden', !cheats);
-    if (cheats) setTimeout(() => G.UI.msg('🪄 Trucos activados: pulsa <kbd>K</kbd> para abrir el menú de trucos.', 'info'), 1500);
+    if (cheats) setTimeout(() => G.UI.msg('🪄 Modo creativo: pulsa <kbd>K</kbd> para abrir su menú (se desactiva desde la pausa).', 'info'), 1500);
   }
   Main.startPlaying = startPlaying;
   Main.pause = function () {
@@ -148,6 +148,8 @@
     if (G.Net.active) $('pauseNet').textContent = '🌐 Partida LAN: el mundo sigue en marcha mientras estás en pausa.';
     $('btnSave').classList.toggle('hidden', G.state.gm === 'versus');
     $('btnPauseCheats').classList.toggle('hidden', !G.Cheats.enabled());
+    $('btnPauseCreative').classList.toggle('hidden', !G.Cheats.available());
+    $('btnPauseCreative').textContent = G.Cheats.enabled() ? '🌿 Desactivar modo creativo' : '🪄 Activar modo creativo';
     $('btnPauseBounty').textContent = G.Faction.isMarine() ? '⚓ Hoja de servicio' : '📜 Se busca';
   };
   function resume() {
@@ -187,6 +189,8 @@
     // Configuración y Logros: se abren en la misma ventana que en el menú principal
     $('btnPauseAch').onclick = () => G.Menus.openInGame('ach');
     $('btnPauseBounty').onclick = () => G.Bounty.open();
+    // Modo creativo: se activa o desactiva y se vuelve a la partida
+    $('btnPauseCreative').onclick = () => { G.Cheats.toggleCreative(); resume(); };
     $('btnPauseSettings').onclick = () => G.Menus.openInGame('settings');
     $('btnPauseCheats').onclick = () => { resume(); setTimeout(() => G.Cheats.open(), 60); };
     $('btnQuit').onclick = quitToMenu;
@@ -353,7 +357,7 @@
     if ([N.myId, ...N.lobby.keys()].some(odd)) rows.push(`<li class="warn-text">⚠ Hay jugadores con otra versión del juego. Para evitar fallos, todos deben jugar la ${N.esc(hostVer)} (la del anfitrión).</li>`);
     el.innerHTML = rows.join('');
     const vs = c.mode === 'versus', wi = c.world;
-    const worldText = wi ? `🏝️ <b>${N.esc(wi.name)}</b> · ${DIFF_NAMES[wi.diff] || 'Normal'} · ${wi.day ? 'día ' + wi.day : 'mundo nuevo'}${wi.cheats ? ' · 🪄 con trucos (no se consiguen logros)' : ''}` : '🏝️ Partida amistosa nueva';
+    const worldText = wi ? `🏝️ <b>${N.esc(wi.name)}</b> · ${DIFF_NAMES[wi.diff] || 'Normal'} · ${wi.day ? 'día ' + wi.day : 'mundo nuevo'}${wi.cheats ? ' · 🪄 modo creativo (no se consiguen logros)' : ''}` : '🏝️ Partida amistosa nueva';
     $('mpCoop').classList.toggle('hidden', vs || !N.isHost);
     $('mpWorldInfo').innerHTML = worldText + '<br><small class="muted">Todos aparecen juntos en la Isla Perdida y siguen la historia. La partida se guarda en el equipo del anfitrión.</small>';
     $('mpCoopGuest').classList.toggle('hidden', vs || N.isHost);

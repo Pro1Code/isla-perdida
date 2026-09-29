@@ -116,7 +116,7 @@
     const st = G.state, P = G.Player;
     const player = { x: P.pos.x, y: P.pos.y, z: P.pos.z, yaw: P.yaw, pitch: P.pitch, stats: Object.assign({}, P.stats), sick: P.sick, poison: P.poison, wet: P.wet, cam: P.cam, dead: P.dead,
       ship: P.ship ? P.ship.id : null, local: P.ship ? [P.local.x, P.local.y, P.local.z] : null };
-    if (Save.mode === 'client') return { v: 2, client: true, seed: st.seed, p: player, inv: G.Inv.slots, eq: G.Inv.equip, sel: G.Inv.sel, flags: st.flags, stats: st.stats, obj: st.obj, spawn: st.spawn, fruit: st.fruit, styles: st.styles, train: st.train, bounty: st.bounty, quests: st.quests, fac: st.fac };
+    if (Save.mode === 'client') return { v: 2, client: true, seed: st.seed, p: player, inv: G.Inv.slots, eq: G.Inv.equip, sel: G.Inv.sel, flags: st.flags, stats: st.stats, obj: st.obj, spawn: st.spawn, fruit: st.fruit, styles: st.styles, train: st.train, bounty: st.bounty, quests: st.quests, fac: st.fac, creative: st.creative };
     return {
       v: 2,
       st: { day: st.day, t: st.t, diff: st.diff, spawn: st.spawn, flags: st.flags, stats: st.stats, obj: st.obj, world: st.world, weather: [G.Weather.type, Math.round(G.Weather.timer)],

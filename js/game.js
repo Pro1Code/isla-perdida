@@ -68,6 +68,19 @@
       const t = G.Creatures.rayHit(c, o, d);
       if (t >= 0 && t < bt && t < wreach + 0.4) { bt = t; best = { kind: 'creature', c, t }; }
     });
+    // En 3ª persona (por detrás o frontal), si no apuntas a nada que pelee, el golpe va al enemigo que tienes
+    // delante (±40°) y a tu alcance, si está peleando contigo
+    if (P.cam !== 'fp' && !P.ship && !(best && best.kind === 'creature')) {
+      let ab = null, ad = wreach + 0.5;
+      G.Creatures.forEachAlive((c) => {
+        if (!(c.aggro > 0) || !c.d.dmg || c.d.friendly || c.d.dummy || G.Faction.friendly(c) || (c.d.npc && !G.Story.tribeHostile())) return;
+        const dx = c.x - P.pos.x, dz = c.z - P.pos.z, dd = Math.hypot(dx, dz) - c.d.hitR * 0.6;
+        if (dd > ad || Math.abs(c.y - P.pos.y) > 2.2) return;
+        if (Math.abs(U.angDiff(Math.atan2(-dx, -dz), P.yaw)) > 0.7) return;
+        ad = dd; ab = c;
+      });
+      if (ab && (!best || best.kind === 'res' || best.kind === 'water' || best.t > ad)) { bt = Math.max(0, ad); best = { kind: 'creature', c: ab, t: bt }; }
+    }
     for (const p of G.Net.peers.values()) {
       if (p.dead) continue;
       const t = raySphere(o, d, p.x, p.y + (p.swim ? 0.3 : 1.0), p.z, 0.6);
@@ -784,6 +797,7 @@
     if (st.spectate) prompt = '👁️ Estás eliminado: observando la partida';
     G.UI.setPrompt(st.mode === 'playing' && !G.Story.dialog ? prompt : '');
     G.UI.el.crosshair.classList.toggle('active', !!Game.target);
+    G.UI.el.crosshair.classList.toggle('hidden', G.Player.cam === 'front' && !G.Player.station);
     if (inputOn && G.Input.mouseL && !G.Grave.dig(dt)) Game.attack();
     G.Creatures.update(dt);
     G.Build.update(dt);
@@ -938,7 +952,7 @@
       flags: (pdata && pdata.flags) || {}, stats: fixStats(pdata && pdata.stats), obj: (pdata && pdata.obj) || 0,
       world: st.world || Game.newWorldState(), seed: st.seed, gm: st.gm || 'coop', cfg: st.cfg, fruit: (pdata && pdata.fruit) || null, bounty: (pdata && pdata.seed === st.seed && pdata.bounty) || 0, quests: (pdata && pdata.seed === st.seed && pdata.quests) || null,
       styles: (pdata && pdata.seed === st.seed && pdata.styles) || {}, train: (pdata && pdata.seed === st.seed && pdata.train) || {},
-      fac: (pdata && pdata.seed === st.seed && pdata.fac) || null,
+      fac: (pdata && pdata.seed === st.seed && pdata.fac) || null, creative: pdata && pdata.seed === st.seed ? pdata.creative : undefined,
     };
     if (Array.isArray(G.state.world.loot)) G.state.world.loot = Object.assign({}, G.state.world.loot);
     G.Clock.init(st.seed, st.t);

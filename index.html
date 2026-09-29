@@ -107,7 +107,7 @@
         <label class="opt-row">Al morir <select id="cwDeath"></select></label>
         <label class="opt-row">Semilla <input id="cwSeed" class="mp-input seed" placeholder="Aleatoria" maxlength="12" autocomplete="off" /></label>
       </div>
-      <label class="toggle-row"><input type="checkbox" id="cwCheats" /> <span>🪄 <b>Activar trucos</b> <small class="muted">Invencible, volar, dar objetos, cambiar la hora… En esta partida no se consiguen logros ni doblones.</small></span></label>
+      <label class="toggle-row"><input type="checkbox" id="cwCheats" /> <span>🪄 <b>Modo creativo</b> <small class="muted">Invencible, volar, dar objetos, cambiar la hora… Mientras esté activado no se consiguen logros ni doblones. Se puede activar o desactivar luego desde la pausa.</small></span></label>
       <div class="row-btns"><button id="cwCancel" class="btn small">Cancelar</button><button id="cwCreate" class="btn primary">Crear partida</button></div>
     </div>
 
@@ -281,7 +281,7 @@
   <div id="hudRight">
     <div id="shipHud" class="hidden"></div>
     <div id="styleHud" class="hidden"></div>
-    <div id="keyhint"><kbd>Tab</kbd> Inventario <kbd>M</kbd> Mapa <kbd>J</kbd> Bitácora <kbd>V</kbd> Cámara <kbd>Esc</kbd> Pausa<span id="keyhintCheats" class="hidden"> <kbd>K</kbd> Trucos</span></div>
+    <div id="keyhint"><kbd>Tab</kbd> Inventario <kbd>M</kbd> Mapa <kbd>J</kbd> Bitácora <kbd>V</kbd> Cámara <kbd>Esc</kbd> Pausa<span id="keyhintCheats" class="hidden"> <kbd>K</kbd> Creativo</span></div>
   </div>
   <div id="powerHud" class="hidden"></div>
   <div id="bossBar" class="hidden"><div id="bossName">🐗 Jabalí gigante</div><div class="bar"><i id="bossFill"></i></div></div>
@@ -361,7 +361,8 @@
     <div class="menu-buttons">
       <button id="btnResume" class="btn primary">Reanudar</button>
       <button id="btnSave" class="btn">💾 Guardar partida</button>
-      <button id="btnPauseCheats" class="btn hidden">🪄 Trucos (K)</button>
+      <button id="btnPauseCreative" class="btn">🪄 Activar modo creativo</button>
+      <button id="btnPauseCheats" class="btn hidden">🪄 Menú creativo (K)</button>
       <button id="btnPauseAch" class="btn">🏆 Logros</button>
       <button id="btnPauseBounty" class="btn">📜 Se busca</button>
       <button id="btnPauseSettings" class="btn">⚙️ Configuración</button>
@@ -401,8 +402,9 @@
 <div id="cheats" class="hidden">
   <div class="cheat-card">
     <button id="cheatsClose" class="close" title="Cerrar (K)">✕</button>
-    <h2>🪄 Trucos</h2>
-    <p class="muted small-text">Esta partida tiene los trucos activados: eres inmortal y no pasas hambre ni sed. Aquí no se consiguen logros ni doblones.</p>
+    <h2>🪄 Modo creativo</h2>
+    <p class="muted small-text">Eres inmortal y no pasas hambre ni sed. Mientras esté activado no se consiguen logros ni doblones.</p>
+    <div class="row-btns left"><button id="chOff" class="btn small">🌿 Desactivar modo creativo</button></div>
     <div id="chToggles" class="ch-toggles"></div>
     <div class="ch-sec"><b>Dar objeto</b><div class="row-btns left"><select id="chItem"></select><input id="chQty" type="number" min="1" max="999" value="10" class="mp-input qty" /><button id="chGive" class="btn small primary">Dar</button></div></div>
     <div class="ch-sec"><b>Hora de esta isla</b><div id="chTime" class="row-btns left"></div></div>

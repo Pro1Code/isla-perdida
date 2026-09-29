@@ -71,7 +71,19 @@
     const cp = Math.cos(P.pitch);
     return out.set(-Math.sin(P.yaw) * cp, Math.sin(P.pitch), -Math.cos(P.yaw) * cp);
   };
-  P.eyePos = (out) => out.set(P.pos.x, P.pos.y + (P.swimming && !P.diving ? 1.45 : P.station && P.station.st && P.station.st.seat ? 1.15 : P.eye), P.pos.z);
+  // Desde dónde miras (y apuntas). En 3ª persona por detrás, el rayo es el de la mira (el centro de la cámara),
+  // tomado a la altura de tu cabeza: así golpeas, disparas y recoges justo lo que marca la cruz
+  let aimCam = false;
+  const _ld = new V3();
+  P.eyePos = function (out) {
+    out.set(P.pos.x, P.pos.y + (P.swimming && !P.diving ? 1.45 : P.station && P.station.st && P.station.st.seat ? 1.15 : P.eye), P.pos.z);
+    if (aimCam && camera) {
+      const d = P.lookDir(_ld), c = camera.position;
+      const t = (out.x - c.x) * d.x + (out.y - c.y) * d.y + (out.z - c.z) * d.z;
+      out.set(c.x + d.x * t, c.y + d.y * t, c.z + d.z * t);
+    }
+    return out;
+  };
 
   P.reset = function (x, z, yaw) {
     if (P.ship) { P.ship = null; P.station = null; }
@@ -353,7 +365,7 @@
     const seated = P.station && P.station.st && P.station.st.seat;
     _v.copy(P.pos); if (seated) _v.y -= 0.45;
     model.update(dt, { pos: _v, yaw: P.yaw, pitch: P.pitch, speed: P.station ? 0 : hs, onGround: P.onGround || P.wading || !!P.ship, swimming: P.swimming, swing: P.swing, holding: !!id, guard: G.Parry.guardK, stagger: G.Parry.staggerK });
-    model.root.visible = !P.dead || P.cam === 'tp';
+    model.root.visible = !P.dead || P.cam !== 'fp';
 
     // Cámara
     P.shake = Math.max(0, P.shake - dt);
@@ -361,6 +373,7 @@
     // Zoom del catalejo
     const wantFov = P.zoom ? 18 : G.Profile.set('fov');
     if (Math.abs(camera.fov - wantFov) > 0.05) { camera.fov = U.lerp(camera.fov, wantFov, Math.min(1, dt * 8)); camera.updateProjectionMatrix(); }
+    aimCam = false;
     if (G.Ships && G.Ships.cameraFor(camera)) { setLayer(0); vm.visible = false; return; }
     if (P.cam === 'fp') {
       const bob = P.onGround ? Math.sin(P.bob * 2) * 0.04 * bobA : 0;
@@ -369,21 +382,55 @@
       camera.rotation.set(P.pitch + (Math.random() - 0.5) * sh, P.yaw + (Math.random() - 0.5) * sh, 0, 'YXZ');
       setLayer(1);
       vm.visible = !P.dead && !P.zoom;
+    } else if (P.cam === 'front') {
+      // Cámara frontal: delante de ti, mirándote a la cara (el ratón la sube y la baja)
+      const head = _v.set(P.pos.x, P.pos.y + (P.swimming && !P.diving ? 1.3 : seated ? 1.1 : 1.55), P.pos.z);
+      const pt = U.clamp(P.pitch, -0.8, 0.8);
+      _d.set(-Math.sin(P.yaw) * Math.cos(pt), Math.sin(pt) * 0.85 + 0.06, -Math.cos(P.yaw) * Math.cos(pt)).normalize();
+      P.camD = camFree(head, _d, 2.7, dt);
+      camera.position.copy(head).addScaledVector(_d, P.camD);
+      camera.lookAt(head.x, head.y - 0.06, head.z);
+      camera.rotation.z += (Math.random() - 0.5) * sh;
+      setLayer(0);
+      vm.visible = false;
     } else {
-      const head = _v.set(P.pos.x, P.pos.y + 1.65, P.pos.z);
-      P.lookDir(_d);
-      const dist = 4.2;
-      const cx = head.x - _d.x * dist + Math.cos(P.yaw) * 0.55;
-      const cz = head.z - _d.z * dist - Math.sin(P.yaw) * 0.55;
-      let cyy = head.y - _d.y * dist;
-      const th = G.height(cx, cz) + 0.4;
-      if (cyy < th) cyy = th;
-      camera.position.set(cx, cyy, cz);
+      // 3ª persona por detrás, cómoda para luchar: por encima del hombro derecho (tu personaje queda a la
+      // izquierda y no tapa la mira) y más cerca cuando hay pelea o te cubres. No atraviesa paredes ni el suelo.
+      if ((fightT -= dt) <= 0) { fightT = 0.3; fighting = enemyNear(); }
+      const fk = (P.fightK = U.lerp(P.fightK || 0, fighting || G.Parry.guard || P.swing > 0 ? 1 : 0, Math.min(1, dt * 3)));
+      const side = U.lerp(0.55, 0.68, fk), dist = U.lerp(3.5, 2.7, fk);
+      const pivot = _v.set(P.pos.x + Math.cos(P.yaw) * side, P.pos.y + (P.swimming && !P.diving ? 1.35 : seated ? 1.2 : U.lerp(1.62, 1.55, fk)), P.pos.z - Math.sin(P.yaw) * side);
+      P.lookDir(_d).multiplyScalar(-1);
+      P.camD = camFree(pivot, _d, dist, dt);
+      camera.position.copy(pivot).addScaledVector(_d, P.camD);
       camera.rotation.set(P.pitch + (Math.random() - 0.5) * sh, P.yaw + (Math.random() - 0.5) * sh, 0, 'YXZ');
       setLayer(0);
       vm.visible = false;
+      aimCam = true;
     }
   };
+  // Distancia libre desde 'from' en la dirección 'dir' (hasta 'max'): el terreno y las construcciones cortan la cámara.
+  // Se acerca al instante y se vuelve a alejar con suavidad.
+  let fightT = 0, fighting = false;
+  function camFree(from, dir, max, dt) {
+    let free = max;
+    for (let t = 0.3; t <= max; t += 0.12) {
+      const x = from.x + dir.x * t, y = from.y + dir.y * t, z = from.z + dir.z * t;
+      let hit = y < G.height(x, z) + 0.3;
+      if (!hit) G.Build.forBoxesNear(x, z, 0.5, (b) => { if (!hit && x > b.x0 - 0.15 && x < b.x1 + 0.15 && z > b.z0 - 0.15 && z < b.z1 + 0.15 && y > b.y0 - 0.15 && y < b.y1 + 0.15) hit = true; });
+      if (hit) { free = Math.max(0.35, t - 0.2); break; }
+    }
+    const cur = P.camD || free;
+    return free < cur ? free : U.lerp(cur, free, Math.min(1, dt * 4));
+  }
+  // ¿Hay algún enemigo peleando cerca? (la cámara de 3ª persona se acerca)
+  function enemyNear() {
+    let near = false;
+    G.Creatures.forEachAlive((c) => {
+      if (!near && c.aggro > 0 && c.d.dmg && !c.d.friendly && !c.d.dummy && !G.Faction.friendly(c) && Math.hypot(c.x - P.pos.x, c.z - P.pos.z) < 14) near = true;
+    });
+    return near;
+  }
   // Capa 1: invisible para la cámara pero visible para la sombra del sol (primera persona)
   let curLayer = -1;
   function setLayer(l) {
@@ -397,8 +444,10 @@
     vm.visible = !hidden && P.cam === 'fp';
     if (hidden) torchLight.intensity = 0;
   };
+  // V: primera persona → 3ª persona (por detrás) → frontal
   P.toggleCam = function () {
-    P.cam = P.cam === 'fp' ? 'tp' : 'fp';
-    G.UI.msg(P.cam === 'fp' ? 'Cámara: primera persona' : 'Cámara: tercera persona', 'info', 'cam');
+    P.cam = P.cam === 'fp' ? 'tp' : P.cam === 'tp' ? 'front' : 'fp';
+    P.camD = 0;
+    G.UI.msg(P.cam === 'fp' ? '📷 Cámara: primera persona' : P.cam === 'tp' ? '📷 Cámara: tercera persona (por detrás)' : '📷 Cámara: frontal (te ve de cara)', 'info', 'cam');
   };
 })();

@@ -84,7 +84,7 @@
     box.innerHTML = list.map((w) => `<div class="world" data-id="${w.id}">
       <div class="w-main"><b class="w-name">${esc(w.name)}</b>
         <div class="w-seed">🌱 Semilla ${w.seed ? `<code>${w.seed}</code><button class="seed-copy" data-a="seed" title="Copiar la semilla">📋 Copiar</button>` : '<span class="muted">se verá al entrar en la partida</span>'}</div>
-        <div class="w-tags"><span class="tag d${w.diff}">${DIFF[w.diff] || 'Normal'}</span><button class="tag death" data-a="death" title="Qué pasa al morir en esta partida · clic para cambiarlo">${DEATH_TAG[w.death] || DEATH_TAG.half}</button>${w.cheats ? '<span class="tag cheat">🪄 Trucos</span>' : ''}<span>${w.fresh ? 'Sin empezar' : `Día ${w.day || 1}`}</span>${w.time ? `<span>⏱️ ${dur(w.time)}</span>` : ''}<span class="muted">${ago(w.played || w.created)}</span>${w.ver && w.ver !== G.VERSION ? `<span class="muted">v${esc(w.ver)}</span>` : ''}</div></div>
+        <div class="w-tags"><span class="tag d${w.diff}">${DIFF[w.diff] || 'Normal'}</span><button class="tag death" data-a="death" title="Qué pasa al morir en esta partida · clic para cambiarlo">${DEATH_TAG[w.death] || DEATH_TAG.half}</button>${w.cheats ? '<span class="tag cheat">🪄 Creativo</span>' : ''}<span>${w.fresh ? 'Sin empezar' : `Día ${w.day || 1}`}</span>${w.time ? `<span>⏱️ ${dur(w.time)}</span>` : ''}<span class="muted">${ago(w.played || w.created)}</span>${w.ver && w.ver !== G.VERSION ? `<span class="muted">v${esc(w.ver)}</span>` : ''}</div></div>
       <div class="w-btns"><button class="btn small primary" data-a="play">${kind === 'sp' ? '▶ Jugar' : '👑 Hospedar'}</button><button class="btn small icon" data-a="ren" title="Renombrar">✏️</button><button class="btn small icon" data-a="del" title="Borrar">🗑️</button></div>
     </div>`).join('');
     box.onclick = async (e) => {
@@ -178,7 +178,7 @@
     if (filter === 'done') list = list.filter((a) => PR.hasAch(a.id));
     if (filter === 'pending') list = list.filter((a) => !PR.hasAch(a.id));
     const cheats = G.Cheats.enabled();
-    box.innerHTML = (cheats ? '<div class="world-empty">🪄 Estás en una partida con trucos: aquí no se consiguen logros.</div>' : '') +
+    box.innerHTML = (cheats ? '<div class="world-empty">🪄 Tienes el modo creativo activado: mientras lo tengas no se consiguen logros.</div>' : '') +
       (list.length ? list.map((a) => {
         const T = A.TIERS[a.t], got = PR.hasAch(a.id), pr = A.progress(a);
         const bar = !got && a.c && a.goal > 1 ? `<div class="bar"><i style="width:${pr * 100}%"></i></div><small class="muted">${Math.min(PR.cnt(a.c), a.goal).toLocaleString('es')} / ${a.goal.toLocaleString('es')}</small>` : '';

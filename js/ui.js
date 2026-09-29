@@ -28,7 +28,7 @@
     ['Al timón', '<kbd>W</kbd>/<kbd>S</kbd> velas o motor · <kbd>A</kbd>/<kbd>D</kbd> girar · <kbd>Espacio</kbd> ancla · <kbd>Q</kbd> piloto automático'],
     ['<kbd>T</kbd> / <kbd>Enter</kbd>', 'Chat (multijugador LAN)'],
     ['<kbd>Q</kbd> / <kbd>Z</kbd>', 'Técnicas de tu estilo de combate (espadachín, tirador, luchador o brujo)'],
-    ['<kbd>K</kbd>', 'Menú de trucos (solo en partidas con trucos)'],
+    ['<kbd>K</kbd>', 'Menú del modo creativo (con el modo creativo activado desde la pausa)'],
     ['<kbd>Esc</kbd>', 'Pausa'],
   ];
 
