@@ -11,9 +11,9 @@
   // Globo ocular con pupila, iris (más oscuro en el borde) y esclerótica; mira hacia dir
   F.eye = function (r, pos, dir, iris, o) {
     o = o || {};
-    const geo = new THREE.SphereGeometry(r, 18, 14);
+    const geo = new THREE.SphereGeometry(r, o.glint ? 28 : 18, o.glint ? 22 : 14);
     const ic = new Col(iris), ie = new Col(iris).multiplyScalar(0.45), pc = new Col(o.pupil ?? 0x050403), sc = new Col(o.sclera ?? 0x2a1d16), c = new Col();
-    const pr = o.pupilR ?? 0.35, ir = o.irisR ?? 0.78, slit = o.slit || 0;
+    const pr = o.pupilR ?? 0.35, ir = o.irisR ?? 0.78, slit = o.slit || 0, glint = o.glint ? new Col(0xffffff) : null;
     const P = geo.attributes.position, cols = new Float32Array(P.count * 3);
     for (let i = 0; i < P.count; i++) {
       const x = P.getX(i) / r, y = P.getY(i) / r, z = P.getZ(i) / r;
@@ -22,6 +22,7 @@
       if (z > 0 && (slit ? Math.hypot(Math.abs(x) / (1 - slit * 0.85), y) < pr : px < 1)) c.copy(pc);
       else if (z > 0 && rad < ir) c.lerpColors(ic, ie, U.smooth(ir * 0.55, ir, rad));
       else c.copy(sc);
+      if (glint && z > 0 && (x - 0.22) * (x - 0.22) + (y - 0.28) * (y - 0.28) < 0.018) c.copy(glint);
       cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));

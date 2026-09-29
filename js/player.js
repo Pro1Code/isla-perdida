@@ -140,7 +140,7 @@
     if (S.stamina <= 0) P.exhausted = true;
     if (P.exhausted && S.stamina > 25) P.exhausted = false;
     P.sprinting = !!(K.ShiftLeft || K.ShiftRight) && P.moving && fwd > 0 && !P.exhausted && !P.swimming;
-    let speed = P.swimming ? (P.diving ? 2.8 : 2.6) : P.sprinting ? 7.2 : 4.4;
+    let speed = P.swimming ? (P.diving ? 3.4 : 3.6) * (S.stamina <= 0 ? 0.75 : 1) : P.sprinting ? 7.2 : 4.4;
     if (P.wading) speed *= 0.7;
     if (G.Story) speed *= G.Story.speedMul();
     if (G.Cheats.flag('fast')) speed *= 2;
@@ -257,10 +257,12 @@
       P.oxy = Math.max(0, P.oxy - dt * 3.4 / G.Inv.eqStat('oxy') * (P.sinking ? 1.6 : 1));
       if (P.oxy <= 0) { S.health -= 9 * dt; P.cause = P.sinking ? 'La Fruta del Abismo te hundió en el mar' : 'Te ahogaste'; }
     } else P.oxy = Math.min(100, P.oxy + dt * 25);
-    if (P.sprinting) S.stamina = Math.max(0, S.stamina - 16 * dt);
+    // Correr gasta 9/s (11 s seguidos); nadar gasta 1,6/s (un minuto largo) y flotando quieto se recupera algo.
+    // Sin energía en el agua se nada más despacio y se pierde vida poco a poco
+    if (P.sprinting) S.stamina = Math.max(0, S.stamina - 9 * dt);
     else if (P.swimming && !P.sinking) {
-      S.stamina = Math.max(0, S.stamina - (P.moving ? 5 : 2.5) * dt);
-      if (S.stamina <= 0 && !P.diving) { S.health -= 6 * dt; P.cause = 'Te ahogaste'; }
+      S.stamina = P.moving ? Math.max(0, S.stamina - 1.6 * dt) : Math.min(100, S.stamina + 3 * dt);
+      if (S.stamina <= 0 && !P.diving) { S.health -= 2.5 * dt; P.cause = 'Te ahogaste'; }
     } else if (!(P.station && P.station.kind === 'helm' && P.ship && P.ship.def.paddle && P.ship.throttle !== 0)) S.stamina = Math.min(100, S.stamina + (P.moving ? 10 : 18) * dt);
     const fire = G.Build.nearestLitFire(P.pos.x, P.pos.z);
     if (fire && fire.d < 0.75 && Math.abs(fire.s.y - P.pos.y) < 1 && !(G.Story && G.Story.fruitOf() === 'llama')) { S.health -= 10 * dt; P.cause = 'Te quemaste'; P.hurtT = 0; G.UI.hurtFlash(0.3); }

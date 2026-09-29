@@ -226,8 +226,8 @@
     xm.visible = false; tg.add(xm); Pr.xMark = xm;
     const chest = vmesh([Md.xf(Md.paint(new THREE.BoxGeometry(0.9, 0.5, 0.6), (x, y) => (Math.abs(y) > 0.2 ? 0xc8a040 : 0x6a4428)), 0, 0.25, 0), Md.xf(Md.paint(new THREE.CylinderGeometry(0.3, 0.3, 0.9, 12, 1, false, 0, Math.PI), 0x7a5230), 0, 0.5, 0, 0, 0, Math.PI / 2)]);
     chest.visible = false; tg.add(chest); Pr.chestMesh = chest;
-    loot('p:treasure', T.x, T.z, tg, 'Cofre de Rogan', () => (F().treasure ? '🗝️ Aquí estaba el <b>cofre de Rogan</b>' : Pr.clues() >= 3 ? '✖ <b>Aquí marca el mapa de Rogan</b> · <kbd>E</kbd> Cavar' : ''));
-    G.Landmarks.kit().circle(T.x + 0, T.z, 0.2);
+    loot('p:treasure', T.x, T.z, tg, 'Cofre de Rogan', () => (F().treasure ? '🗝️ <b>Cofre de Rogan</b> · <kbd>E</kbd> Abrir <span class="muted">(puedes guardar objetos)</span>' : Pr.clues() >= 3 ? '✖ <b>Aquí marca el mapa de Rogan</b> · <kbd>E</kbd> Cavar' : ''));
+    G.Landmarks.kit().circle(T.x + 0, T.z, 0.5);
   };
   // Solo se puede interactuar con la ✖ al tener las tres pistas
   Pr.visible = (c) => c.id !== 'p:treasure' || Pr.clues() >= 3 || F().treasure;
@@ -397,9 +397,9 @@
       return;
     }
     if (c.id === 'p:treasure') {
-      if (f.treasure) { G.UI.msg('Aquí ya no queda nada.', 'info', 'clue'); return; }
+      if (f.treasure) { G.Game.openStore(c); return; }
       if (Pr.clues() < 3) return;
-      if (G.Net.active && !G.Net.isHost) { G.Net.send({ t: 'prDig' }); G.UI.msg('⛏️ Cavando…', 'info'); return; }
+      if (G.Net.active && !G.Net.isHost) { G.Game.expectStore('p:treasure'); G.Net.send({ t: 'prDig' }); G.UI.msg('⛏️ Cavando…', 'info'); return; }
       dig(G.Net.myId);
     }
   };
@@ -417,11 +417,11 @@
     const give = () => {
       if (Pr.chestMesh) Pr.chestMesh.visible = true;
       if (!G.Net.active || who === G.Net.myId) {
-        for (const [id, n] of items) G.Game.give(id, n);
         G.Ach.add('rogan');
         G.UI.banner('¡El tesoro de Rogan!', k ? `Una Fruta del Abismo: ${G.Story.FRUITS[k].icon} ${G.Story.FRUITS[k].name}` : 'Oro y perlas del Rey de las Mareas');
         G.Audio.play('win');
-      } else G.Net.send({ t: 'give', to: who, items, loot: true });
+      }
+      G.Game.buryStore('p:treasure', items, who);
       G.Net.send({ t: 'prTreasure' });
     };
     if (!G.Net.active || who === G.Net.myId) G.UI.fade(give); else give();

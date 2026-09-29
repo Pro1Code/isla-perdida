@@ -51,7 +51,7 @@
       S.ell([0, 1.05, 0.0], [0.16, 0.03, 0.12], { paint: true, soft: 0.02, reg: SH, color: 0xb8b8b8 }),
       // Cuello de la camisa y cuello
       S.ell([0, 1.525, 0.0], [0.075, 0.03, 0.068], { paint: true, soft: 0.012, reg: SH, color: 0xb8b8b8 }),
-      S.cone([0, 1.47, 0.0], [0, 1.58, 0.01], q(0.058, 0.05), q(0.052, 0.045), Object.assign({ bone: 'neck', k: 0.03, reg: SK, color: 0xffffff, bb: 0.04 }, skin)),
+      S.cone([0, 1.47, 0.0], [0, 1.53, 0.004], q(0.058, 0.05), q(0.056, 0.049), Object.assign({ bone: 'neck', k: 0.03, reg: SK, color: 0xffffff, bb: 0.04 }, skin)),
       S.cone([0, 1.505, 0.06], [0, 1.455, 0.085], 0.03, 0.006, { paint: true, soft: 0.01, sx: 1.2, reg: SK, color: 0xffffff }),
     );
     // Piernas: muslo con cuádriceps, rodilla, gemelo, pantalón remangado y bota
@@ -92,51 +92,68 @@
       }
       b.p(S.cone([x + s * 0.004, 0.878, 0.034], [x + s * 0.012, 0.832, 0.056], 0.0098, 0.0082, Object.assign({ grp: gH, bone: 'h' + L, k: 0.008, reg: SK, color: 0xffffff }, skin)));
     }
-    // Cabeza (grupo propio con más detalle): cráneo, frente, arcos de las cejas, pómulos, nariz, labios, mandíbula, orejas
+    // Cabeza (grupo propio): óvalo suave, frente, pómulos discretos, nariz pequeña y labios; orejas.
+    // Los rasgos finos (ojos con párpados, cejas y la línea de la boca con una ligera sonrisa) son piezas aparte,
+    // colocadas sobre la superficie real de la cara (se mide con el propio campo de distancia), nítidas de lejos
     const HD = { grp: 'head', bone: 'head', reg: SK, color: 0xffffff, fur: 0 };
     const hd = (o) => Object.assign({}, HD, o || {});
-    b.p(
-      S.ell([0, 1.742, -0.004], [0.088, 0.105, 0.1], hd({ k: 0.03 })),
-      S.ell([0, 1.7, 0.036], [0.077, 0.093, 0.08], hd({ k: 0.03 })),
-      S.ell([0, 1.79, 0.048], [0.07, 0.045, 0.058], hd({ k: 0.025 })),
-      S.ell([0, 1.765, 0.084], [0.064, 0.013, 0.024], hd({ k: 0.012 })),
-      S.ell([0, 1.642, 0.046], [q(0.064, 0.056), 0.035, 0.058], hd({ k: 0.02 })),
-      S.ell([0, 1.627, 0.084], [q(0.022, 0.017), q(0.02, 0.017), 0.02], hd({ k: 0.012 })),
-      S.cone([0, 1.59, 0.0], [0, 1.66, 0.02], 0.055, 0.05, hd({ k: 0.02 })),
-      // Nariz: caballete, punta y aletas con las fosas
-      S.cone([0, 1.758, 0.094], [0, 1.708, 0.117], 0.0095, 0.0135, hd({ k: 0.008 })),
-      S.sph([0, 1.701, 0.119], 0.0145, hd({ k: 0.008 })),
-      S.ell([0.012, 1.698, 0.108], [0.01, 0.0085, 0.01], hd({ k: 0.006 })),
-      S.ell([-0.012, 1.698, 0.108], [0.01, 0.0085, 0.01], hd({ k: 0.006 })),
-      S.ell([0.0075, 1.692, 0.12], [0.004, 0.003, 0.004], { grp: 'head', paint: true, soft: 0.002, reg: SK, color: 0x5a3a30 }),
-      S.ell([-0.0075, 1.692, 0.12], [0.004, 0.003, 0.004], { grp: 'head', paint: true, soft: 0.002, reg: SK, color: 0x5a3a30 }),
-      // Labios (tono rojizo sobre el color de la piel) y la línea de la boca
-      S.ell([0, 1.669, 0.097], [0.021, q(0.0058, 0.0072), 0.011], hd({ k: 0.006, color: q(0xcf8f84, 0xd88478) })),
-      S.ell([0, 1.659, 0.095], [0.019, q(0.0068, 0.0085), q(0.011, 0.012)], hd({ k: 0.006, color: q(0xcf8f84, 0xd88478) })),
-      S.cone([-0.02, 1.6645, 0.104], [0.02, 1.6645, 0.104], 0.0018, 0.0018, { grp: 'head', paint: true, soft: 0.0018, reg: SK, color: 0x6a3a34 }),
-      // Barba incipiente y cejas
-
-      S.ell([0.035, 1.767, 0.092], [0.023, 0.0055, 0.014], { grp: 'head', paint: true, soft: 0.004, reg: HA, color: 0xffffff }),
-      S.ell([-0.035, 1.767, 0.092], [0.023, 0.0055, 0.014], { grp: 'head', paint: true, soft: 0.004, reg: HA, color: 0xffffff }),
+    const lipC = q(0xc98a80, 0xd47f76);
+    const face = [
+      S.ell([0, 1.745, -0.006], [0.089, 0.104, 0.1], hd({ k: 0.03 })),
+      S.ell([0, 1.705, 0.03], [q(0.074, 0.07), 0.09, 0.08], hd({ k: 0.035 })),
+      S.ell([0, 1.785, 0.05], [0.068, 0.045, 0.054], hd({ k: 0.03 })),
+      S.ell([0, 1.648, 0.046], [q(0.058, 0.052), 0.032, 0.054], hd({ k: 0.03 })),
+      S.ell([0, 1.632, 0.074], [q(0.02, 0.016), q(0.018, 0.016), 0.02], hd({ k: 0.015 })),
+      S.cone([0, 1.505, 0.0], [0, 1.66, 0.02], 0.056, 0.05, hd({ k: 0.02 })),
+      S.ell([0.046, 1.713, 0.063], [0.022, 0.016, 0.022], hd({ k: 0.02 })),
+      S.ell([-0.046, 1.713, 0.063], [0.022, 0.016, 0.022], hd({ k: 0.02 })),
+    ];
+    const smin = (a2, b2, k) => { const h = Math.max(k - Math.abs(a2 - b2), 0) / k; return Math.min(a2, b2) - h * h * k * 0.25; };
+    const fieldAt = (list, x, y, z) => { let d = 1e9; for (const pr of list) d = smin(d, S.dist(pr, x, y, z), pr.k); return d; };
+    // z de la superficie de la cara en (x, y), mirando desde delante
+    const surfZ = (list, x, y) => { let z = 0.25; for (let i = 0; i < 80; i++) { const d = fieldAt(list, x, y, z); if (d < 2e-4) break; z -= Math.max(d, 2e-4); } return z; };
+    // Nariz pequeña y recta, y labios que asoman un poco de la cara
+    const zn = surfZ(face, 0, 1.712), zl1 = surfZ(face, 0, 1.6725), zl2 = surfZ(face, 0, 1.6625);
+    face.push(
+      S.cone([0, 1.752, zn - 0.012], [0, 1.712, zn + 0.003], 0.0078, 0.0105, hd({ k: 0.008 })),
+      S.sph([0, 1.706, zn + 0.004], 0.0112, hd({ k: 0.008 })),
+      S.ell([0.0095, 1.702, zn - 0.004], [0.0075, 0.0065, 0.0075], hd({ k: 0.005 })),
+      S.ell([-0.0095, 1.702, zn - 0.004], [0.0075, 0.0065, 0.0075], hd({ k: 0.005 })),
+      S.ell([0, 1.6725, zl1 - 0.0035], [0.0185, q(0.0052, 0.0062), 0.0085], hd({ k: 0.005, color: lipC })),
+      S.ell([0, 1.6625, zl2 - 0.003], [0.0165, q(0.0062, 0.0075), 0.009], hd({ k: 0.005, color: lipC })),
     );
+    b.p(...face);
+    const eyes = [];
     for (const s of [1, -1]) {
       b.p(
-        S.ell([s * 0.048, 1.7, 0.07], [0.034, 0.03, 0.033], hd({ k: 0.016 })),
-        S.sph([s * 0.034, 1.737, 0.084], 0.0158, { grp: 'head', sub: true, k: 0.006 }),
-        S.ell([s * 0.034, 1.7505, 0.084], [0.0175, 0.0075, 0.0115], hd({ k: 0.004 })),
-        S.ell([s * 0.034, 1.7232, 0.0855], [0.0155, 0.0045, 0.0095], hd({ k: 0.004 })),
-        S.ell([s * 0.091, 1.72, 0.0], [0.012, 0.03, 0.02], hd({ k: 0.008 })),
-        S.ell([s * 0.098, 1.722, 0.004], [0.006, 0.019, 0.011], { grp: 'head', sub: true, k: 0.004 }),
+        S.ell([s * 0.091, 1.722, 0.0], [0.011, 0.028, 0.019], hd({ k: 0.008 })),
+        S.ell([s * 0.098, 1.724, 0.004], [0.006, 0.017, 0.01], { grp: 'head', sub: true, k: 0.004 }),
       );
-      b.part(F.eye(0.0114, [s * 0.034, 1.7368, 0.0838], [s * 0.06, 0, 1], 0x3b2c20, { sclera: 0xe8e2d8, pupilR: 0.24, irisR: 0.55 }), { bone: 'head' });
+      // Ojo: globo que asoma de la cara, con el párpado de arriba (una concha de piel) y el de abajo más fino
+      const ex = s * 0.032, ey = 1.738, er = 0.0132, ez = surfZ(face, ex, ey) - er * 0.6;
+      eyes.push([ex, ey, ez, er, s]);
+      const lid = (theta, tilt, col) => {
+        const g = new THREE.SphereGeometry(er * 1.1, 18, 6, 0, Math.PI * 2, 0, theta);
+        g.rotateX(tilt);
+        g.translate(ex, ey, ez);
+        return M.paint(g, col, 0.01);
+      };
+      b.part(lid(0.8, 0.45, 0xffffff), { bone: 'head', reg: SK, fur: 0 });
+      b.part(lid(0.55, Math.PI - 0.45, 0xffffff), { bone: 'head', reg: SK, fur: 0 });
+      // Ceja: arco fino del color del pelo, pegado a la frente
+      const bp = [[0.015, 1.7585], [0.033, 1.7625], [0.049, 1.7585]].map(([x, y]) => [s * x, y, surfZ(face, s * x, y) + 0.0012]);
+      b.part(M.tube(bp, [q(0.0034, 0.0027), q(0.0022, 0.0016)], 5, 0xffffff, 8), { bone: 'head', reg: HA, fur: 0.4, hair: [s, 0, 0] });
     }
+    // Boca: la línea entre los labios, con las comisuras un poco hacia arriba
+    const mp = [[-0.019, 1.6685], [-0.0095, 1.6665], [0, 1.666], [0.0095, 1.6665], [0.019, 1.6685]].map(([x, y]) => [x, y, surfZ(face, x, y) + 0.0004]);
+    b.part(M.tube(mp, [0.0013, 0.0013], 5, 0x4e2622, 12), { bone: 'head' });
     // Pelo: casquete desordenado que cubre más la nuca, con patillas
     b.p(
-      S.ell([0, 1.797, -0.012], [0.1, 0.077, 0.104], hd({ k: 0.02, reg: HA, fur: 1, hair: [0, 0.3, -1] })),
+      S.ell([0, 1.797, -0.012], [0.1, 0.077, 0.104], hd({ k: 0.02, reg: HA, fur: 1, hair: [0, 0.3, -1], cb: 0.003 })),
       S.ell([0, 1.745, -0.052], [0.095, 0.08, 0.074], hd({ k: 0.025, reg: HA, fur: 1, hair: [0, -1, -0.2] })),
       S.ell([0.083, 1.745, -0.01], [0.022, 0.05, 0.06], hd({ k: 0.015, reg: HA, fur: 1, hair: [0, -1, 0] })),
       S.ell([-0.083, 1.745, -0.01], [0.022, 0.05, 0.06], hd({ k: 0.015, reg: HA, fur: 1, hair: [0, -1, 0] })),
-      S.ell([0, 1.842, 0.03], [0.07, 0.03, 0.06], hd({ k: 0.02, reg: HA, fur: 1, hair: [0, 0.2, 1] })),
+      S.ell([0, 1.842, 0.03], [0.07, 0.03, 0.06], hd({ k: 0.02, reg: HA, fur: 1, hair: [0, 0.2, 1], cb: 0.003 })),
       // Melena larga hasta los hombros (mujeres)
       fem ? S.cone([0, 1.76, -0.07], [0, 1.52, -0.085], 0.088, 0.07, hd({ k: 0.04, reg: HA, fur: 1, sx: 1.15, hair: [0, -1, 0] })) : null,
       fem ? S.ell([0.07, 1.64, -0.035], [0.03, 0.09, 0.05], hd({ k: 0.03, reg: HA, fur: 1, hair: [0, -1, 0] })) : null,
@@ -144,9 +161,39 @@
     );
     void M;
     return b.done({
-      h: 0.019, hg: { head: 0.0068, armL: 0.012, armR: 0.012, handL: 0.0065, handR: 0.0065 }, cb: 0.008, bb: 0.05, ao: 0.018, aoMin: 0.5,
+      h: 0.019, hg: { head: 0.0062, armL: 0.012, armR: 0.012, handL: 0.0065, handR: 0.0065 }, cb: 0.008, bb: 0.05, ao: 0.018, aoMin: 0.5,
       lodK: 2.4, lodDist: 12,
+      // Ojos: esferas propias con la textura del iris (degradado, pupila y brillo) y un material brillante
+      extra: (rig) => {
+        for (const [x, y, z, r, s] of eyes) {
+          const m = new THREE.Mesh(eyeGeo(r), eyeMat());
+          m.position.set(x, y - 1.61, z);
+          m.rotation.y = s * 0.04;
+          m.castShadow = false;
+          rig.B.head.add(m);
+        }
+      },
     });
+  }
+  // Ojo con textura: en una esfera, el frente (+Z) cae en u = 0,25, v = 0,5 de la textura
+  let eyeTex = null, eyeM = null;
+  const eyeGeos = {};
+  const eyeGeo = (r) => eyeGeos[r] || (eyeGeos[r] = new THREE.SphereGeometry(r, 24, 16));
+  function eyeMat() {
+    if (eyeM) return eyeM;
+    eyeTex = U.canvasTex(256, 128, (c, w, h) => {
+      c.fillStyle = '#efe9df'; c.fillRect(0, 0, w, h);
+      const cx = w * 0.25, cy = h * 0.5, R = w * 0.075;
+      const g = c.createRadialGradient(cx, cy, R * 0.15, cx, cy, R);
+      g.addColorStop(0, '#8a5a30'); g.addColorStop(0.55, '#6a4222'); g.addColorStop(0.85, '#4a2c16'); g.addColorStop(1, '#1e120a');
+      c.fillStyle = g; c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = 'rgba(30,18,10,0.35)'; c.lineWidth = 1;
+      for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2; c.beginPath(); c.moveTo(cx + Math.cos(a) * R * 0.45, cy + Math.sin(a) * R * 0.45); c.lineTo(cx + Math.cos(a) * R * 0.9, cy + Math.sin(a) * R * 0.9); c.stroke(); }
+      c.fillStyle = '#070504'; c.beginPath(); c.arc(cx, cy, R * 0.42, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.95)'; c.beginPath(); c.arc(cx + R * 0.32, cy - R * 0.32, R * 0.17, 0, Math.PI * 2); c.fill();
+    });
+    eyeM = new THREE.MeshStandardMaterial({ map: eyeTex, roughness: 0.12, metalness: 0 });
+    return eyeM;
   }
   const tpl = (fem) => G.Rig.get(fem ? 'humanF' : 'human', () => sculpt(!!fem));
   Char.prepare = () => { G.Rig.prepare('human', () => sculpt(false)); G.Rig.prepare('humanF', () => sculpt(true)); };

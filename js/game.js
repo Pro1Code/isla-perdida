@@ -31,7 +31,10 @@
     if (added > 0) G.UI.msg(`+${added} ${G.icon(id, 'xs')} ${G.ITEMS[id].n}`, 'item');
     if (added > 0 && G.Ach) G.Ach.add('get:' + id, added, true);
     if (added > 0 && id.startsWith('pista_') && G.Prologue) G.Prologue.onItem(id);
-    if (added < n) G.UI.msg('¡Inventario lleno!', 'bad', 'full');
+    if (added < n) {
+      if (G.Drops && G.Drops.spill) { G.Drops.spill(id, n - added); G.UI.msg(`🎒 ¡Inventario lleno! ${n - added} ${G.icon(id, 'xs')} ${G.ITEMS[id].n} quedan en el suelo.`, 'warn', 'full'); }
+      else G.UI.msg('¡Inventario lleno!', 'bad', 'full');
+    }
     return added;
   };
 
@@ -532,6 +535,18 @@
     if (!w.loot[id]) fillStore(id, from);
     else G.Net.send({ t: 'lstore', id, items: storeOf(id), opener: from, again: 1 });
   };
+  // Cofres enterrados (el de Rogan y los de los mapas del tesoro): el botín se queda dentro del cofre y quien
+  // lo desentierra lo ve abierto; saca lo que quiera y lo demás sigue ahí (con la mochila llena no se pierde nada)
+  Game.buryStore = function (id, items, who) {
+    const w = G.state.world;
+    w.store = w.store || {};
+    if (!w.store[id]) w.store[id] = pad16(items);
+    w.loot[id] = 1;
+    G.Net.send({ t: 'lstore', id, items: w.store[id], opener: who });
+    if (!G.Net.active || who === G.Net.myId) { const c = G.Landmarks.byId(id); showStore(c || { id, name: 'Cofre' }); }
+  };
+  // Quien pide cavar desde otro equipo abrirá el cofre al recibir su contenido
+  Game.expectStore = (id) => { pendingStore = id; };
   // Contenido de un cofre de isla recibido por la red (lo llenó el anfitrión o alguien lo cambió)
   Game.onStore = function (m) {
     const w = G.state.world;

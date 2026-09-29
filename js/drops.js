@@ -99,6 +99,14 @@
     G.Audio.play('swing');
     return true;
   };
+  // Lo que no cabe en la mochila cae a los pies del jugador (así ninguna recompensa se pierde)
+  D.spill = function (item, n) {
+    if (!G.ITEMS[item] || n <= 0) return;
+    const P = G.Player.pos, a = Math.random() * Math.PI * 2;
+    const d = { id: 'gd:' + (G.Net.myId || 0) + ':' + Date.now().toString(36) + Math.floor(Math.random() * 1e4), item, n, x: P.x + Math.cos(a) * 0.5, y: P.y + 1, z: P.z + Math.sin(a) * 0.5, vx: Math.cos(a) * 1.2, vy: 2, vz: Math.sin(a) * 1.2, age: 0 };
+    G.Net.send({ t: 'gdrop', d: Object.assign({}, d) });
+    D.add(d);
+  };
   // Tecla B: suelta 1 del objeto en la mano (Mayús + B: toda la pila)
   D.dropHeld = function (all) {
     const i = G.Inv.sel, s = G.Inv.slots[i];
