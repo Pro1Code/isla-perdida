@@ -20,8 +20,8 @@
     if (Math.abs(r) > Math.abs(f)) return r > 0 ? 'a tu derecha' : 'a tu izquierda';
     return 'delante de ti';
   }
-  const hostile = (c) => !c.dead && c.d.dmg && !c.d.friendly && !c.d.dummy && (!c.d.npc || (G.Story && G.Story.tribeHostile()));
-  const HUMANS = ['pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss'];
+  const hostile = (c) => !c.dead && c.d.dmg && !c.d.friendly && !c.d.dummy && (!c.d.npc || (G.Story && G.Story.tribeHostile())) && !G.Faction.friendly(c);
+  const HUMANS = ['pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss', 'corsair', 'corsair_gun', 'corsair_captain'];
 
   let tick = 0, stealCd = 8, gullT = 20, callT = 200 + Math.random() * 160, lastWorld = null;
   const warned = new Map();

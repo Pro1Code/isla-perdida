@@ -69,7 +69,7 @@
     const d2 = c2 - t * t;
     return d2 > r * r ? -1 : t - Math.sqrt(r * r - d2);
   }
-  const hostile = (c) => !c.dead && !(c.d.friendly) && !(c.d.npc && !(G.Story && G.Story.tribeHostile()));
+  const hostile = (c) => !c.dead && !(c.d.friendly) && !(c.d.npc && !(G.Story && G.Story.tribeHostile())) && !G.Faction.friendly(c);
   // Primer objetivo en la línea de tiro: criaturas y (en versus) jugadores rivales
   function rayHit(o, d, range, pad = 0.3) {
     let best = null, bt = range;
@@ -93,10 +93,17 @@
     S.addXp(k, 1);
     if (!was && c.dead) S.addXp(k, 4);
   }
-  function hitP(p, dmg, cause) {
-    G.Net.send({ t: 'dmgP', to: p.id, amt: dmg, cause, sx: G.Player.pos.x, sz: G.Player.pos.z, by: G.Net.myId });
+  function hitP(p, dmg, cause, melee) {
+    G.Net.send({ t: 'dmgP', to: p.id, amt: dmg, cause, sx: G.Player.pos.x, sz: G.Player.pos.z, by: G.Net.myId, mel: melee ? 1 : 0 });
     G.Audio.play('hit');
   }
+  // Golpe cuerpo a cuerpo: se puede parar (parry.js) salvo si es un contraataque, que hace el doble
+  function melee(c, dmg, k) {
+    const rip = G.Parry.riposteOn(c.id);
+    hitC(c, dmg * (rip ? 2 : 1), k, { melee: true, riposte: rip });
+    return rip;
+  }
+  const meleeP = (p, dmg, cause) => hitP(p, dmg * (G.Parry.riposteOn('p' + p.id) ? 2 : 1), cause, true);
 
   // ------------------------------------------------------------------ ataque normal (clic)
   // it: objeto en la mano (o null), tg: objetivo del rayo. Devuelve true si lo gestionó el estilo.
@@ -122,8 +129,8 @@
       P.cd = 0.34; P.swing = 1; P.swingCount++;
       G.Audio.play('swing');
       const base = (it && it.dmg) || 14;
-      if (tg && tg.kind === 'creature' && hostile(tg.c)) { hitC(tg.c, base * mul, 'sword'); G.Inv.wear(1); { const a = G.Creatures.aimPoint(tg.c); spark(a.x, a.y, a.z, 0xdff4ff); } }
-      else if (tg && tg.kind === 'peer' && G.Modes.canHurtPlayer(tg.p.team)) { hitP(tg.p, base * mul * 0.8, `${G.Net.name} te derrotó con su espada`); S.addXp('sword', 1); }
+      if (tg && tg.kind === 'creature' && hostile(tg.c)) { const rip = melee(tg.c, base * mul, 'sword'); G.Inv.wear(1); { const a = G.Creatures.aimPoint(tg.c); spark(a.x, a.y, a.z, rip ? 0xfff0a0 : 0xdff4ff); } }
+      else if (tg && tg.kind === 'peer' && G.Modes.canHurtPlayer(tg.p.team)) { meleeP(tg.p, base * mul * 0.8, `${G.Net.name} te derrotó con su espada`); S.addXp('sword', 1); }
       else if (tg && tg.kind === 'res' && tg.r.k.tree) G.Res.hit(tg.r, { id: 'hacha', n: 1 }); // corta árboles (como un hacha de piedra)
       return true;
     }
@@ -134,10 +141,10 @@
       G.Audio.play('swing');
       const dmg = (S.combo === 0 ? 13 : 7) * mul;
       if (tg && tg.kind === 'creature' && hostile(tg.c)) {
-        hitC(tg.c, dmg, 'fist');
+        melee(tg.c, dmg, 'fist');
         if (S.combo === 0) knock(tg.c, 1.4);
         { const a = G.Creatures.aimPoint(tg.c); spark(a.x, a.y, a.z, 0xffc090); }
-      } else if (tg && tg.kind === 'peer' && G.Modes.canHurtPlayer(tg.p.team)) { hitP(tg.p, dmg * 0.8, `${G.Net.name} te noqueó`); S.addXp('fist', 1); }
+      } else if (tg && tg.kind === 'peer' && G.Modes.canHurtPlayer(tg.p.team)) { meleeP(tg.p, dmg * 0.8, `${G.Net.name} te noqueó`); S.addXp('fist', 1); }
       return true;
     }
     return false;
@@ -147,6 +154,7 @@
   S.tech = function (i) {
     const k = S.active();
     const P = G.Player;
+    if (G.Parry.stagger > 0) return; // aturdido: te pararon el golpe
     if (!k) {
       const k2 = S.styleOf(G.Inv.heldId());
       if (k2 && !S.learned(k2)) G.UI.msg(`Aún no conoces el estilo ${S.DEF[k2].name}. Busca a ${S.DEF[k2].master} en la Isla Perdida.`, 'info', 'tech');

@@ -126,22 +126,25 @@
       case 'structHit': if (Net.isHost && Net.inWorld) G.Build.hurt(G.Build.byId(m.id), m.dmg, m.by); break;
       case 'fuel': { const s = G.Build.byId(m.id); if (s) s.fuel = m.fuel; break; }
       case 'hurtC':
-        if (Net.isHost) { const c = G.Creatures.byId(m.id); if (c) G.Creatures.hurt(c, m.dmg, from, m.poison ? { poison: m.poison } : undefined); }
+        if (Net.isHost) { const c = G.Creatures.byId(m.id); if (c) G.Creatures.hurt(c, m.dmg, from, { poison: m.poison || 0, melee: !!m.mel, riposte: !!m.rip }); }
         break;
       case 'dmgP':
         if (Net.inWorld && m.to === Net.myId && !G.Player.dead) {
           if (m.by && G.Modes.active && !G.Modes.canHurtPlayer((Net.peers.get(m.by) || {}).team)) break;
-          G.Player.damage(m.amt, { x: m.sx, z: m.sz }, m.cause);
-          if (m.poison) G.Creatures.poisonLocal(m.poison);
+          // Golpes cuerpo a cuerpo (de criaturas o jugadores) y disparos: se pueden bloquear o parar (parry.js)
+          const info = m.mel ? { melee: true, cid: m.cid, by: m.by, heavy: !!m.hv, beast: !!m.bs } : m.shot ? { shot: true } : null;
+          const got = G.Player.damage(m.amt, { x: m.sx, z: m.sz }, m.cause, info);
+          if (m.poison && got > 0) G.Creatures.poisonLocal(m.poison);
         }
         break;
       case 'give':
-        for (const [id, n] of m.items) G.Game.give(id, n);
+        for (const [id, n] of m.items) G.Game.give(id, m.kill ? G.Faction.bonusLoot(id, n) : n);
         if (m.kill) { G.state.stats.kills++; G.UI.msg(`Has cazado: ${esc(m.kill)}`, 'good'); if (m.kt) { G.Ach.onKill(m.kt); G.Bounty.onKill(m.kt); G.Treasure.onKill(m.kt); G.Quests.onKill(m.kt); } }
         if (m.loot) { G.Ach.add('loot:' + (m.lk || 'chest'), 1, true); G.Ach.earn('loot'); }
         if (m.loot && m.items.length) { G.Audio.play('loot'); G.UI.msg('📦 ¡Encontraste un botín!', 'good'); }
         break;
       case 'heal': G.Styles.onNet(m); break;
+      case 'parryC': case 'parryFx': case 'parried': if (Net.inWorld) G.Parry.onNet(m, from); break;
       case 'prDig': case 'prTreasure': G.Prologue.onNet(m, from); break;
       case 'ach':
         if (m.to === Net.myId && typeof m.k === 'string') { G.Ach.add(m.k); if (m.k === 'vs:win') G.Ach.earn('vsWin'); }
@@ -287,9 +290,10 @@
   function createPeer(id, m) {
     const lk = String(m.lk || '').split(',');
     const model = lk.length === 3 ? G.Character.create(new THREE.Color(lk[0]).getHex(), { skin: new THREE.Color(lk[1]).getHex(), pants: new THREE.Color(lk[2]).getHex() }) : G.Character.create(new THREE.Color(m.col || '#e6dfcc').getHex());
-    const tag = nameSprite(m.n || 'Jugador', m.col || '#fff');
+    const side = m.fc && G.Faction.SIDES[m.fc];
+    const tag = nameSprite((side ? side.icon + ' ' : '') + (m.n || 'Jugador'), m.col || '#fff');
     G.scene.add(model.root); G.scene.add(tag);
-    return { id, name: m.n, color: m.col, lk: m.lk, model, tag, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: 0, hs: 0, swing: 0, sg: m.sg, held: null, dead: false, swim: false, ground: true, hp: 100, shipId: null, local: null, team: m.tm ?? null };
+    return { id, name: m.n, color: m.col, lk: m.lk, fc: m.fc || null, model, tag, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: 0, hs: 0, swing: 0, sg: m.sg, held: null, dead: false, swim: false, ground: true, hp: 100, shipId: null, local: null, team: m.tm ?? null };
   }
   function removePeer(p) {
     G.scene.remove(p.model.root); G.scene.remove(p.tag);
@@ -298,7 +302,7 @@
   }
   function updatePeer(id, m) {
     let p = Net.peers.get(id);
-    if (p && (p.name !== m.n || p.color !== m.col || (m.lk && p.lk !== m.lk))) { removePeer(p); p = null; }
+    if (p && (p.name !== m.n || p.color !== m.col || (m.lk && p.lk !== m.lk) || (m.fc || null) !== p.fc)) { removePeer(p); p = null; }
     if (!p) {
       p = createPeer(id, m);
       Net.peers.set(id, p);
@@ -306,6 +310,7 @@
     }
     p.tx = m.x; p.ty = m.y; p.tz = m.z; p.tyaw = m.yaw; p.tpitch = m.pi || 0; p.hs = m.hs; p.swim = !!m.sw; p.dead = !!m.d; p.hp = m.hp; p.ground = m.g !== 0;
     if (m.eq) G.Equip.apply(p.model, m.eq);
+    p.gd = !!m.gd; p.stg = !!m.stg;
     p.team = m.tm ?? null; p.fr = m.fr || null; p.sinking = !!m.sk; p.out = !!m.out; p.station = m.st || null;
     if (m.sh) { if (p.shipId !== m.sh) { p.x = m.x; p.y = m.y; p.z = m.z; } p.shipId = m.sh; p.local = p.local || new THREE.Vector3(); p.tl = [m.lx, m.ly, m.lz]; }
     else { p.shipId = null; p.tl = null; }
@@ -335,7 +340,7 @@
       if (p.swing > 0) p.swing = Math.max(0, p.swing - dt / 0.32);
       const seated = p.station === 'seat' || (p.station === 'helm' && s && s.def.seated);
       _pv.set(p.x, p.y - (seated ? 0.45 : 0), p.z);
-      p.model.update(dt, { pos: _pv, yaw: p.yaw, pitch: p.pitch, speed: p.station ? 0 : p.hs, onGround: p.ground || !!s, swimming: p.swim, swing: p.swing, holding: !!p.held });
+      p.model.update(dt, { pos: _pv, yaw: p.yaw, pitch: p.pitch, speed: p.station ? 0 : p.hs, onGround: p.ground || !!s, swimming: p.swim, swing: p.swing, holding: !!p.held, guard: p.gd ? 1 : 0, stagger: p.stg ? 1 : 0 });
       p.model.root.visible = !p.dead && !p.out;
       p.tag.visible = !p.dead && !p.out;
       p.tag.position.set(p.x, p.y + (p.swim ? 1.9 : 2.25), p.z);
@@ -355,6 +360,7 @@
         t: 'p', x: +P.pos.x.toFixed(2), y: +P.pos.y.toFixed(2), z: +P.pos.z.toFixed(2), yaw: +P.yaw.toFixed(3),
         pi: +P.pitch.toFixed(2), g: P.onGround || P.wading ? 1 : 0, hs: +P.hs.toFixed(2), sw: P.swimming ? 1 : 0, d: P.dead ? 1 : 0, h: G.Inv.heldId(), hp: Math.round(P.stats.health),
         sg: P.swingCount, n: Net.name, col: Net.color, lk: Net.lookStr(), tm: Net.team, eq: G.Player.visibleIds(), fr: G.state.fruit || undefined, sk: P.sinking ? 1 : 0, out: G.state.spectate ? 1 : 0, st: P.station ? P.station.kind : undefined,
+        fc: G.Faction.active() && G.Faction.chosen() ? G.Faction.side() : undefined, gd: G.Parry.guard ? 1 : undefined, stg: G.Parry.stagger > 0 ? 1 : undefined,
       };
       if (P.ship) { m.sh = P.ship.id; m.lx = +P.local.x.toFixed(2); m.ly = +P.local.y.toFixed(2); m.lz = +P.local.z.toFixed(2); }
       Net.send(m);

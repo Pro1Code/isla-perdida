@@ -612,6 +612,7 @@
     s.hp = U.clamp(s.hp - dmg, 0, s.def.hp);
     send({ t: 'shHp', id: s.id, hp: Math.round(s.hp) });
     if (dmg <= 0) return;
+    if (s.navy) G.Navy.provoked(s, by); // atacar a un barco aliado lo vuelve enemigo (navy.js)
     hitFx(s);
     if (G.Player.ship === s && cause) G.UI.msg('💥 ' + cause + ` (${Math.round(s.hp)}/${s.def.hp})`, 'bad', 'shiphit');
     if (s.hp <= 0) { send({ t: 'shSink', id: s.id, by }); startSink(s, by); }

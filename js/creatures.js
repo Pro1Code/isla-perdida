@@ -5,7 +5,7 @@
   'use strict';
   const G = window.G, U = G.U;
   const C = (G.Creatures = { list: [], timer: 0, nextId: 0 });
-  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss', 'ghost_pirate', 'ghost_gun', 'ghost_captain', 'yeti', 'lavadragon', 'aldeano', 'bigcaiman'];
+  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss', 'ghost_pirate', 'ghost_gun', 'ghost_captain', 'yeti', 'lavadragon', 'aldeano', 'bigcaiman', 'corsair', 'corsair_gun', 'corsair_captain'];
   const BOSS_MAX = 6.6; // velocidad máxima de cualquier jefe (el jugador esprinta a 7,2)
   const DEF = (C.DEF = {
     crab: { name: 'Cangrejo', hp: 12, speed: 0.8, run: 2.6, bodyY: 0.2, hitR: 0.5, drops: [['carne_cruda', 1]] },
@@ -46,6 +46,10 @@
     ghost_captain: { name: 'Capitán Van Bruma', hp: 380, speed: 1.1, run: 4.5, bodyY: 1.0, hitR: 0.6, dmg: 18, human: true, drops: [['doblon', 20], ['perla', 3], ['mapa_tesoro', 1]] },
     marine_boss: { name: 'Comodoro de la Marina Blanca', hp: 320, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.6, dmg: 16, human: true, drops: [['doblon', 10], ['katana', 1], ['mapa_tesoro', 1]] },
     pirate_boss: { name: 'Capitana Hiena', hp: 300, speed: 1.2, run: 4.6, bodyY: 1.0, hitR: 0.6, dmg: 15, human: true, drops: [['pista_3', 1], ['sable', 1], ['doblon', 6]] },
+    // Piratas de las hermandades del mar (faction.js): van en la cubierta de sus barcos (navy.js)
+    corsair: { name: 'Pirata', hp: 65, speed: 1.1, run: 4.3, bodyY: 1.0, hitR: 0.55, dmg: 11, human: true, drops: [['doblon', 2], ['bala', 3]] },
+    corsair_gun: { name: 'Pirata tirador', hp: 50, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 12, human: true, drops: [['polvora', 1], ['bala', 5]] },
+    corsair_captain: { name: 'Capitán pirata', hp: 300, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.6, dmg: 16, human: true, drops: [['doblon', 12], ['sable', 1], ['mapa_tesoro', 1]] },
   });
 
   // Fauna de cada isla: [tipo, máximo, zona, probabilidad de aparición por intento]
@@ -185,6 +189,7 @@
       jelly: () => A.jelly(), villager: () => villager(extra || 0), aldeano: () => aldeano(extra || 0),
       npc: () => G.Prologue.human('npc', extra || 0), pirate: () => G.Prologue.human('pirate', extra || 0), pirate_gun: () => G.Prologue.human('pirate_gun', extra || 0),
       pirate_boss: () => G.Prologue.human('pirate_boss', extra || 0), marine: () => G.Prologue.human('marine', extra || 0), marine_gun: () => G.Prologue.human('marine_gun', extra || 0), marine_boss: () => G.Prologue.human('marine_boss', extra || 0), ghost_pirate: () => G.Prologue.human('ghost_pirate', extra || 0), ghost_gun: () => G.Prologue.human('ghost_gun', extra || 0), ghost_captain: () => G.Prologue.human('ghost_captain', extra || 0), dummy: () => G.Prologue.dummy(extra || 0),
+      corsair: () => G.Prologue.human('corsair', extra || 0), corsair_gun: () => G.Prologue.human('corsair_gun', extra || 0), corsair_captain: () => G.Prologue.human('corsair_captain', extra || 0),
     };
     // Especies ya rehechas con esqueleto y piel realista (fauna.js); el resto, con los modelos de siempre
     const m = G.Fauna && G.Fauna.has(type) ? G.Fauna.build(type) : build[type]();
@@ -360,6 +365,9 @@
     salamander: 'Una salamandra de fuego te quemó', lavacrab: 'Un cangrejo de lava te atrapó', jelly: 'Las medusas te picaron', serpent: 'La serpiente marina te devoró', villager: 'Los guerreros shandara te derrotaron',
     pirate: 'Los piratas de la Hiena te derrotaron', pirate_gun: 'Un pirata te disparó', pirate_boss: 'La capitana Hiena te derrotó',
     yeti: 'El Rey de la Escarcha te aplastó', lavadragon: 'El Dragón de Brasa te calcinó', bigcaiman: 'El Gran Caimán del río te hizo pedazos',
+    marine: 'Un marine de la Marina Blanca te derrotó', marine_gun: 'Un tirador de la Marina te disparó', marine_boss: 'El comodoro de la Marina Blanca te derrotó',
+    ghost_pirate: 'Un pirata fantasma te derrotó', ghost_gun: 'Un tirador fantasma te disparó', ghost_captain: 'El capitán Van Bruma te derrotó',
+    corsair: 'Un pirata te derrotó al abordaje', corsair_gun: 'Un pirata te disparó', corsair_captain: 'Un capitán pirata te derrotó',
   };
   const SOUND = { pirate: 'hit', pirate_boss: 'hit', wolf: 'bite', snowwolf: 'bite', boar: 'grunt', snake: 'hiss', jaguar: 'roar', shark: 'bite', boss: 'roar', bear: 'roar', caiman: 'bite', salamander: 'hiss', lavacrab: 'bite', jelly: 'hiss', serpent: 'roar', villager: 'hit', yeti: 'roar', lavadragon: 'roar', bigcaiman: 'bite' };
   const CD = { pirate: 1.3, pirate_boss: 1.05, wolf: 1.2, snowwolf: 1.2, snake: 2.2, jaguar: 1.4, shark: 1.8, boss: 1.6, bear: 1.8, caiman: 2.0, salamander: 1.4, lavacrab: 1.6, jelly: 1.5, serpent: 2.5, villager: 1.3, yeti: 1.7, lavadragon: 1.9 };
@@ -367,11 +375,12 @@
     c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
     if (c.cd > 0 || Math.hypot(t.x - c.x, t.z - c.z) > reach) return false;
     if (!c.d.sea && Math.abs(t.y - c.y) > (c.d.bigBoss ? 3 : 1.6)) return false;
+    if (G.Parry.fights(c)) return G.Parry.windup(c, t, reach);
     c.cd = CD[c.type] || 1.6;
     c.lunge = 0.3;
-    const amt = c.d.dmg * G.Game.diff().dmg, cause = CAUSE[c.type];
-    if (t.local) { G.Player.damage(amt, c, cause); if (c.d.poison) poisonLocal(c.d.poison); }
-    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause, sx: c.x, sz: c.z, poison: c.d.poison || 0 });
+    const amt = c.d.dmg * G.Game.diff().dmg, cause = CAUSE[c.type], beast = !c.d.sea;
+    if (t.local) { const got = G.Player.damage(amt, c, cause, beast ? { melee: true, cid: c.id, beast: true } : null); if (c.d.poison && got > 0) poisonLocal(c.d.poison); }
+    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause, sx: c.x, sz: c.z, poison: c.d.poison || 0, mel: beast ? 1 : 0, cid: c.id, bs: 1 });
     G.Audio.playAt(SOUND[c.type] || 'grunt', c.x, c.z);
     return true;
   }
@@ -386,8 +395,8 @@
     G.Audio.playAt('cannon', c.x, c.z, 60);
     if (!hit) return;
     const amt = c.d.dmg * G.Game.diff().dmg;
-    if (t.local) G.Player.damage(amt, c, CAUSE[c.type]);
-    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause: CAUSE[c.type], sx: c.x, sz: c.z });
+    if (t.local) G.Player.damage(amt, c, CAUSE[c.type], { shot: true });
+    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause: CAUSE[c.type], sx: c.x, sz: c.z, shot: 1 });
   }
   // Un jefe bloqueado prueba a avanzar en diagonal (bordea el obstáculo)
   function sidestep(c, step, speed) {
@@ -419,9 +428,15 @@
     if (c.dead || c.d.friendly) return;
     c.flash = 0.15;
     G.Audio.playAt('hit', c.x, c.z);
-    if (!G.Net.authority()) { G.Net.send({ t: 'hurtC', id: c.id, dmg, poison: extra && extra.poison }); return; }
+    if (!G.Net.authority()) { G.Net.send({ t: 'hurtC', id: c.id, dmg, poison: extra && extra.poison, mel: extra && extra.melee ? 1 : 0, rip: extra && extra.riposte ? 1 : 0 }); return; }
     const fromPeer = attackerId !== undefined && attackerId !== G.Net.myId;
     const src = fromPeer ? G.Net.peers.get(attackerId) : G.Player.pos;
+    // Piratas, marines y guerreros se cubren o paran los golpes cuerpo a cuerpo (parry.js)
+    const def = G.Parry.npcDefend(c, attackerId, extra);
+    if (def <= 0) { c.flash = 0; c.aggroId = fromPeer ? attackerId : G.Net.myId; c.aggro = Math.max(c.aggro, 25); return; }
+    dmg *= def;
+    // Tripulación de un barco aliado atacada a propósito: ese barco te trata ya como enemigo
+    if (c.deck && extra && extra.melee && G.Navy.provoked) { const s = G.Ships.byId(c.deck.ship); if (s) G.Navy.provoked(s, fromPeer ? attackerId : G.Net.myId); }
     c.hp -= dmg;
     if (c.d.dummy) { c.hp = c.d.hp; c.wobble = 0.5; return; }
     if (extra && extra.poison) c.poisoned = Math.max(c.poisoned || 0, extra.poison);
@@ -458,7 +473,7 @@
     if (!drops.length) return;
     if (peerId !== null && peerId !== undefined) G.Net.send({ t: 'give', to: peerId, items: drops, kill: c.d.name.toLowerCase(), kt: c.type, boss: c.type === 'boss' });
     else {
-      for (const [id, n] of drops) G.Game.give(id, n);
+      for (const [id, n] of drops) G.Game.give(id, G.Faction.bonusLoot(id, n));
       G.state.stats.kills++;
       G.Ach.onKill(c.type);
       G.Bounty.onKill(c.type);
@@ -576,7 +591,10 @@
     if (c.model) {
       c.swing = Math.max(0, (c.swing || 0) - dt / 0.32);
       if (c.lunge > 0.29) c.swing = 1;
-      c.model.update(dt, { pos: _vp.set(c.x, y, c.z), yaw: c.yaw + Math.PI, pitch: 0, speed: c.speedNow, onGround: true, swimming: false, swing: c.swing, holding: c.role === 'guard' || !!c.hold });
+      c.guardNet = Math.max(0, (c.guardNet || 0) - dt);
+      const wind = G.Net.authority() ? c.windup > 0 : c.windNet, stg = G.Net.authority() ? c.stun > 0 : c.stunNet;
+      const grd = (c.guardT || 0) > 0 || c.guardNet > 0;
+      c.model.update(dt, { pos: _vp.set(c.x, y, c.z), yaw: c.yaw + Math.PI, pitch: 0, speed: c.speedNow, onGround: true, swimming: false, swing: c.swing, holding: c.role === 'guard' || !!c.hold, windup: wind ? 1 : 0, guard: grd ? 1 : 0, stagger: stg ? 1 : 0 });
     } else {
       c.g.position.set(c.x, y, c.z);
       c.g.rotation.y = c.yaw + (T === 'crab' || T === 'lavacrab' ? Math.PI / 2 : 0);
@@ -628,6 +646,20 @@
         continue;
       }
       if (c.poisoned > 0) { c.poisoned -= dt; c.hp -= 3 * dt; if (c.hp <= 0) { killCreature(c, c.aggroId !== G.Net.myId ? c.aggroId : null); continue; } }
+      // Combate cuerpo a cuerpo de las personas (parry.js): aturdidas por una parada, o preparando un golpe
+      if (c.stun > 0 || c.windup > 0) {
+        if (c.deck && !G.Navy.placeOnDeck(c)) { removeAt(i); continue; }
+        c.speedNow = 0; c.guardT = 0;
+        if (c.stun > 0) { c.stun -= dt; c.windup = 0; }
+        else {
+          const wt = tg.find((t) => t.id === c.wT && !t.dead);
+          if (wt) c.yaw += U.angDiff(c.yaw, Math.atan2(wt.x - c.x, wt.z - c.z)) * Math.min(1, dt * 7);
+          if ((c.windup -= dt) <= 0) G.Parry.strike(c, wt, CD[c.type], CAUSE[c.type]);
+        }
+        if (!c.deck) c.y = U.lerp(c.y, G.height(c.x, c.z), Math.min(1, dt * 10));
+        animate(c, dt, night); continue;
+      }
+      if (c.guardT > 0) c.guardT -= dt;
       let tx = c.tx, tz = c.tz, speed = c.d.speed, moving = true;
       const nr = nearest(c, tg);
       const tgt = nr ? nr.t : null, dist = nr ? nr.d : 1e9;
@@ -661,11 +693,13 @@
       // Marines en la cubierta de un barco de la Marina Blanca (navy.js): en su puesto, pelean desde allí
       if (c.deck) {
         if (!G.Navy.placeOnDeck(c)) { removeAt(i); continue; }
-        if (tgt && !tgt.dead && dist < 60) {
-          c.yaw = Math.atan2(tgt.x - c.x, tgt.z - c.z);
-          c.aggro = Math.max(c.aggro, 2); c.aggroId = tgt.id;
-          if (/_gun$/.test(c.type)) { if (dist < 32 && c.cd <= 0) shootAt(c, tgt); }
-          else if (dist < 2.6) attack(c, tgt, 2.7);
+        const ship = G.Ships.byId(c.deck.ship), foe = nearest(c, tg, (t) => G.Faction.shipHostile(ship, t));
+        if (foe && foe.d < 60) {
+          const t = foe.t;
+          c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
+          c.aggro = Math.max(c.aggro, 2); c.aggroId = t.id;
+          if (/_gun$/.test(c.type)) { if (foe.d < 32 && c.cd <= 0) shootAt(c, t); }
+          else if (foe.d < 2.6) attack(c, t, 2.7);
         }
         c.speedNow = 0; animate(c, dt, night); continue;
       }
@@ -912,7 +946,8 @@
   // ------------------------------------------------------------------ red
   C.snapshot = () => C.list.map((c) => {
     const a = [c.id, TYPES.indexOf(c.type), Math.round(c.x * 10) / 10, Math.round(c.z * 10) / 10,
-      Math.round(c.yaw * 100) / 100, Math.ceil(c.hp), (c.dead ? 1 : 0) | (c.lunge > 0.25 ? 2 : 0) | (c.fear ? 4 : 0) | (c.aggro > 0 ? 8 : 0) | (c.pounce > 0 ? 16 : 0) | (c.fly > 0.5 || (c.type === 'bigcaiman' && c.flyTarget) ? 32 : 0) | (c.special ? 64 : 0)];
+      Math.round(c.yaw * 100) / 100, Math.ceil(c.hp), (c.dead ? 1 : 0) | (c.lunge > 0.25 ? 2 : 0) | (c.fear ? 4 : 0) | (c.aggro > 0 ? 8 : 0) | (c.pounce > 0 ? 16 : 0) | (c.fly > 0.5 || (c.type === 'bigcaiman' && c.flyTarget) ? 32 : 0) | (c.special ? 64 : 0)
+        | (c.windup > 0 ? 128 : 0) | (c.heavy ? 256 : 0) | (c.stun > 0 ? 512 : 0) | ((c.guardT || 0) > 0 ? 1024 : 0)];
     if (c.type === 'villager' || c.type === 'npc' || c.type === 'dummy' || c.d.human) a.push(c.extra);
     return a;
   });
@@ -930,6 +965,10 @@
       c.aggro = fl & 8 ? 1 : 0;
       c.pounce = fl & 16 ? 1 : 0;
       c.flyNet = !!(fl & 32); c.special = !!(fl & 64);
+      const w = !!(fl & 128);
+      if (w && !c.windNet) G.Parry.glint(c, !!(fl & 256));
+      c.windNet = w; c.stunNet = !!(fl & 512);
+      if (fl & 1024) c.guardNet = Math.max(c.guardNet || 0, 0.15);
     }
     for (let i = C.list.length - 1; i >= 0; i--) if (!seen.has(C.list[i].id)) removeAt(i);
   };

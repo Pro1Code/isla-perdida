@@ -148,6 +148,7 @@
     if (G.Net.active) $('pauseNet').textContent = '🌐 Partida LAN: el mundo sigue en marcha mientras estás en pausa.';
     $('btnSave').classList.toggle('hidden', G.state.gm === 'versus');
     $('btnPauseCheats').classList.toggle('hidden', !G.Cheats.enabled());
+    $('btnPauseBounty').textContent = G.Faction.isMarine() ? '⚓ Hoja de servicio' : '📜 Se busca';
   };
   function resume() {
     Main.showScreen(null);
@@ -473,7 +474,7 @@
     // Si aun así se va a cerrar o recargar la pestaña en plena partida, el navegador pregunta antes (en la app no)
     if (!window.islaDesktop) window.addEventListener('beforeunload', (e) => { if (G.state && G.state.mode !== 'menu' && !G.Net.active) { e.preventDefault(); e.returnValue = ''; } });
     window.addEventListener('keyup', (e) => { Input.keys[e.code] = false; G.Cheats.keyUp(e); });
-    window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; G.Cheats.on.fast = false; });
+    window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; G.Cheats.on.fast = false; G.Parry.up(); });
     canvas.addEventListener('mousedown', (e) => {
       if (G.state.mode !== 'playing') return;
       if (!Input.locked) { Main.lockPointer(); return; }
@@ -481,10 +482,11 @@
       if (e.button === 0) { Input.mouseL = true; G.Game.attack(); }
       else if (e.button === 2) {
         const h = G.Inv.heldId();
-        if (h && G.ITEMS[h].spyglass) G.Player.zoom = 1; else G.Game.useHeld();
+        // Con un arma de cuerpo a cuerpo (o sin nada en la mano): guardia y parada (parry.js)
+        if (h && G.ITEMS[h].spyglass) G.Player.zoom = 1; else if (!G.Parry.down()) G.Game.useHeld();
       }
     });
-    window.addEventListener('mouseup', (e) => { if (e.button === 0) Input.mouseL = false; if (e.button === 2) G.Player.zoom = 0; });
+    window.addEventListener('mouseup', (e) => { if (e.button === 0) Input.mouseL = false; if (e.button === 2) { G.Player.zoom = 0; G.Parry.up(); } });
     window.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('mousemove', (e) => {
       if (!Input.locked || G.state.mode !== 'playing') return;
@@ -540,7 +542,7 @@
       G.Build.update(dt);
     } else {
       // En LAN el mundo nunca se detiene (pausa o muerte incluidas)
-      const active = ['playing', 'inventory', 'map', 'sleeping', 'journal', 'cheats'].includes(st.mode) || (G.Net.active && ['paused', 'dead', 'won'].includes(st.mode));
+      const active = ['playing', 'inventory', 'map', 'sleeping', 'journal', 'cheats'].includes(st.mode) || (G.Net.active && ['paused', 'dead', 'won', 'faction'].includes(st.mode));
       if (active) G.Game.update(dt);
       if (!render) return;
       if (st.spectate) spectateCam(dt); else P.updateVisuals(active ? dt : 0);

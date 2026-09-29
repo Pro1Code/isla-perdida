@@ -72,7 +72,7 @@
     chestOf(t);
     if (!G.Net.active || who === G.Net.myId) {
       G.UI.fade(() => {
-        G.Profile.addCoins(coins, 'Tesoro enterrado');
+        G.Profile.addCoins(Math.round(coins * G.Faction.coinMul()), G.Faction.coinMul() > 1 ? 'Tesoro enterrado (botín pirata)' : 'Tesoro enterrado');
         G.UI.banner('💰 ¡Un tesoro enterrado!', items.map(([id, n]) => `${n} ${G.icon(id, 'xs')}`).join('  '));
         G.Audio.play('win');
         G.Ach.add('treasureMap');
@@ -123,7 +123,7 @@
   };
   // La Hiena siempre lleva uno; los piratas, a veces
   T.onKill = function (type) {
-    const p = type === 'pirate_boss' || type === 'marine_boss' ? 1 : type === 'pirate' || type === 'pirate_gun' ? 0.12 : 0;
+    const p = type === 'pirate_boss' || type === 'marine_boss' || type === 'corsair_captain' ? 1 : type === 'pirate' || type === 'pirate_gun' || type === 'corsair' || type === 'corsair_gun' ? 0.12 : 0;
     if (p && Math.random() < p) { G.Game.give('mapa_tesoro', 1); G.UI.msg('🗺️ ¡Llevaba encima un mapa del tesoro! (clic derecho para leerlo)', 'good', 'mapa'); }
   };
 

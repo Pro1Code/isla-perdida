@@ -252,7 +252,7 @@
 
   Game.attack = function () {
     const P = G.Player;
-    if (P.cd > 0 || P.dead) return;
+    if (P.cd > 0 || P.dead || G.Parry.guard || G.Parry.stagger > 0) return;
     if (G.Story.dialog) return;
     if (G.Grave.aimed()) return; // mirando a la ✖ de un cofre: el clic mantenido cava (grave.js)
     // Clic en una hoja del tablón de encargos: aceptar o entregar
@@ -277,6 +277,7 @@
     if (it && it.fishing) { P.cd = 0.35; G.Fishing.click(); return; }
     if (it && it.blowgun) { P.cd = 0.9; shootDart(); return; }
     if (it && it.spyglass) return;
+    if (tg && tg.kind === 'creature' && G.Faction.friendly(tg.c)) { P.cd = 0.4; G.UI.msg(G.Faction.isMarine() ? '⚓ Son tus compañeros de la Marina Blanca.' : '🤝 Es la tripulación de un barco aliado.', 'warn', 'npcatk'); return; }
     if (G.Styles.attack(it, tg)) return;
     P.cd = 0.5;
     P.swing = 1;
@@ -286,12 +287,13 @@
     if (tg && tg.kind === 'creature' && tg.c.d.friendly) { G.UI.msg(tg.c.type === 'aldeano' ? 'Los aldeanos son gente de paz: no les hagas daño.' : 'No vas a atacar a tu propia gente.', 'warn', 'npcatk'); return; }
     if (tg && tg.kind === 'creature') {
       if (tg.c.d.npc && !G.Story.tribeHostile() && !G.Input.keys.ShiftLeft) { G.UI.msg('Mantén <kbd>Shift</kbd> para atacar a un aldeano (¡la tribu se enfadará!).', 'warn', 'npcatk'); return; }
-      G.Creatures.hurt(tg.c, (it && it.dmg ? it.dmg : 5) * mul);
+      const rip = G.Parry.riposteOn(tg.c.id);
+      G.Creatures.hurt(tg.c, (it && it.dmg ? it.dmg : 5) * mul * (rip ? 2 : 1), undefined, { melee: true, riposte: rip });
       if (it && it.tool && !it.torch) G.Inv.wear(1);
     } else if (tg && tg.kind === 'peer') {
       const p = tg.p;
       if (G.Modes.canHurtPlayer(p.team)) {
-        G.Net.send({ t: 'dmgP', to: p.id, amt: (it && it.dmg ? it.dmg : 5) * mul * 0.8, cause: `${G.Net.name} te derrotó`, sx: P.pos.x, sz: P.pos.z, by: G.Net.myId });
+        G.Net.send({ t: 'dmgP', to: p.id, amt: (it && it.dmg ? it.dmg : 5) * mul * 0.8 * (G.Parry.riposteOn('p' + p.id) ? 2 : 1), cause: `${G.Net.name} te derrotó`, sx: P.pos.x, sz: P.pos.z, by: G.Net.myId, mel: 1 });
         G.Audio.play('hit');
         if (it && it.tool && !it.torch) G.Inv.wear(1);
       }
@@ -734,6 +736,8 @@
     G.SeaWx.update(dt);
     G.Crew.update(dt);
     G.Navy.update(dt);
+    G.Faction.update(dt);
+    G.Parry.update(dt);
     G.Bosses.update(dt);
     G.Grave.update(dt);
     P.cd = Math.max(0, P.cd - dt);
@@ -848,6 +852,7 @@
     G.Modes.stop();
     G.Story.close();
     G.Styles.clear();
+    G.Parry.clear();
     G.UI.waypoint = null;
   };
   // Genera el archipiélago (con pantalla de carga porque tarda un momento)
@@ -933,6 +938,7 @@
       flags: (pdata && pdata.flags) || {}, stats: fixStats(pdata && pdata.stats), obj: (pdata && pdata.obj) || 0,
       world: st.world || Game.newWorldState(), seed: st.seed, gm: st.gm || 'coop', cfg: st.cfg, fruit: (pdata && pdata.fruit) || null, bounty: (pdata && pdata.seed === st.seed && pdata.bounty) || 0, quests: (pdata && pdata.seed === st.seed && pdata.quests) || null,
       styles: (pdata && pdata.seed === st.seed && pdata.styles) || {}, train: (pdata && pdata.seed === st.seed && pdata.train) || {},
+      fac: (pdata && pdata.seed === st.seed && pdata.fac) || null,
     };
     if (Array.isArray(G.state.world.loot)) G.state.world.loot = Object.assign({}, G.state.world.loot);
     G.Clock.init(st.seed, st.t);
@@ -972,7 +978,7 @@
     await buildWorld(seed, 'coop', 0);
     G.state = {
       mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 600, spawn: st.spawn, flags: st.flags || {}, stats: fixStats(st.stats), obj: st.obj || 0,
-      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null, styles: st.styles || {}, train: st.train || {}, bounty: st.bounty || 0, quests: st.quests || null,
+      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null, styles: st.styles || {}, train: st.train || {}, bounty: st.bounty || 0, quests: st.quests || null, fac: st.fac || null,
     };
     // Partidas antiguas: el botín era una lista y la balsa era una construcción
     if (Array.isArray(G.state.world.loot)) { const o = {}; G.state.world.loot.forEach((v, i) => { if (v) o[i] = 1; }); G.state.world.loot = o; }

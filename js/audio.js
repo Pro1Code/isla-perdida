@@ -174,6 +174,11 @@
       case 'eatfruit': [392, 311, 262, 196].forEach((f, i) => tone('sawtooth', f, f * 0.98, 0.35, 0.06, i * 0.18, 0.02, 1200)); break;
       case 'gull': { const f = 1800 + r * 400; tone('sawtooth', f, f * 0.6, 0.25, 0.03, 0, 0.01, 2500); tone('sawtooth', f * 0.9, f * 0.5, 0.2, 0.025, 0.3, 0.01, 2500); break; }
       case 'mono': [220, 330, 262, 392].forEach((f, i) => tone('triangle', f, f * 1.02, 0.5, 0.08, i * 0.12, 0.05)); break;
+      // Combate (parry.js): parada perfecta (choque metálico que resuena), bloqueo (golpe sordo con metal) y aviso del golpe
+      case 'parry': noise(0.05, 'highpass', 3000, 1, 0.5); [1480, 2230, 3310].forEach((f, i) => tone('sine', f, f * 0.985, 0.55 - i * 0.12, 0.2 - i * 0.05, 0, 0.002)); tone('triangle', 740, 700, 0.25, 0.12); break;
+      case 'block': noise(0.08, 'bandpass', 1800, 1.2, 0.35); tone('sine', 190, 90, 0.14, 0.35); tone('sine', 1250, 1200, 0.18, 0.08, 0, 0.002); break;
+      case 'glint': tone('sine', 2600, 3400, 0.09, 0.07, 0, 0.002); break;
+      case 'glintH': tone('sawtooth', 420, 300, 0.3, 0.07, 0, 0.01, 1600); tone('sine', 2100, 2500, 0.12, 0.06, 0, 0.002); break;
     }
   }
 

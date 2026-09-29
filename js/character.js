@@ -216,14 +216,16 @@
     };
     o.update = (dt, s) => {
       animate(o, dt, s);
-      if (G.camera) G.Rig.lod(rig, G.camera.position.distanceTo(root.position));
+      // lodD: distancia fija para las vistas previas (retrato del cartel, tienda), que no usan la cámara del juego
+      if (s.lodD !== undefined) G.Rig.lod(rig, s.lodD);
+      else if (G.camera) G.Rig.lod(rig, G.camera.position.distanceTo(root.position));
     };
     o.dispose = () => { mat.dispose(); mesh.skeleton.dispose(); };
     return o;
   };
 
   // ------------------------------------------------------------------ animación procedural
-  // s = { pos, yaw, pitch, speed, onGround, swimming, swing (1→0), holding }
+  // s = { pos, yaw, pitch, speed, onGround, swimming, swing (1→0), holding, windup, guard, stagger (0..1, parry.js), lodD }
   function animate(o, dt, s) {
     dt = Math.min(dt, 0.1);
     o.t += dt;
@@ -306,6 +308,27 @@
     T[B.neck].x -= pitch * 0.35 * (1 - sw);
     T[B.head].x -= pitch * 0.35 * (1 - sw);
     if (s.holding) T[B.faR].x -= 0.3;
+
+    // Combate (parry.js): preparar el golpe (el arma bien alta, se ve venir), guardia (el arma cruzada
+    // delante del pecho) y aturdido (echado hacia atrás con los brazos abiertos)
+    const wu = s.windup || 0, gd = (s.guard || 0) * (1 - wu), stg = s.stagger || 0;
+    if (wu > 0) {
+      T[B.uaR].x = -2.7 * wu; T[B.uaR].z = -0.32 * wu; T[B.faR].x = -1.35 * wu;
+      T[B.chest].y += 0.34 * wu; T[B.spine].x -= 0.06 * wu;
+      T[B.uaL].x -= 0.55 * wu; T[B.uaL].z += 0.25 * wu; T[B.faL].x -= 0.6 * wu;
+      T[B.thL].x -= 0.25 * wu; T[B.shL].x += 0.2 * wu; T[B.thR].x += 0.15 * wu;
+    }
+    if (gd > 0) {
+      T[B.uaR].x = U.lerp(T[B.uaR].x, -1.15, gd); T[B.uaR].z = U.lerp(T[B.uaR].z, 0.42, gd); T[B.faR].x = U.lerp(T[B.faR].x, -1.25, gd);
+      T[B.uaL].x = U.lerp(T[B.uaL].x, -0.95, gd); T[B.uaL].z = U.lerp(T[B.uaL].z, -0.38, gd); T[B.faL].x = U.lerp(T[B.faL].x, -1.35, gd);
+      T[B.spine].x += 0.1 * gd; T[B.chest].y -= 0.12 * gd;
+      T[B.thL].x -= 0.2 * gd; T[B.shL].x += 0.3 * gd; T[B.thR].x += 0.1 * gd; T[B.shR].x += 0.2 * gd;
+    }
+    if (stg > 0) {
+      T[B.spine].x -= 0.3 * stg; T[B.chest].x -= 0.18 * stg; T[B.head].x -= 0.3 * stg; T[B.neck].x -= 0.1 * stg;
+      T[B.uaL].z += 0.8 * stg; T[B.uaR].z -= 0.8 * stg; T[B.uaL].x -= 0.35 * stg; T[B.uaR].x -= 0.35 * stg;
+      T[B.thR].x -= 0.3 * stg; T[B.shR].x += 0.35 * stg;
+    }
 
     // Golpe con el brazo derecho (anticipación → impacto → recuperación)
     let swingActive = false;

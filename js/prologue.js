@@ -52,6 +52,13 @@
     // Marines de la Marina Blanca (uniforme blanco y azul)
     if (type === 'marine_boss') return { name: 'Comodoro de la Marina Blanca', role: 'boss', shirt: '#f4f4f0', skin: pick(['#e6b48e', '#c68d67']), pants: '#1e2a4a', cos: ['cos_gorra_marina', 'cos_abrigo_alm', 'cos_bigote'], hold: 'katana' };
     if (type === 'marine' || type === 'marine_gun') return { name: type === 'marine_gun' ? 'Tirador de la Marina' : 'Marine de la Marina Blanca', role: 'marine', shirt: '#f2f2ee', skin: pick(['#f3d2b4', '#e6b48e', '#c68d67', '#a8704a']), pants: '#1e2a4a', cos: ['cos_gorra_marina'], hold: type === 'marine_gun' ? 'mosquete' : 'sable' };
+    // Piratas de las hermandades del mar (faction.js): camisas del color de su hermandad
+    if (/^corsair/.test(type)) {
+      const C = G.Faction.CREWS[Math.floor(extra / 1000)] || G.Faction.CREWS[4];
+      if (type === 'corsair_captain') return { name: `Capitán ${C.of}`, role: 'boss', shirt: C.shirts[0], skin: pick(['#e6b48e', '#c68d67', '#a8704a', '#7e4d30']), pants: '#2a2a2e', cos: ['cos_tricornio', 'cos_capa', pick(['cos_parche', 'cos_bigote'])], hold: 'sable' };
+      return { name: type === 'corsair_gun' ? `Tirador ${C.of}` : `Pirata ${C.of}`, role: 'pirate', shirt: pick(C.shirts), skin: pick(['#e6b48e', '#c68d67', '#a8704a', '#7e4d30']), pants: pick(['#2a2a2e', '#4a3a2a', '#3a2a1a']),
+        cos: type === 'corsair_gun' ? pick([['cos_ala_ancha'], ['cos_bandana', 'cos_parche'], ['cos_tricornio']]) : pick([['cos_bandana'], ['cos_bandana', 'cos_parche'], ['cos_tricornio'], ['cos_bandana', 'cos_bigote']]), hold: type === 'corsair_gun' ? 'mosquete' : 'sable' };
+    }
     if (type === 'pirate_boss') return { name: 'Capitana Hiena', role: 'boss', shirt: '#2a2a2e', skin: '#e6b48e', pants: '#5a1a1a', cos: ['cos_tricornio', 'cos_capa', 'cos_parche'], hold: 'sable', female: true, hair: '#1a1210' };
     return {
       name: type === 'pirate_gun' ? 'Pirata tirador' : 'Pirata de la Hiena', role: 'pirate',

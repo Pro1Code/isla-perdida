@@ -28,7 +28,7 @@
     const ps = players().filter((p) => !p.dead), f = flags();
     return ps.find((p) => p.id === f.crewLeader) || ps.sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z))[0] || null;
   }
-  const hostile = (e) => !e.dead && e.d.dmg && !e.d.friendly && !e.d.dummy && (!e.d.npc || (e.type === 'villager' && G.Story.tribeHostile()));
+  const hostile = (e) => !e.dead && e.d.dmg && !e.d.friendly && !e.d.dummy && (!e.d.npc || (e.type === 'villager' && G.Story.tribeHostile())) && !G.Faction.friendly(e);
 
   // ------------------------------------------------------------------ a bordo
   const _l = new V3(), _w = new V3();

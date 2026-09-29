@@ -139,8 +139,12 @@
     const S = P.stats;
     if (S.stamina <= 0) P.exhausted = true;
     if (P.exhausted && S.stamina > 25) P.exhausted = false;
-    P.sprinting = !!(K.ShiftLeft || K.ShiftRight) && P.moving && fwd > 0 && !P.exhausted && !P.swimming;
+    const Pa = G.Parry;
+    P.sprinting = !!(K.ShiftLeft || K.ShiftRight) && P.moving && fwd > 0 && !P.exhausted && !P.swimming && !Pa.guard;
     let speed = P.swimming ? (P.diving ? 3.4 : 3.6) * (S.stamina <= 0 ? 0.75 : 1) : P.sprinting ? 7.2 : 4.4;
+    // En guardia se avanza despacio; aturdido (te pararon el golpe), casi nada
+    if (Pa.guard) speed *= 0.55;
+    if (Pa.stagger > 0) speed *= 0.4;
     if (P.wading) speed *= 0.7;
     if (G.Story) speed *= G.Story.speedMul();
     if (G.Cheats.flag('fast')) speed *= 2;
@@ -272,9 +276,12 @@
     if (S.health <= 0) G.Game.die(P.cause);
   };
 
-  P.damage = function (amt, src, cause) {
-    if (P.dead || G.state.mode === 'dead') return;
-    if (G.Cheats.flag('god')) return;
+  // info (parry.js): { melee, cid, by, heavy, beast, shot }: golpes que se pueden bloquear o parar. Devuelve el daño recibido.
+  P.damage = function (amt, src, cause, info) {
+    if (P.dead || G.state.mode === 'dead') return 0;
+    if (G.Cheats.flag('god')) return 0;
+    if (info) { amt = G.Parry.onHit(amt, src, info); if (amt <= 0) return 0; }
+    const guarded = G.Parry.guard;
     if (G.Story) amt *= G.Story.damageMul();
     amt *= 1 - G.Inv.eqStat('armor');
     P.stats.health -= amt;
@@ -285,9 +292,11 @@
     G.Audio.play('hurt');
     if (src && !P.ship) {
       const dx = P.pos.x - src.x, dz = P.pos.z - src.z, d = Math.hypot(dx, dz) || 1;
-      P.vel.x += dx / d * 6; P.vel.z += dz / d * 6; P.vel.y = 3.5; P.onGround = false;
+      const k = guarded ? 0.4 : 1; // cubriéndote, el golpe apenas te mueve
+      P.vel.x += dx / d * 6 * k; P.vel.z += dz / d * 6 * k; P.vel.y = 3.5 * k; P.onGround = !guarded ? false : P.onGround;
     }
     if (P.stats.health <= 0) G.Game.die(P.cause);
+    return amt;
   };
 
   // ------------------------------------------------------------------ cámara y modelos
@@ -317,10 +326,11 @@
     const strike = P.swing > 0 && p >= 0.35 ? Math.sin(Math.min(1, (p - 0.35) / 0.65) * Math.PI) : 0;
     const sway = Math.sin(performance.now() / 900) * 0.005 * (1 - bobA);
     void s;
-    vm.rotation.set(wind * 0.5 - strike * 0.62, -wind * 0.1 + strike * 0.3, -wind * 0.12 + strike * 0.18);
+    const gk = G.Parry.guardK, sk = G.Parry.staggerK;
+    vm.rotation.set(wind * 0.5 - strike * 0.62 + gk * 0.66 - sk * 0.5, -wind * 0.1 + strike * 0.3 + gk * 0.5, -wind * 0.12 + strike * 0.18 + gk * 0.92 - sk * 0.3);
     vm.position.set(
-      VM_ELBOW.x + Math.cos(P.bob) * 0.01 * bobA,
-      VM_ELBOW.y + Math.sin(P.bob * 2) * 0.01 * bobA + sway,
+      VM_ELBOW.x + Math.cos(P.bob) * 0.01 * bobA - gk * 0.05 + sk * 0.03,
+      VM_ELBOW.y + Math.sin(P.bob * 2) * 0.01 * bobA + sway + gk * 0.05 - sk * 0.05,
       VM_ELBOW.z);
     grip.update(dt);
 
@@ -342,7 +352,7 @@
     // Personaje (también en primera persona para que proyecte su sombra)
     const seated = P.station && P.station.st && P.station.st.seat;
     _v.copy(P.pos); if (seated) _v.y -= 0.45;
-    model.update(dt, { pos: _v, yaw: P.yaw, pitch: P.pitch, speed: P.station ? 0 : hs, onGround: P.onGround || P.wading || !!P.ship, swimming: P.swimming, swing: P.swing, holding: !!id });
+    model.update(dt, { pos: _v, yaw: P.yaw, pitch: P.pitch, speed: P.station ? 0 : hs, onGround: P.onGround || P.wading || !!P.ship, swimming: P.swimming, swing: P.swing, holding: !!id, guard: G.Parry.guardK, stagger: G.Parry.staggerK });
     model.root.visible = !P.dead || P.cam === 'tp';
 
     // Cámara

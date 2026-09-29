@@ -434,7 +434,8 @@
       <h3>🏝️ Islas descubiertas</h3><ul>${isl || '<li class="muted">Ninguna todavía.</li>'}</ul>
       <h3>🗿 Monoglifos leídos</h3><ul>${monos || '<li class="muted">Aún no sabes leer la escritura antigua.</li>'}</ul>
       <h3>🍇 Frutas del Abismo</h3><ul>${fr}</ul>
-      <h3>📜 Tu recompensa</h3><p><b>${G.Bounty.fmt(G.Bounty.value())} doblones</b> · «${G.Bounty.title()}» <button id="jBounty" class="btn small">Ver mi cartel</button></p>
+      ${G.Faction.isMarine() ? `<h3>⚓ Tu hoja de servicio</h3><p><b>${G.Bounty.title()}</b> de la Marina Blanca · ${G.Bounty.fmt(G.Bounty.value())} méritos <button id="jBounty" class="btn small">Ver mi hoja</button></p>`
+        : `<h3>📜 Tu recompensa</h3><p><b>${G.Bounty.fmt(G.Bounty.value())} doblones</b> · «${G.Bounty.title()}» <button id="jBounty" class="btn small">Ver mi cartel</button></p>`}
       <h3>🪶 Tribu Shandara</h3><p>${rep < -20 ? '⚔️ En guerra contigo' : rep > 10 ? '🤝 Aliados' : '😐 Neutrales'}</p>
       <h3>📖 Curiosidades de One Piece</h3><ul>${facts || '<li class="muted">Explora y lee Monoglifos para descubrirlas.</li>'}</ul>`;
     el.journal.classList.remove('hidden');
@@ -470,14 +471,14 @@
     el.dayLabel.textContent = `Día ${G.state.day}`;
     el.timeLabel.textContent = U.fmtClock(G.state.t);
     const z = G.Clock.zone >= 0 ? G.Arch.byId(G.Clock.zone) : null;
-    const zl = z ? z.name : '🌊 Alta mar';
+    const zl = (G.Faction.badge() ? G.Faction.badge() + ' ' : '') + (z ? z.name : G.Faction.seaLabel(P.pos.x, P.pos.z));
     if (el.islandLabel.textContent !== zl) el.islandLabel.textContent = zl;
     const night = G.Game.isNight();
     const wx = G.Weather.type, fk = G.Weather.fallKind;
     el.dayIcon.textContent = fk === 'snow' ? '❄️' : wx === 'storm' ? '⛈️' : wx === 'rain' ? (fk === 'ash' ? '🌋' : '🌧️') : night ? '🌙' : G.Game.hour() > 17.5 || G.Game.hour() < 7 ? '🌅' : '☀️';
     const boss = G.Creatures.nearBoss();
     el.bossBar.classList.toggle('hidden', !boss);
-    if (boss) { el.bossFill.style.width = U.clamp(boss.hp / boss.d.hp, 0, 1) * 100 + '%'; el.bossName.textContent = ({ serpent: '🐉 ', pirate_boss: '🏴‍☠️ ', marine_boss: '⚓ ', ghost_captain: '👻 ', yeti: '❄️ ', lavadragon: '🐲 ' }[boss.type] || '🐗 ') + boss.d.name; }
+    if (boss) { el.bossFill.style.width = U.clamp(boss.hp / boss.d.hp, 0, 1) * 100 + '%'; el.bossName.textContent = ({ serpent: '🐉 ', pirate_boss: '🏴‍☠️ ', corsair_captain: '🏴‍☠️ ', marine_boss: '⚓ ', ghost_captain: '👻 ', yeti: '❄️ ', lavadragon: '🐲 ' }[boss.type] || '🐗 ') + (boss.type === 'corsair_captain' && boss.name ? boss.name : boss.d.name); }
 
     const uw = G.World.underwater && !G.state.spectate;
     if (uw !== UI._uw) { UI._uw = uw; document.getElementById('underwater').classList.toggle('hidden', !uw); }
