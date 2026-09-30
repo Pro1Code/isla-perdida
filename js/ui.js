@@ -94,6 +94,7 @@
       if (c) { G.Book.cat = c.dataset.bcat; G.Book.focus = null; UI.bookShown = false; UI.renderRecipes(); return; }
       // Soltar el objeto seleccionado (botones de su ficha)
       const a = e.target.closest('[data-act]');
+      if (a && a.dataset.act === 'use') { UI.picked = null; G.Game.consume(+a.dataset.slot); UI.showInfo(+a.dataset.slot); return; }
       if (a) { UI.picked = null; G.Drops.dropSlot(+a.dataset.slot, a.dataset.act === 'drop1' ? 1 : 0); G.Inv.changed(); return; }
       const k = e.target.closest('[data-book]');
       if (k) { G.Book.open(k.dataset.book); G.Audio.play('select'); }
@@ -296,7 +297,8 @@
     if (it.eq) h += `<br>${eqDesc(it.eq)}<br><i>Clic derecho en la casilla: ponértelo (${G.Inv.SLOT_NAMES[it.eq.slot].toLowerCase()})</i>`;
     if (it.read) h += '<br><i>Clic derecho en la casilla: leer</i>';
     if (s.d !== undefined && it.dur < 9999) h += `<br>🔧 Durabilidad: <b>${Math.ceil(s.d)} / ${it.dur}</b>`;
-    h += `<br><button class="btn small" data-act="drop" data-slot="${i}">Soltar al suelo</button>${s.n > 1 ? `<button class="btn small" data-act="drop1" data-slot="${i}">Soltar 1</button>` : ''}<span class="muted small-text">(<kbd>B</kbd> sobre la casilla: 1 · <kbd>Mayús</kbd>+<kbd>B</kbd>: todo)</span>`;
+    const useTxt = it.fruit ? '🍇 Comer' : it.use ? '🍴 Usar' : it.eq ? '🧥 Ponérmelo' : it.read ? '📜 Leer' : null;
+    h += `<br>${useTxt ? `<button class="btn small primary" data-act="use" data-slot="${i}">${useTxt}</button>` : ''}<button class="btn small" data-act="drop" data-slot="${i}">Soltar al suelo</button>${s.n > 1 ? `<button class="btn small" data-act="drop1" data-slot="${i}">Soltar 1</button>` : ''}<span class="muted small-text">(<kbd>B</kbd> sobre la casilla: 1 · <kbd>Mayús</kbd>+<kbd>B</kbd>: todo)</span>`;
     return h;
   };
   const attr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');

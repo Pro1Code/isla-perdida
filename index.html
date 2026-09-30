@@ -2,7 +2,14 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1418" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Isla Perdida" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="img/icon-192.png" />
 <title>Isla Perdida · El Archipiélago</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@400;600;800&display=swap" />
@@ -210,6 +217,9 @@
         <label class="slider-row">Sensibilidad del ratón <input type="range" id="setSens" min="0.2" max="3" step="0.05" /><b id="setSensV"></b></label>
         <label class="slider-row">Campo de visión <input type="range" id="setFov" min="55" max="100" step="1" /><b id="setFovV"></b></label>
         <label class="toggle-row"><input type="checkbox" id="setInvY" /> <span>Invertir el eje vertical del ratón</span></label>
+        <div class="mp-label">Controles táctiles (móvil y tableta)</div>
+        <div id="setTouch" class="seg"><button data-t="auto">Automático</button><button data-t="on">Activados</button><button data-t="off">Desactivados</button></div>
+        <p class="muted small-text">Joystick a la izquierda, arrastra a la derecha para mirar y botones de acción. En Automático se activan en pantallas táctiles.</p>
         <div class="mp-label">Teclas</div>
         <div class="controls-list"></div>
       </div>
@@ -454,7 +464,7 @@
   const files = [
     'js/version.js', 'js/util.js', 'js/profile.js', 'js/models.js', 'js/audio.js', 'js/net.js', 'js/items.js', 'js/islands.js', 'js/world.js', 'js/resources.js',
     'js/building.js', 'js/landmarks.js', 'js/weather.js', 'js/fishing.js', 'js/sdf.js', 'js/rig.js', 'js/animals.js', 'js/fauna.js', 'js/bosses.js', 'js/creatures.js', 'js/character.js', 'js/equipment.js', 'js/shop.js', 'js/grip.js', 'js/player.js',
-    'js/clock.js', 'js/ships.js', 'js/story.js', 'js/modes.js', 'js/achievements.js', 'js/cheats.js', 'js/styles.js', 'js/prologue.js', 'js/cinema.js', 'js/lines.js', 'js/voice-list.js', 'js/voice.js', 'js/drops.js', 'js/flageditor.js', 'js/pets.js', 'js/bounty.js', 'js/treasure.js', 'js/quests.js', 'js/seaweather.js', 'js/crew.js', 'js/navy.js', 'js/faction.js', 'js/parry.js', 'js/combat.js', 'js/duel.js', 'js/recipebook.js', 'js/grave.js', 'js/ui.js', 'js/game.js', 'js/save.js', 'js/menus.js', 'js/news.js', 'js/main.js'
+    'js/clock.js', 'js/ships.js', 'js/story.js', 'js/modes.js', 'js/achievements.js', 'js/cheats.js', 'js/styles.js', 'js/prologue.js', 'js/cinema.js', 'js/lines.js', 'js/voice-list.js', 'js/voice.js', 'js/drops.js', 'js/flageditor.js', 'js/pets.js', 'js/bounty.js', 'js/treasure.js', 'js/quests.js', 'js/seaweather.js', 'js/crew.js', 'js/navy.js', 'js/faction.js', 'js/parry.js', 'js/combat.js', 'js/duel.js', 'js/touch.js', 'js/recipebook.js', 'js/grave.js', 'js/ui.js', 'js/game.js', 'js/save.js', 'js/menus.js', 'js/news.js', 'js/main.js'
   ];
   for (const f of files) {
     await new Promise((ok, fail) => {

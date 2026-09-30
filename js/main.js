@@ -14,7 +14,8 @@
   const Q_ORDER = ['high', 'med', 'low'];
   function getQuality() {
     try { const q = localStorage.getItem('isla_quality2'); if (Q_ORDER.includes(q)) return q; } catch (e) { /* nada */ }
-    return 'med';
+    // En el móvil se empieza en calidad baja (se puede subir en Configuración)
+    return G.Touch && G.Touch.coarse() ? 'low' : 'med';
   }
   function applyPixelRatio() {
     // Alta: resolución nativa (máx. 1.5x) · Media: 1x · Baja: 0.75x
@@ -120,9 +121,11 @@
   };
   Main.lockPointer = function () {
     if (G.Story && G.Story.dialog) return;
+    if (G.Touch && G.Touch.on) { Input.locked = true; $('clickToPlay').classList.add('hidden'); return; }
     try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* ignorar */ }
   };
   Main.releasePointer = function () {
+    if (G.Touch && G.Touch.on) { Input.locked = false; Input.keys = {}; Input.axis = { x: 0, y: 0 }; return; }
     if (document.pointerLockElement) { suppressPause = true; document.exitPointerLock(); }
   };
   function startPlaying() {
@@ -483,18 +486,24 @@
     window.addEventListener('keyup', (e) => { Input.keys[e.code] = false; G.Cheats.keyUp(e); });
     window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; G.Cheats.on.fast = false; G.Parry.up(); });
     canvas.addEventListener('auxclick', (e) => { if (e.button === 1) e.preventDefault(); });
-    canvas.addEventListener('mousedown', (e) => {
-      if (G.state.mode !== 'playing') return;
-      if (!Input.locked) { Main.lockPointer(); return; }
-      if (G.chatOpen) return;
-      if (e.button === 0) { Input.mouseL = true; G.Game.attack(); }
-      else if (e.button === 2) {
+    // Clic izquierdo: atacar / usar la herramienta (mantenido, sigue); derecho: golpe pesado o usar el objeto
+    Main.pointerDown = function (button) {
+      if (G.state.mode !== 'playing' || G.chatOpen) return;
+      if (button === 0) { Input.mouseL = true; G.Game.attack(); }
+      else if (button === 2) {
         const h = G.Inv.heldId();
         // Con un arma de cuerpo a cuerpo (o sin nada en la mano): golpe pesado (combat.js); si no, usar el objeto
         if (h && G.ITEMS[h].spyglass) G.Player.zoom = 1; else if (!G.Combat.heavy()) G.Game.useHeld();
-      } else if (e.button === 1) { e.preventDefault(); G.Combat.toggleLock(); } // rueda: fijar al enemigo
+      } else if (button === 1) G.Combat.toggleLock(); // rueda: fijar al enemigo
+    };
+    Main.pointerUp = function (button) { if (button === 0) Input.mouseL = false; if (button === 2) G.Player.zoom = 0; };
+    canvas.addEventListener('mousedown', (e) => {
+      if (G.state.mode !== 'playing') return;
+      if (!Input.locked) { Main.lockPointer(); return; }
+      if (e.button === 1) e.preventDefault();
+      Main.pointerDown(e.button);
     });
-    window.addEventListener('mouseup', (e) => { if (e.button === 0) Input.mouseL = false; if (e.button === 2) G.Player.zoom = 0; });
+    window.addEventListener('mouseup', (e) => Main.pointerUp(e.button));
     window.addEventListener('keyup', (e) => { if (e.code === 'KeyF') G.Parry.up(); });
     window.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('mousemove', (e) => {
@@ -535,6 +544,7 @@
   // ------------------------------------------------------------------ bucle
   function tick(dt, render) {
     const st = G.state, P = G.Player;
+    if (render && G.Touch) G.Touch.update(dt);
     if (st.mode === 'cinema') {
       if (!render) return;
       G.Cinema.update(dt);

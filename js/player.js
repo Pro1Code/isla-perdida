@@ -142,12 +142,15 @@
     const K = inputOn ? G.Input.keys : {};
     if (P.ship) { G.Ships.updatePlayer(dt, K); return; }
     if (G.Cheats.flag('fly')) { fly(dt, K); return; }
-    const fwd = (K.KeyW || K.ArrowUp ? 1 : 0) - (K.KeyS || K.ArrowDown ? 1 : 0);
-    const str = (K.KeyD || K.ArrowRight ? 1 : 0) - (K.KeyA || K.ArrowLeft ? 1 : 0);
+    let fwd = (K.KeyW || K.ArrowUp ? 1 : 0) - (K.KeyS || K.ArrowDown ? 1 : 0);
+    let str = (K.KeyD || K.ArrowRight ? 1 : 0) - (K.KeyA || K.ArrowLeft ? 1 : 0);
+    // Joystick táctil (touch.js): movimiento analógico, más despacio si no lo empujas del todo
+    const ax = inputOn && G.Input.axis, amag = ax && (ax.x || ax.y) ? Math.min(1, Math.hypot(ax.x, ax.y) * 1.15) : 1;
+    if (ax && (ax.x || ax.y)) { fwd = -ax.y; str = ax.x; }
     const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
     let wx = -sy * fwd + cy * str, wz = -cy * fwd - sy * str;
     const wl = Math.hypot(wx, wz);
-    if (wl > 0) { wx /= wl; wz /= wl; }
+    if (wl > 0) { wx /= wl; wz /= wl; wx *= amag; wz *= amag; }
     P.moving = wl > 0;
     const S = P.stats;
     if (S.stamina <= 0) P.exhausted = true;

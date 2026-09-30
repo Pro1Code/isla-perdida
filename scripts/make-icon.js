@@ -1,12 +1,15 @@
-// Genera el ícono del juego (PNG 256×256 e ICO) sin dependencias: isla con palmera, sol y mar.
+// Genera el ícono del juego (PNG 256×256 e ICO, y los de 192 y 512 para la app del móvil) sin dependencias: isla con palmera, sol y mar.
 // Uso: node scripts/make-icon.js
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-const S = 256, SS = 4, N = S * SS;
-const px = new Float32Array(S * S * 4);
+const SS = 4;
+// PNG
+const crcTable = new Int32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c; });
+const crc = (buf) => { let c = -1; for (const b of buf) c = crcTable[(c ^ b) & 255] ^ (c >>> 8); return (c ^ -1) >>> 0; };
+const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const cr = Buffer.alloc(4); cr.writeUInt32BE(crc(td)); return Buffer.concat([len, td, cr]); };
 const mix = (a, b, t) => a + (b - a) * t;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -46,6 +49,9 @@ function color(x, y) {
   if (Math.hypot(x - hx + 0.012, y - hy - 0.02) < 0.016 || Math.hypot(x - hx - 0.018, y - hy - 0.015) < 0.014) c = [0.35, 0.22, 0.1];
   return [...c, 1];
 }
+// Dibuja el ícono de S×S píxeles (con supermuestreo) y devuelve el PNG
+function render(S) {
+const N = S * SS, px = new Float32Array(S * S * 4);
 for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
   const c = color((i + 0.5) / N, (j + 0.5) / N), o = (Math.floor(j / SS) * S + Math.floor(i / SS)) * 4;
   px[o] += c[0] * c[3]; px[o + 1] += c[1] * c[3]; px[o + 2] += c[2] * c[3]; px[o + 3] += c[3];
@@ -62,11 +68,10 @@ for (let y = 0; y < S; y++) {
   }
 }
 // PNG
-const crcTable = new Int32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c; });
-const crc = (buf) => { let c = -1; for (const b of buf) c = crcTable[(c ^ b) & 255] ^ (c >>> 8); return (c ^ -1) >>> 0; };
-const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const cr = Buffer.alloc(4); cr.writeUInt32BE(crc(td)); return Buffer.concat([len, td, cr]); };
 const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(S, 0); ihdr.writeUInt32BE(S, 4); ihdr[8] = 8; ihdr[9] = 6;
-const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+}
+const png = render(256);
 // ICO con el PNG dentro (Windows Vista y posteriores)
 const ico = Buffer.alloc(22);
 ico.writeUInt16LE(0, 0); ico.writeUInt16LE(1, 2); ico.writeUInt16LE(1, 4);
@@ -76,4 +81,7 @@ fs.mkdirSync(path.join(root, 'build'), { recursive: true });
 fs.writeFileSync(path.join(root, 'desktop', 'icon.png'), png);
 fs.writeFileSync(path.join(root, 'build', 'icon.png'), png);
 fs.writeFileSync(path.join(root, 'build', 'icon.ico'), Buffer.concat([ico, png]));
-console.log('Ícono creado:', png.length, 'bytes');
+// Íconos de la app para el móvil (PWA: se instala desde el navegador)
+fs.mkdirSync(path.join(root, 'img'), { recursive: true });
+for (const s of [192, 512]) fs.writeFileSync(path.join(root, 'img', `icon-${s}.png`), render(s));
+console.log('Ícono creado:', png.length, 'bytes (y img/icon-192.png, img/icon-512.png)');

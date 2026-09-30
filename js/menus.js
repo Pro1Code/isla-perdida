@@ -220,6 +220,7 @@
     $('setSubs').checked = !!P.set('subs');
     for (const k of ['vol', 'sfx', 'amb', 'voz']) { $('set' + k[0].toUpperCase() + k.slice(1)).value = P.set(k); $('set' + k[0].toUpperCase() + k.slice(1) + 'V').textContent = P.set(k) + '%'; }
     document.querySelectorAll('#setQuality button').forEach((b) => b.classList.toggle('on', b.dataset.q === G.Main.quality));
+    document.querySelectorAll('#setTouch button').forEach((b) => b.classList.toggle('on', b.dataset.t === (P.set('touch') || 'auto')));
     $('setVersion').innerHTML = `<b>Isla Perdida ${esc(G.VERSION)}</b> · ${esc(G.VERSION_NAME)}<br><small class="muted">${window.islaDesktop ? 'App de escritorio: puedes tener varias versiones y elegir cuál jugar en el lanzador.' : 'Versión para navegador: siempre es la última.'}</small>`;
   }
   function openSettings(page) {
@@ -335,6 +336,10 @@
     $('setSubs').onchange = () => G.Profile.setSetting('subs', $('setSubs').checked);
     for (const k of ['Vol', 'Sfx', 'Amb', 'Voz']) slider('set' + k, k.toLowerCase(), (v) => v + '%', () => G.Audio.setVolumes());
     $('setInvY').onchange = () => G.Profile.setSetting('invY', $('setInvY').checked);
+    document.querySelectorAll('#setTouch button').forEach((b) => (b.onclick = () => {
+      G.Profile.setSetting('touch', b.dataset.t); G.Touch.refresh();
+      document.querySelectorAll('#setTouch button').forEach((x) => x.classList.toggle('on', x === b));
+    }));
     $('setFps').onchange = () => G.Profile.setSetting('fps', $('setFps').checked);
     $('setQuality').onclick = (e) => { const b = e.target.closest('button[data-q]'); if (b) { G.Main.setQuality(b.dataset.q); renderSettings(); } };
     // Tienda
