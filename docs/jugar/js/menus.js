@@ -84,7 +84,7 @@
     box.innerHTML = list.map((w) => `<div class="world" data-id="${w.id}">
       <div class="w-main"><b class="w-name">${esc(w.name)}</b>
         <div class="w-seed">🌱 Semilla ${w.seed ? `<code>${w.seed}</code><button class="seed-copy" data-a="seed" title="Copiar la semilla">📋 Copiar</button>` : '<span class="muted">se verá al entrar en la partida</span>'}</div>
-        <div class="w-tags"><span class="tag d${w.diff}">${DIFF[w.diff] || 'Normal'}</span><button class="tag death" data-a="death" title="Qué pasa al morir en esta partida · clic para cambiarlo">${DEATH_TAG[w.death] || DEATH_TAG.half}</button>${w.cheats ? '<span class="tag cheat">🪄 Trucos</span>' : ''}<span>${w.fresh ? 'Sin empezar' : `Día ${w.day || 1}`}</span>${w.time ? `<span>⏱️ ${dur(w.time)}</span>` : ''}<span class="muted">${ago(w.played || w.created)}</span>${w.ver && w.ver !== G.VERSION ? `<span class="muted">v${esc(w.ver)}</span>` : ''}</div></div>
+        <div class="w-tags"><span class="tag d${w.diff}">${DIFF[w.diff] || 'Normal'}</span><button class="tag death" data-a="death" title="Qué pasa al morir en esta partida · clic para cambiarlo">${DEATH_TAG[w.death] || DEATH_TAG.half}</button>${w.cheats ? '<span class="tag cheat">🪄 Creativo</span>' : ''}<span>${w.fresh ? 'Sin empezar' : `Día ${w.day || 1}`}</span>${w.time ? `<span>⏱️ ${dur(w.time)}</span>` : ''}<span class="muted">${ago(w.played || w.created)}</span>${w.ver && w.ver !== G.VERSION ? `<span class="muted">v${esc(w.ver)}</span>` : ''}</div></div>
       <div class="w-btns"><button class="btn small primary" data-a="play">${kind === 'sp' ? '▶ Jugar' : '👑 Hospedar'}</button><button class="btn small icon" data-a="ren" title="Renombrar">✏️</button><button class="btn small icon" data-a="del" title="Borrar">🗑️</button></div>
     </div>`).join('');
     box.onclick = async (e) => {
@@ -178,7 +178,7 @@
     if (filter === 'done') list = list.filter((a) => PR.hasAch(a.id));
     if (filter === 'pending') list = list.filter((a) => !PR.hasAch(a.id));
     const cheats = G.Cheats.enabled();
-    box.innerHTML = (cheats ? '<div class="world-empty">🪄 Estás en una partida con trucos: aquí no se consiguen logros.</div>' : '') +
+    box.innerHTML = (cheats ? '<div class="world-empty">🪄 Tienes el modo creativo activado: mientras lo tengas no se consiguen logros.</div>' : '') +
       (list.length ? list.map((a) => {
         const T = A.TIERS[a.t], got = PR.hasAch(a.id), pr = A.progress(a);
         const bar = !got && a.c && a.goal > 1 ? `<div class="bar"><i style="width:${pr * 100}%"></i></div><small class="muted">${Math.min(PR.cnt(a.c), a.goal).toLocaleString('es')} / ${a.goal.toLocaleString('es')}</small>` : '';
@@ -220,6 +220,7 @@
     $('setSubs').checked = !!P.set('subs');
     for (const k of ['vol', 'sfx', 'amb', 'voz']) { $('set' + k[0].toUpperCase() + k.slice(1)).value = P.set(k); $('set' + k[0].toUpperCase() + k.slice(1) + 'V').textContent = P.set(k) + '%'; }
     document.querySelectorAll('#setQuality button').forEach((b) => b.classList.toggle('on', b.dataset.q === G.Main.quality));
+    document.querySelectorAll('#setTouch button').forEach((b) => b.classList.toggle('on', b.dataset.t === (P.set('touch') || 'auto')));
     $('setVersion').innerHTML = `<b>Isla Perdida ${esc(G.VERSION)}</b> · ${esc(G.VERSION_NAME)}<br><small class="muted">${window.islaDesktop ? 'App de escritorio: puedes tener varias versiones y elegir cuál jugar en el lanzador.' : 'Versión para navegador: siempre es la última.'}</small>`;
   }
   function openSettings(page) {
@@ -335,6 +336,10 @@
     $('setSubs').onchange = () => G.Profile.setSetting('subs', $('setSubs').checked);
     for (const k of ['Vol', 'Sfx', 'Amb', 'Voz']) slider('set' + k, k.toLowerCase(), (v) => v + '%', () => G.Audio.setVolumes());
     $('setInvY').onchange = () => G.Profile.setSetting('invY', $('setInvY').checked);
+    document.querySelectorAll('#setTouch button').forEach((b) => (b.onclick = () => {
+      G.Profile.setSetting('touch', b.dataset.t); G.Touch.refresh();
+      document.querySelectorAll('#setTouch button').forEach((x) => x.classList.toggle('on', x === b));
+    }));
     $('setFps').onchange = () => G.Profile.setSetting('fps', $('setFps').checked);
     $('setQuality').onclick = (e) => { const b = e.target.closest('button[data-q]'); if (b) { G.Main.setQuality(b.dataset.q); renderSettings(); } };
     // Tienda

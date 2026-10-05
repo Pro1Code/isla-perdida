@@ -11,196 +11,14 @@
 // reciben los efectos (bossFx) y el estado (vuelo, ataque especial) en la instantánea de criaturas.
 (function () {
   'use strict';
-  const G = window.G, U = G.U, M = G.Mdl, T = M.table, V3 = THREE.Vector3, Col = THREE.Color;
+  const G = window.G, U = G.U, V3 = THREE.Vector3, Col = THREE.Color;
   const B = (G.Bosses = { proj: [], parts: [], rings: [], breaths: [] });
   const FLY = 9; // altura de vuelo del dragón
   const KINDS = ['yeti', 'lavadragon', 'bigcaiman'];
   B.is = (type) => KINDS.includes(type);
   B.NAMES = { yeti: 'Rey de la Escarcha', lavadragon: 'Dragón de Brasa', bigcaiman: 'Gran Caimán del río' };
 
-  // ------------------------------------------------------------------ utilidades de modelado (como en animals.js)
-  function grad(top, side, bot, k = 0.3) {
-    const a = new Col(top), b = new Col(side), c = new Col(bot), o = new Col();
-    return (t, ang, ca, sa) => (sa >= 0 ? o.lerpColors(b, a, U.smooth(k, 1, sa)) : o.lerpColors(b, c, U.smooth(k, 1, -sa)));
-  }
-  const tb = (rx, ry, y, pw) => (t) => ({ rx: T(rx, t), ry: T(ry, t), y: typeof y === 'number' ? y : T(y, t), pw });
-  function mk(parts, mat, x = 0, y = 0, z = 0) {
-    const m = new THREE.Mesh(U.merge(parts.flat()), mat);
-    m.position.set(x, y, z);
-    m.castShadow = true;
-    return m;
-  }
-  function piv(x, y, z, child) { const g = new THREE.Group(); g.position.set(x, y, z); g.add(child); return g; }
-  const mirror = (pts) => pts.map(([x, y]) => [-x, y]).reverse();
-  const cone = (r, h, color, x, y, z, rx = 0, ry = 0, rz = 0, seg = 5) => M.xf(M.paint(new THREE.ConeGeometry(r, h, seg), color), x, y, z, rx, ry, rz);
-
-  // ------------------------------------------------------------------ el Rey de la Escarcha (yeti)
-  B.yeti = function (mat) {
-    const g = new THREE.Group(), rnd = U.rng(4242);
-    const fur = 0xeef3f8, shade = 0xc2d0de, deep = 0x93a8c0, skin = 0x5c7a9a, dark = 0x223246, ice = 0x9ae6ff, horn = 0xe2e8ee;
-    // Torso de la cadera (1,2 m) a los hombros (2,8 m), cargado hacia delante como un gorila
-    const tp = tb([[0, 0.5], [0.3, 0.68], [0.65, 0.86], [0.88, 0.8], [1, 0.42]], [[0, 0.42], [0.3, 0.55], [0.65, 0.6], [0.88, 0.5], [1, 0.34]], [[0, 0], [0.6, -0.06], [1, -0.3]]);
-    const body = [M.xf(M.loft({ z0: 0, z1: 1.6, n: 18, m: 16, prof: tp, color: grad(deep, fur, shade, 0.2) }), 0, 1.2, 0, -Math.PI / 2)];
-    // Hombros (unen los brazos al torso) y pecho de piel azulada
-    for (const s of [-1, 1]) body.push(M.ball(0.4, fur, s * 0.82, 2.6, 0.12, [1, 0.85, 1], 12, 9));
-    body.push(M.ball(0.46, 0x7a94b0, 0, 2.2, 0.5, [1.15, 1.0, 0.38], 14, 10));
-    // Mechones de pelo que cuelgan
-    for (let i = 0; i < 70; i++) {
-      const t = 0.08 + rnd() * 0.86, a = rnd() * Math.PI * 2, p = tp(t);
-      const ca = Math.cos(a), sa = Math.sin(a);
-      const x = ca * p.rx, y = 1.2 + t * 1.6, z = -(p.y + sa * p.ry);
-      const ol = Math.hypot(x, z) || 1, ox = x / ol, oz = z / ol;
-      if (z > 0.35 && Math.abs(x) < 0.4 && t > 0.45) continue; // deja ver el pecho
-      body.push(M.tube([[x, y, z], [x + ox * 0.1, y - 0.16, z + oz * 0.1], [x + ox * 0.14, y - 0.34, z + oz * 0.14]], [0.07, 0.012], 5, rnd() < 0.5 ? fur : shade, 6));
-    }
-    // Cristales de hielo que le crecen en la espalda y los hombros
-    for (let k = 0; k < 9; k++) {
-      const t = 0.55 + rnd() * 0.42, a = Math.PI / 2 + (rnd() - 0.5) * 1.6, p = tp(t);
-      const x = Math.cos(a) * p.rx * 0.85, y = 1.2 + t * 1.6, z = -(p.y + Math.sin(a) * p.ry * 0.9);
-      body.push(cone(0.08 + rnd() * 0.07, 0.45 + rnd() * 0.45, rnd() < 0.5 ? ice : 0xd8f6ff, x, y + 0.15, z, -0.55 - rnd() * 0.3, 0, (x > 0 ? -1 : 1) * (0.2 + rnd() * 0.3)));
-    }
-    const bodyMesh = mk(body, mat);
-    g.add(bodyMesh);
-    // Cabeza: cráneo peludo, cara azul, cejas, colmillos y cuernos
-    const hp = [M.loft({ z0: -0.4, z1: 0.32, n: 12, m: 14, prof: tb([[0, 0.3], [0.4, 0.42], [0.8, 0.38], [1, 0.28]], [[0, 0.3], [0.4, 0.42], [0.8, 0.36], [1, 0.25]], 0), color: grad(deep, fur, shade, 0.2) })];
-    hp.push(M.ball(0.3, skin, 0, -0.05, 0.24, [1.05, 0.95, 0.55], 14, 10));
-    hp.push(M.tube([[-0.25, 0.12, 0.33], [0, 0.17, 0.4], [0.25, 0.12, 0.33]], [0.075, 0.075], 7, fur));
-    hp.push(M.ball(0.05, dark, 0, -0.04, 0.44, [1.4, 0.7, 0.8]));
-    hp.push(M.ball(0.12, 0x140c18, 0, -0.2, 0.36, [1.45, 0.55, 0.5]));
-    for (const s of [-1, 1]) {
-      hp.push(cone(0.03, 0.14, 0xf4f2ea, s * 0.08, -0.15, 0.43, Math.PI));
-      hp.push(cone(0.035, 0.16, 0xf4f2ea, s * 0.14, -0.25, 0.4, 0));
-      hp.push(M.tube([[s * 0.24, 0.22, -0.05], [s * 0.46, 0.36, -0.2], [s * 0.6, 0.62, -0.32], [s * 0.52, 0.9, -0.22]], [0.1, 0.018], 7, horn, 14));
-      hp.push(M.ear(0.07, 0.12, fur, skin, s * 0.37, 0.05, -0.06, 0, 0, s * -1.25));
-    }
-    for (let i = 0; i < 10; i++) { const a = rnd() * Math.PI * 2, r = 0.2 * rnd(); hp.push(M.tube([[Math.cos(a) * r, 0.38, -0.1 + Math.sin(a) * r], [Math.cos(a) * r * 1.4, 0.5, -0.2 + Math.sin(a) * r]], [0.06, 0.01], 5, fur, 4)); }
-    const head = mk(hp, mat, 0, 3.0, 0.45);
-    const glowMat = new THREE.MeshStandardMaterial({ color: 0xbff4ff, emissive: 0x4ad0ff, emissiveIntensity: 1.4, roughness: 0.2 });
-    for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), glowMat); e.position.set(s * 0.11, 0.05, 0.4); head.add(e); }
-    g.add(head);
-    // Brazos largos (casi hasta las rodillas) con puños enormes
-    const arms = [-1, 1].map((s) => {
-      const ap = [M.tube([[0, 0, 0], [s * 0.12, -0.62, 0.12], [s * 0.16, -1.2, 0.28], [s * 0.12, -1.6, 0.34]], (t) => 0.23 + 0.08 * Math.sin(t * Math.PI) + 0.06 * Math.sin(t * Math.PI * 3), 10, (t, a) => (t > 0.55 && Math.cos(a) > 0.4 ? shade : fur), 18)];
-      ap.push(M.ball(0.3, skin, s * 0.12, -1.74, 0.38, [1, 0.9, 1.1], 12, 9));
-      for (let k = 0; k < 3; k++) ap.push(cone(0.035, 0.12, dark, s * 0.12 + (k - 1) * 0.1, -1.95, 0.5, Math.PI / 2 + 0.5));
-      for (let k = 0; k < 8; k++) { const y = -0.2 - k * 0.17, a = rnd() * Math.PI * 2; ap.push(M.tube([[s * 0.1 + Math.cos(a) * 0.24, y, 0.1 + Math.sin(a) * 0.24], [s * 0.1 + Math.cos(a) * 0.32, y - 0.3, 0.1 + Math.sin(a) * 0.32]], [0.06, 0.01], 5, rnd() < 0.5 ? fur : shade, 4)); }
-      return piv(s * 0.92, 2.62, 0.2, mk(ap, mat));
-    });
-    // Piernas cortas y gruesas
-    const legs = [-1, 1].map((s) => piv(s * 0.42, 1.3, 0, mk([...M.leg([0, 0, 0], [0, -0.55, 0.14], [0, -1.0, -0.06], [0, -1.24, 0.08], 0.33, 0.2, fur, skin)], mat)));
-    for (const p of [...arms, ...legs]) g.add(p);
-    return { g, legs: [arms[0], arms[1], legs[0], legs[1]], arms, head, headZ: 0.45, glow: glowMat, bodyMesh };
-  };
-
-  // ------------------------------------------------------------------ el Dragón de Brasa
-  B.dragon = function (mat) {
-    const g = new THREE.Group(), rnd = U.rng(777), n = U.makeNoise(77);
-    const sc = 0x2a2422, back = 0x121010, belly = 0x5e3a28, lava = 0xff7a1e, hot = 0xffc040, horn = 0x3a322c, claw = 0x141010, memb = 0x4e1a12, bone = 0x241c18;
-    // Grietas de lava: vetas brillantes sobre las escamas oscuras
-    const cracks = (geo, k = 1) => M.recolor(geo, (x, y, z) => (Math.abs(n(x * 1.6 + y * 0.8, z * 1.6 - y * 0.7)) < 0.05 * k ? lava : null));
-    const bp = tb([[0, 0.45], [0.25, 0.95], [0.55, 1.05], [0.8, 0.9], [1, 0.6]], [[0, 0.5], [0.25, 0.9], [0.55, 0.95], [0.8, 0.85], [1, 0.6]], [[0, 1.55], [0.5, 1.7], [1, 1.95]]);
-    const body = [cracks(M.loft({ z0: -1.7, z1: 1.7, n: 22, m: 16, prof: bp, color: grad(back, sc, belly, 0.15) }))];
-    // Púas del lomo
-    for (let i = 0; i < 11; i++) { const t = 0.05 + i * 0.09, p = bp(t); body.push(cone(0.12, 0.42 + Math.sin(t * Math.PI) * 0.25, horn, 0, p.y + p.ry - 0.05, U.lerp(-1.7, 1.7, t), -0.45)); }
-    // Cuello largo que sube hacia la cabeza
-    const neck = [[0, 2.0, 1.3], [0, 2.7, 2.0], [0, 3.4, 2.4], [0, 3.95, 2.65]];
-    body.push(cracks(M.tube(neck, [0.62, 0.36], 12, (t, a) => (Math.sin(a) < -0.3 ? belly : sc), 16), 1.2));
-    for (let i = 0; i < 5; i++) { const t = 0.12 + i * 0.18, y = U.lerp(2.3, 3.9, t), z = U.lerp(1.55, 2.55, t); body.push(cone(0.09, 0.32, horn, 0, y + 0.5 - t * 0.15, z - 0.28, -0.9)); }
-    g.add(mk(body, mat));
-    // Cabeza: cráneo con cuernos, fosas que brillan y mandíbula que se abre
-    const hp = [cracks(M.loft({ z0: -0.45, z1: 1.0, n: 16, m: 14, prof: tb([[0, 0.36], [0.35, 0.38], [0.7, 0.26], [1, 0.15]], [[0, 0.34], [0.35, 0.3], [0.7, 0.2], [1, 0.13]], [[0, 0.06], [1, -0.02]]), color: grad(back, sc, belly, 0.25) }), 0.8)];
-    hp.push(M.ball(0.3, 0x5a1008, 0, -0.14, 0.45, [0.75, 0.35, 1.5]), M.ball(0.12, hot, 0, -0.12, 0.3, [1, 0.5, 1.5]));
-    for (const s of [-1, 1]) {
-      hp.push(M.tube([[s * 0.18, 0.22, -0.2], [s * 0.3, 0.38, -0.55], [s * 0.34, 0.5, -0.95], [s * 0.28, 0.46, -1.28]], [0.11, 0.02], 8, horn, 14));
-      hp.push(M.tube([[s * 0.3, 0.02, -0.25], [s * 0.5, 0.04, -0.52], [s * 0.6, 0.1, -0.7]], [0.06, 0.01], 6, horn, 8));
-      hp.push(M.tube([[s * 0.3, 0.2, 0.15], [s * 0.2, 0.26, 0.45]], [0.07, 0.04], 6, back, 6));
-      hp.push(M.ball(0.035, hot, s * 0.07, 0.03, 1.0));
-      for (let k = 0; k < 5; k++) hp.push(cone(0.025, 0.12, 0xf0e8d8, s * (0.16 - k * 0.02), -0.13, 0.35 + k * 0.13, Math.PI));
-    }
-    for (let k = 0; k < 4; k++) hp.push(M.xf(M.fin([[0, 0], [0.18, 0.28], [0.3, 0]], 0.03, horn), 0, 0.25 - k * 0.02, -0.3 - k * 0.2, 0, Math.PI / 2, 0));
-    const head = mk(hp, mat, 0, 4.05, 2.75);
-    const glowMat = new THREE.MeshStandardMaterial({ color: 0xffd060, emissive: 0xff7a10, emissiveIntensity: 1.6, roughness: 0.3 });
-    for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), glowMat); e.position.set(s * 0.22, 0.13, 0.35); head.add(e); }
-    const jawGeo = [cracks(M.loft({ z0: 0, z1: 1.1, n: 10, m: 10, prof: tb([[0, 0.28], [0.6, 0.2], [1, 0.11]], [[0, 0.12], [1, 0.07]], -0.08), color: grad(sc, sc, belly, 0.1) }), 0.6)];
-    for (const s of [-1, 1]) for (let k = 0; k < 4; k++) jawGeo.push(cone(0.022, 0.1, 0xf0e8d8, s * (0.14 - k * 0.02), 0.02, 0.35 + k * 0.15));
-    const jaw = piv(0, -0.14, -0.15, mk(jawGeo, mat));
-    head.add(jaw);
-    g.add(head);
-    // Cola con púas y una punta de flecha
-    const tailPts = [[0, 0, 0], [0, -0.35, -1.2], [0.15, -0.8, -2.4], [0.5, -1.1, -3.5], [0.9, -1.2, -4.4]];
-    const tp = [cracks(M.tube(tailPts, (t) => U.lerp(0.58, 0.07, t), 10, sc, 22))];
-    const curve = new THREE.CatmullRomCurve3(tailPts.map((p) => new V3(...p)));
-    for (let i = 1; i < 9; i++) { const P = curve.getPointAt(i / 10); tp.push(cone(0.09 * (1 - i / 12), 0.35 * (1 - i / 14), horn, P.x, P.y + U.lerp(0.55, 0.1, i / 10), P.z, -0.5)); }
-    tp.push(M.xf(M.fin([[0, 0], [0.55, 0.38], [1.0, 0], [0.55, -0.38]], 0.06, horn), 0.9, -1.2, -4.35, 0, Math.PI / 2 - 0.42, 0));
-    const tail = piv(0, 1.75, -1.55, mk(tp, mat));
-    g.add(tail);
-    // Patas con garras
-    const legs = [[-1, 1], [1, 1], [-1, 0], [1, 0]].map(([s, f]) => {
-      const lp = f ? M.leg([0, 0, 0], [s * 0.12, -0.55, 0.25], [s * 0.1, -1.1, 0.05], [s * 0.08, -1.5, 0.2], 0.36, 0.2, sc, claw) : M.leg([0, 0, 0], [s * 0.1, -0.5, -0.38], [s * 0.1, -1.05, -0.1], [s * 0.08, -1.5, 0.1], 0.44, 0.2, sc, claw);
-      for (let k = 0; k < 3; k++) lp.push(cone(0.05, 0.22, claw, s * 0.08 + (k - 1) * 0.1, -1.55, (f ? 0.2 : 0.1) + 0.28, Math.PI / 2));
-      lp.push(cracks(M.ball(f ? 0.46 : 0.56, sc, 0, -0.08, f ? 0.05 : -0.12, [0.9, 1.1, 1.15], 12, 10), 0.8)); // hombro / muslo
-      return piv(s * (f ? 0.78 : 0.85), 1.55, f ? 1.05 : -1.05, mk(lp, mat));
-    });
-    legs.forEach((l) => g.add(l));
-    // Alas de membrana con huesos (plegadas en tierra, batiendo en el aire)
-    const outline = [[0, 0.3], [1.3, 0.7], [2.8, 0.9], [4.4, 0.5], [4.6, 0.1], [3.9, -0.5], [3.3, -0.35], [2.9, -1.5], [2.2, -0.9], [1.6, -2.0], [0.9, -1.1], [0.2, -1.4], [0, -0.6]];
-    const wings = [-1, 1].map((s) => {
-      const wp = [M.xf(M.fin(s > 0 ? outline : mirror(outline), 0.04, memb), 0, 0, 0, Math.PI / 2, 0, 0)];
-      const X = (x) => x * s;
-      wp.push(M.tube([[0, 0.05, 0.3], [X(1.3), 0.1, 0.7], [X(2.8), 0.12, 0.9], [X(4.4), 0.1, 0.5]], [0.13, 0.04], 7, bone, 16));
-      for (const [x, z] of [[2.9, -1.5], [1.6, -2.0], [3.9, -0.5], [0.9, -1.1]]) wp.push(M.tube([[X(2.8), 0.08, 0.9], [X((x + 2.8) / 2), 0.06, (z + 0.9) / 2], [X(x), 0.04, z]], [0.06, 0.02], 5, bone, 8));
-      wp.push(cone(0.05, 0.22, claw, X(2.8), 0.2, 0.98, 0, 0, 0));
-      return piv(s * 0.7, 2.45, 0.75, mk(wp, mat));
-    });
-    wings.forEach((w) => g.add(w));
-    return { g, legs, head, headZ: 2.75, tail, tailYaw: true, wings, jaw, glow: glowMat };
-  };
-
-  // ------------------------------------------------------------------ el Gran Caimán del río
-  B.caiman = function (mat) {
-    const g = new THREE.Group(), rnd = U.rng(515);
-    const back = 0x2e3a22, side = 0x55663a, belly = 0xcfc39a, scute = 0x222a18, claw = 0x1a1a14, tooth = 0xf0ead8, mouthC = 0xb86a5a;
-    // Cuerpo bajo y ancho (de la cadera a los hombros) con filas de escamas óseas en el lomo
-    const bp = tb([[0, 0.72], [0.3, 1.0], [0.72, 0.98], [1, 0.62]], [[0, 0.4], [0.3, 0.5], [0.72, 0.48], [1, 0.36]], 0.6);
-    const body = [M.loft({ z0: -2.4, z1: 1.7, n: 20, m: 16, prof: bp, color: grad(back, side, belly, 0.1) })];
-    for (let i = 0; i < 13; i++) {
-      const t = 0.05 + i * 0.072, p = bp(t), z = U.lerp(-2.4, 1.7, t);
-      for (const [x, s] of [[-0.22, 1], [0.22, 1], [-0.52, 0.7], [0.52, 0.7]]) body.push(cone(0.09 * s, 0.2 * s, scute, x * p.rx, p.y + p.ry * (1 - Math.abs(x) * 0.5) + 0.02, z, 0, 0, 0, 4));
-    }
-    g.add(mk(body, mat));
-    // Cabeza larga: hocico, ojos saltones que brillan (lo único que asoma del agua) y dientes de arriba
-    const hp = [M.loft({ z0: 0, z1: 2.3, n: 16, m: 14, prof: tb([[0, 0.55], [0.35, 0.44], [0.8, 0.3], [1, 0.2]], [[0, 0.3], [0.4, 0.22], [1, 0.14]], [[0, 0.05], [1, -0.02]]), color: grad(back, side, mouthC, 0.3) })];
-    for (const s of [-1, 1]) {
-      hp.push(M.ball(0.15, side, s * 0.27, 0.24, 0.35, [1, 0.8, 1.2]));
-      hp.push(M.ball(0.07, back, s * 0.08, 0.13, 2.18, [1, 0.7, 1.1]));
-      for (let k = 0; k < 9; k++) hp.push(cone(0.035, 0.14, tooth, s * U.lerp(0.44, 0.16, k / 8), -0.14, 0.35 + k * 0.21, Math.PI));
-    }
-    const head = mk(hp, mat, 0, 0.66, 1.6);
-    const glowMat = new THREE.MeshStandardMaterial({ color: 0xffe070, emissive: 0xffa020, emissiveIntensity: 1.2, roughness: 0.3 });
-    for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), glowMat); e.position.set(s * 0.29, 0.3, 0.44); head.add(e); }
-    // Mandíbula de abajo (se abre al morder) con sus dientes
-    const jp = [M.loft({ z0: 0, z1: 2.2, n: 12, m: 10, prof: tb([[0, 0.5], [0.5, 0.36], [1, 0.18]], [[0, 0.16], [1, 0.08]], -0.12), color: grad(mouthC, side, belly, 0.2) })];
-    for (const s of [-1, 1]) for (let k = 0; k < 8; k++) jp.push(cone(0.03, 0.12, tooth, s * U.lerp(0.4, 0.15, k / 7), -0.02, 0.4 + k * 0.22));
-    const jaw = piv(0, -0.1, 0.05, mk(jp, mat));
-    head.add(jaw);
-    g.add(head);
-    // Cola larga con la cresta de escamas
-    const tailPts = [[0, 0, 0], [0, -0.08, -1.6], [0.15, -0.18, -3.2], [0.45, -0.28, -4.6]];
-    const tp = [M.tube(tailPts, (t) => U.lerp(0.62, 0.08, t), 10, (t, a) => (Math.sin(a) < -0.3 ? belly : side), 22)];
-    const curve = new THREE.CatmullRomCurve3(tailPts.map((p) => new V3(...p)));
-    for (let i = 1; i < 14; i++) { const P = curve.getPointAt(i / 15); tp.push(M.xf(M.fin([[0, 0], [0.12, 0.26 * (1 - i / 16)], [0.24, 0]], 0.04, scute), P.x - 0.12, P.y + U.lerp(0.5, 0.1, i / 14), P.z, 0, Math.PI / 2, 0)); }
-    const tail = piv(0, 0.6, -2.3, mk(tp, mat));
-    g.add(tail);
-    // Patas cortas y abiertas hacia los lados, con garras
-    const legs = [[-1, 1], [1, 1], [-1, 0], [1, 0]].map(([s, f]) => {
-      const lp = M.leg([0, 0, 0], [s * 0.42, -0.2, f ? 0.12 : -0.1], [s * 0.55, -0.45, f ? 0.2 : -0.05], [s * 0.6, -0.58, f ? 0.38 : 0.15], f ? 0.24 : 0.3, 0.13, side, claw);
-      for (let k = 0; k < 4; k++) lp.push(cone(0.03, 0.14, claw, s * 0.6 + (k - 1.5) * 0.07, -0.6, (f ? 0.38 : 0.15) + 0.14, Math.PI / 2));
-      return piv(s * 0.78, 0.6, f ? 1.15 : -1.75, mk(lp, mat));
-    });
-    legs.forEach((l) => g.add(l));
-    void rnd;
-    return { g, legs, head, headZ: 1.6, tail, tailYaw: true, jaw, glow: glowMat };
-  };
+  // Los modelos (esqueleto, piel y animación) están en fauna.js y rig.js
 
   // ------------------------------------------------------------------ zonas de impacto (lo usa creatures.js)
   B.spheres = function (c) {
@@ -212,37 +30,32 @@
   };
 
   // ------------------------------------------------------------------ animación extra (lo llama animate() de creatures.js)
+  // Devuelve cuánto sube o baja el jefe; los brazos, las alas y la mandíbula los mueve su esqueleto (fauna.js)
+  // con c.armUp (brazos en alto), c.fly (vuelo) y c.jawK (mandíbula de 0 a 1)
   B.animate = function (c, dt, now) {
     let off = 0;
+    c.pitchOver = null;
     if (c.type === 'yeti') {
       if (c.jumpT !== undefined && c.jumpT < 0.6) { c.jumpT += dt; off += Math.sin(Math.PI * Math.min(1, c.jumpT / 0.6)) * 2.4; }
       // Brazos en alto al preparar el salto o el lanzamiento
       c.armUp = U.lerp(c.armUp || 0, c.special ? 1 : 0, Math.min(1, dt * 8));
-      if (c.armUp > 0.02) for (const a of c.arms) a.rotation.x = U.lerp(a.rotation.x, -2.6, c.armUp);
-      c.bodyMesh.scale.set(1, 1 + Math.sin(now / 700) * 0.012, 1);
+      c.jawK = U.lerp(c.jawK || 0, c.special ? 1 : c.lunge > 0 ? Math.sin((c.lunge / 0.3) * Math.PI) : 0, Math.min(1, dt * 10));
     } else if (c.type === 'bigcaiman') {
       // En el lago asoman solo los ojos y el lomo; al esconderse se sumerge del todo
       const wl = G.World.inLakeWater(c.x, c.z) ? G.World.waterLevelAt(c.x, c.z) : null;
       const dive = G.Net.authority() ? !!c.flyTarget : !!c.flyNet;
       c.swimOff = U.lerp(c.swimOff || 0, wl === null ? 0 : Math.max(0, wl - (dive ? 2.6 : 0.78) - c.y), Math.min(1, dt * 3));
       off += c.swimOff;
-      const open = c.special ? 0.62 : c.lunge > 0 ? 0.55 * Math.sin((c.lunge / 0.3) * Math.PI) : 0.03 + Math.max(0, Math.sin(now / 2200 + c.id)) * 0.05;
-      c.jaw.rotation.x = U.lerp(c.jaw.rotation.x, open, Math.min(1, dt * 10));
+      const open = c.special ? 1 : c.lunge > 0 ? 0.9 * Math.sin((c.lunge / 0.3) * Math.PI) : 0.05 + Math.max(0, Math.sin(now / 2200 + c.id)) * 0.08;
+      c.jawK = U.lerp(c.jawK || 0, open, Math.min(1, dt * 10));
     } else {
       const want = G.Net.authority() ? (c.flyTarget || 0) : (c.flyNet ? 1 : 0);
       c.fly = U.lerp(c.fly || 0, want, Math.min(1, dt * 0.9));
       const fl = U.smooth(0.05, 0.6, c.fly);
       off += c.fly * FLY + Math.sin(now / 420) * 0.4 * fl;
-      const flap = Math.sin(now / (fl > 0.3 ? 170 : 900));
-      c.wings.forEach((w, k) => {
-        const s = k ? 1 : -1;
-        w.rotation.y = s * U.lerp(0.95, 0.05, fl);
-        w.rotation.z = s * (U.lerp(0.55, 0.15, fl) + flap * U.lerp(0.04, 0.7, fl));
-      });
-      if (fl > 0.2) for (const l of c.legs) l.rotation.x = U.lerp(l.rotation.x, 0.75, fl);
-      const open = c.special ? 0.55 : c.lunge > 0 ? 0.45 * Math.sin((c.lunge / 0.3) * Math.PI) : 0.04;
-      c.jaw.rotation.x = U.lerp(c.jaw.rotation.x, open, Math.min(1, dt * 10));
-      c.g.rotation.x = -0.1 * fl;
+      const open = c.special ? 1 : c.lunge > 0 ? 0.85 * Math.sin((c.lunge / 0.3) * Math.PI) : 0.06;
+      c.jawK = U.lerp(c.jawK || 0, open, Math.min(1, dt * 10));
+      if (fl > 0.02) c.pitchOver = -0.1 * fl;
     }
     return off;
   };

@@ -1,5 +1,35 @@
 👑 Señores de las Islas
 
+MODELOS 3D NUEVOS
+- Todos los animales y jefes esculpidos de nuevo, con esqueleto de verdad, pelo, escamas y movimientos fluidos.
+- Personas realistas: cuerpo de hombre y de mujer, caras con ojos, cejas, nariz y boca.
+- Ropa propia para el protagonista (fajín, correa y muñequeras), Mara, Kaito, Crane, Bastián, los jefes y los luchadores.
+
+BANDOS
+- Al empezar eliges bando: Piratas o Marina Blanca (en LAN cada jugador el suyo).
+- Piratas: la Marina te persigue, cartel de «Se busca», +30 % de doblones y hermandades piratas aliadas o enemigas según la zona.
+- Marina Blanca: sus barcos son tus aliados, todos los piratas te cazan, subes de rango y cobras paga cada día.
+- Barcos piratas nuevos que pelean contra la Marina.
+
+COMBATE ESTILO DUELO
+- Clic: combo de 4 golpes · Clic derecho: golpe pesado · F: parar (mantener: bloquear) · Q: esquivar · T: fijar enemigo · Z/R: técnica y definitivo.
+- El daño depende de dónde golpeas: cabeza, torso, brazos o piernas.
+- Los enemigos avisan antes de golpear, paran, esquivan y contraatacan.
+- Duelos entre amigos en LAN (E sobre otro jugador).
+- Efectos: estelas, números de daño, chispas, polvo y cámara que reacciona.
+
+MÓVIL
+- Se puede jugar en el móvil desde el navegador: joystick, botones táctiles y pantalla completa.
+- La versión web se puede instalar como app desde el navegador del móvil.
+
+MÁS
+- Cámaras: primera persona, tercera persona por detrás (cómoda para luchar) y frontal (V).
+- Botón para activar o desactivar el modo creativo en la pausa.
+- Los cofres no se atraviesan y se abren aunque la mochila esté llena.
+- Nadar y correr cansan menos.
+- El mismo día en todas las islas.
+
+
 JEFES DE ISLA
 - Rey de la Escarcha (Isla Escarcha): un yeti de 3,5 m junto a la cueva de hielo. Camina despacio, lanza bloques de hielo, carga corriendo para dar su pisotón helado y, furioso, llama a los lobos de las nieves.
 - Dragón de Brasa (Isla Brasa): mordisco, aliento de fuego que apunta ladera arriba o abajo y, malherido, vuela escupiendo bolas de fuego.

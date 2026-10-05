@@ -31,6 +31,8 @@
     if (team === G.Net.team && !Md.cfg.ff) return false;
     return true;
   };
+  // ¿Puedes dañar a este jugador? En versus, si es de otro equipo (sin tregua); en amistoso, si estáis en duelo (duel.js)
+  Md.canHurtPeer = (p) => !!p && (Md.canHurtPlayer(p.team) || !!(G.Duel && G.Duel.with(p.id)));
   Md.canHurtShip = function (s, by) {
     if (!Md.active) return true; // en amistoso solo dañan los animales y las rocas
     if (by === undefined || by === null) return true;

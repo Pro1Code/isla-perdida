@@ -14,7 +14,8 @@
   const Q_ORDER = ['high', 'med', 'low'];
   function getQuality() {
     try { const q = localStorage.getItem('isla_quality2'); if (Q_ORDER.includes(q)) return q; } catch (e) { /* nada */ }
-    return 'med';
+    // En el móvil se empieza en calidad baja (se puede subir en Configuración)
+    return G.Touch && G.Touch.coarse() ? 'low' : 'med';
   }
   function applyPixelRatio() {
     // Alta: resolución nativa (máx. 1.5x) · Media: 1x · Baja: 0.75x
@@ -120,9 +121,11 @@
   };
   Main.lockPointer = function () {
     if (G.Story && G.Story.dialog) return;
+    if (G.Touch && G.Touch.on) { Input.locked = true; $('clickToPlay').classList.add('hidden'); return; }
     try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* ignorar */ }
   };
   Main.releasePointer = function () {
+    if (G.Touch && G.Touch.on) { Input.locked = false; Input.keys = {}; Input.axis = { x: 0, y: 0 }; return; }
     if (document.pointerLockElement) { suppressPause = true; document.exitPointerLock(); }
   };
   function startPlaying() {
@@ -137,7 +140,7 @@
     fpsLow = 0; fpsWarned = false;
     const cheats = G.Cheats.enabled();
     $('keyhintCheats').classList.toggle('hidden', !cheats);
-    if (cheats) setTimeout(() => G.UI.msg('🪄 Trucos activados: pulsa <kbd>K</kbd> para abrir el menú de trucos.', 'info'), 1500);
+    if (cheats) setTimeout(() => G.UI.msg('🪄 Modo creativo: pulsa <kbd>K</kbd> para abrir su menú (se desactiva desde la pausa).', 'info'), 1500);
   }
   Main.startPlaying = startPlaying;
   Main.pause = function () {
@@ -148,6 +151,9 @@
     if (G.Net.active) $('pauseNet').textContent = '🌐 Partida LAN: el mundo sigue en marcha mientras estás en pausa.';
     $('btnSave').classList.toggle('hidden', G.state.gm === 'versus');
     $('btnPauseCheats').classList.toggle('hidden', !G.Cheats.enabled());
+    $('btnPauseCreative').classList.toggle('hidden', !G.Cheats.available());
+    $('btnPauseCreative').textContent = G.Cheats.enabled() ? '🌿 Desactivar modo creativo' : '🪄 Activar modo creativo';
+    $('btnPauseBounty').textContent = G.Faction.isMarine() ? '⚓ Hoja de servicio' : '📜 Se busca';
   };
   function resume() {
     Main.showScreen(null);
@@ -186,6 +192,8 @@
     // Configuración y Logros: se abren en la misma ventana que en el menú principal
     $('btnPauseAch').onclick = () => G.Menus.openInGame('ach');
     $('btnPauseBounty').onclick = () => G.Bounty.open();
+    // Modo creativo: se activa o desactiva y se vuelve a la partida
+    $('btnPauseCreative').onclick = () => { G.Cheats.toggleCreative(); resume(); };
     $('btnPauseSettings').onclick = () => G.Menus.openInGame('settings');
     $('btnPauseCheats').onclick = () => { resume(); setTimeout(() => G.Cheats.open(), 60); };
     $('btnQuit').onclick = quitToMenu;
@@ -352,7 +360,7 @@
     if ([N.myId, ...N.lobby.keys()].some(odd)) rows.push(`<li class="warn-text">⚠ Hay jugadores con otra versión del juego. Para evitar fallos, todos deben jugar la ${N.esc(hostVer)} (la del anfitrión).</li>`);
     el.innerHTML = rows.join('');
     const vs = c.mode === 'versus', wi = c.world;
-    const worldText = wi ? `🏝️ <b>${N.esc(wi.name)}</b> · ${DIFF_NAMES[wi.diff] || 'Normal'} · ${wi.day ? 'día ' + wi.day : 'mundo nuevo'}${wi.cheats ? ' · 🪄 con trucos (no se consiguen logros)' : ''}` : '🏝️ Partida amistosa nueva';
+    const worldText = wi ? `🏝️ <b>${N.esc(wi.name)}</b> · ${DIFF_NAMES[wi.diff] || 'Normal'} · ${wi.day ? 'día ' + wi.day : 'mundo nuevo'}${wi.cheats ? ' · 🪄 modo creativo (no se consiguen logros)' : ''}` : '🏝️ Partida amistosa nueva';
     $('mpCoop').classList.toggle('hidden', vs || !N.isHost);
     $('mpWorldInfo').innerHTML = worldText + '<br><small class="muted">Todos aparecen juntos en la Isla Perdida y siguen la historia. La partida se guarda en el equipo del anfitrión.</small>';
     $('mpCoopGuest').classList.toggle('hidden', vs || N.isHost);
@@ -422,21 +430,24 @@
         if (G.Ships.helmKey(e.code)) return;
         if (G.Cheats.keyDown(e)) return; // atajos de los trucos (doble Espacio, doble W, Ctrl + F)
         if (e.code === 'Tab' || e.code === 'KeyI') G.Game.openInventory();
-        else if ((e.code === 'KeyT' || e.code === 'Enter') && G.Net.active) { e.preventDefault(); Input.keys = {}; G.UI.openChat(); }
+        else if (e.code === 'Enter' && G.Net.active) { e.preventDefault(); Input.keys = {}; G.UI.openChat(); }
+        else if (e.code === 'KeyT') { if (!e.repeat) G.Combat.toggleLock(); }
         else if (e.code === 'KeyE') G.Game.interact();
-        else if (e.code === 'KeyF' && !e.ctrlKey && !e.metaKey) G.Game.useHeld();
+        else if (e.code === 'KeyF' && !e.ctrlKey && !e.metaKey) { if (!e.repeat && !G.Combat.fKey()) G.Game.useHeld(); }
         else if (e.code === 'KeyG') G.Story.usePower();
         else if (e.code === 'KeyV') G.Player.toggleCam();
         else if (e.code === 'KeyM') G.Game.openMap();
         else if (e.code === 'KeyJ') G.Game.openJournal();
         else if (e.code === 'KeyX') G.Game.demolish();
         else if (e.code === 'KeyK') G.Cheats.open();
-        else if (e.code === 'KeyQ') G.Styles.tech(0);
+        else if (e.code === 'KeyQ') { if (!e.repeat) G.Combat.dodge(); }
         else if (e.code === 'KeyB') G.Drops.dropHeld(e.shiftKey);
-        else if (e.code === 'KeyZ') G.Styles.tech(1);
+        else if (e.code === 'KeyZ') G.Styles.tech(0);
         else if (e.code === 'KeyR') {
-          const tg = G.Game.target;
-          if (tg && tg.kind === 'piece' && G.Ships.rotatePiece(tg)) G.Audio.play('select');
+          const tg = G.Game.target, hid = G.Inv.heldId();
+          // R: definitivo de tu estilo si llevas su arma (y no estás colocando nada); si no, girar piezas
+          if (G.Styles.active() && !(hid && (G.ITEMS[hid].place || G.Ships.itemType(hid))) && !(tg && tg.kind === 'piece') && !G.Player.ship) G.Styles.tech(1);
+          else if (tg && tg.kind === 'piece' && G.Ships.rotatePiece(tg)) G.Audio.play('select');
           else if (G.Player.ship && !G.Player.station && !G.Ships.itemType(G.Inv.heldId())) { if (G.Ships.applyLook(G.Player.ship)) G.Audio.play('select'); }
           else if (G.Ships.itemType(G.Inv.heldId())) { G.Ships.rot = (G.Ships.rot + Math.PI / 2) % (Math.PI * 2); G.Audio.play('select'); }
           else { G.Build.rotIdx = (G.Build.rotIdx + 1) % 4; G.Audio.play('select'); }
@@ -473,22 +484,32 @@
     // Si aun así se va a cerrar o recargar la pestaña en plena partida, el navegador pregunta antes (en la app no)
     if (!window.islaDesktop) window.addEventListener('beforeunload', (e) => { if (G.state && G.state.mode !== 'menu' && !G.Net.active) { e.preventDefault(); e.returnValue = ''; } });
     window.addEventListener('keyup', (e) => { Input.keys[e.code] = false; G.Cheats.keyUp(e); });
-    window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; G.Cheats.on.fast = false; });
+    window.addEventListener('blur', () => { Input.keys = {}; Input.mouseL = false; G.Player.zoom = 0; G.Cheats.on.fast = false; G.Parry.up(); });
+    canvas.addEventListener('auxclick', (e) => { if (e.button === 1) e.preventDefault(); });
+    // Clic izquierdo: atacar / usar la herramienta (mantenido, sigue); derecho: golpe pesado o usar el objeto
+    Main.pointerDown = function (button) {
+      if (G.state.mode !== 'playing' || G.chatOpen) return;
+      if (button === 0) { Input.mouseL = true; G.Game.attack(); }
+      else if (button === 2) {
+        const h = G.Inv.heldId();
+        // Con un arma de cuerpo a cuerpo (o sin nada en la mano): golpe pesado (combat.js); si no, usar el objeto
+        if (h && G.ITEMS[h].spyglass) G.Player.zoom = 1; else if (!G.Combat.heavy()) G.Game.useHeld();
+      } else if (button === 1) G.Combat.toggleLock(); // rueda: fijar al enemigo
+    };
+    Main.pointerUp = function (button) { if (button === 0) Input.mouseL = false; if (button === 2) G.Player.zoom = 0; };
     canvas.addEventListener('mousedown', (e) => {
       if (G.state.mode !== 'playing') return;
       if (!Input.locked) { Main.lockPointer(); return; }
-      if (G.chatOpen) return;
-      if (e.button === 0) { Input.mouseL = true; G.Game.attack(); }
-      else if (e.button === 2) {
-        const h = G.Inv.heldId();
-        if (h && G.ITEMS[h].spyglass) G.Player.zoom = 1; else G.Game.useHeld();
-      }
+      if (e.button === 1) e.preventDefault();
+      Main.pointerDown(e.button);
     });
-    window.addEventListener('mouseup', (e) => { if (e.button === 0) Input.mouseL = false; if (e.button === 2) G.Player.zoom = 0; });
+    window.addEventListener('mouseup', (e) => Main.pointerUp(e.button));
+    window.addEventListener('keyup', (e) => { if (e.code === 'KeyF') G.Parry.up(); });
     window.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('mousemove', (e) => {
       if (!Input.locked || G.state.mode !== 'playing') return;
       if (G.Ships.aimInput(e.movementX, e.movementY)) return;
+      if (G.Combat.lock) return; // con la mirada fijada, el personaje sigue al enemigo
       const P = G.Player, k = (P.zoom ? 0.0006 : 0.0022) * G.Profile.set('sens'), inv = G.Profile.set('invY') ? -1 : 1;
       P.yaw -= e.movementX * k;
       P.pitch = U.clamp(P.pitch - e.movementY * k * inv, -1.45, 1.45);
@@ -523,6 +544,7 @@
   // ------------------------------------------------------------------ bucle
   function tick(dt, render) {
     const st = G.state, P = G.Player;
+    if (render && G.Touch) G.Touch.update(dt);
     if (st.mode === 'cinema') {
       if (!render) return;
       G.Cinema.update(dt);
@@ -540,7 +562,7 @@
       G.Build.update(dt);
     } else {
       // En LAN el mundo nunca se detiene (pausa o muerte incluidas)
-      const active = ['playing', 'inventory', 'map', 'sleeping', 'journal', 'cheats'].includes(st.mode) || (G.Net.active && ['paused', 'dead', 'won'].includes(st.mode));
+      const active = ['playing', 'inventory', 'map', 'sleeping', 'journal', 'cheats'].includes(st.mode) || (G.Net.active && ['paused', 'dead', 'won', 'faction'].includes(st.mode));
       if (active) G.Game.update(dt);
       if (!render) return;
       if (st.spectate) spectateCam(dt); else P.updateVisuals(active ? dt : 0);
@@ -580,7 +602,7 @@
     requestAnimationFrame(loop);
     lastFrame = performance.now();
     const dt = Math.min(0.05, clock.getDelta());
-    tick(dt, true);
+    tick(dt * (G.Combat ? G.Combat.timeScale(dt) : 1), true);
     renderer.toneMappingExposure = G.World.exposure;
     renderer.render(scene, camera);
     // FPS y aviso de rendimiento

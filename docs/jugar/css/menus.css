@@ -337,6 +337,33 @@ button.tag { border: 0; font: inherit; font-weight: 800; cursor: pointer; }
 .poster-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px; border-radius: 14px; background: #1c140c; border: 1px solid rgba(240, 190, 80, .3); box-shadow: 0 20px 60px rgba(0, 0, 0, .6); max-height: 100%; }
 .poster-card canvas { width: min(384px, 80vw); height: auto; max-height: calc(100vh - 150px); object-fit: contain; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); transform: rotate(-1deg); }
 .poster-card p { max-width: 384px; text-align: center; margin: 0; }
+/* Elegir bando (faction.js) */
+.fac-box { width: min(920px, 100%); max-height: 100%; overflow-y: auto; padding: 22px; border-radius: 16px; background: #10181e; border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 20px 60px rgba(0, 0, 0, .6); text-align: center; }
+.fac-box h2 { margin: 0 0 4px; font-family: 'Cinzel', Georgia, serif; font-size: 28px; color: #f2b544; }
+.fac-box > p { margin: 0 0 16px; }
+.fac-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.fac-card { display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 14px; text-align: left; border: 2px solid transparent; }
+.fac-pirata { background: linear-gradient(160deg, #2a1414, #150c0c); border-color: rgba(232, 112, 95, .45); }
+.fac-marina { background: linear-gradient(160deg, #13243a, #0b1422); border-color: rgba(111, 180, 255, .45); }
+.fac-card:hover { transform: translateY(-2px); transition: transform .15s; }
+.fac-ic { font-size: 44px; text-align: center; line-height: 1; }
+.fac-card h3 { margin: 0; text-align: center; font-family: 'Cinzel', Georgia, serif; font-size: 22px; }
+.fac-pirata h3 { color: #ff9a86; } .fac-marina h3 { color: #9fcaff; }
+.fac-intro { margin: 0; font-size: 14px; color: #d8d2c6; font-style: italic; }
+.fac-card ul { margin: 0; padding-left: 4px; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.35; flex: 1; }
+.fac-card .btn { margin-top: 6px; align-self: stretch; }
+/* Marcador del duelo (duel.js) */
+#duelHud { position: fixed; top: 96px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 12px; background: rgba(14, 20, 24, .78); border: 1px solid rgba(255, 255, 255, .14); z-index: 6; pointer-events: none; }
+#duelHud.hidden { display: none; }
+#duelHud > span { font-size: 20px; }
+.dh-side { width: 170px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.dh-side.foe { text-align: right; }
+.dh-side i { display: block; height: 8px; border-radius: 4px; background: #5fd36a; transition: width .2s; }
+.dh-side.foe i { background: #ff6a5a; margin-left: auto; }
+/* Destello de la parada perfecta (parry.js) */
+#parryFlash { position: fixed; inset: 0; pointer-events: none; z-index: 30; opacity: 0; background: radial-gradient(circle, rgba(255, 244, 200, .5), rgba(255, 244, 200, 0) 70%); }
+#parryFlash.on { animation: parryFlash .28s ease-out; }
+@keyframes parryFlash { 0% { opacity: 1; } 100% { opacity: 0; } }
 
 /* ---------- Tablón de encargos ---------- */
 .quest-card { width: min(900px, 100%); max-height: 100%; overflow: auto; padding: 16px 18px; border-radius: 16px; background: #1e1a12; border: 1px solid rgba(240, 190, 80, .25); box-shadow: 0 20px 60px rgba(0, 0, 0, .55); }

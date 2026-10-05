@@ -1,5 +1,6 @@
-// Trucos: solo en las partidas creadas con "Activar trucos" (nunca en versus).
-// Se abren con la tecla K o desde la pausa. En esas partidas no se consiguen logros ni doblones.
+// Modo creativo (trucos): se activa al crear la partida o en cualquier momento desde la pausa (botón
+// «Activar/Desactivar modo creativo»), y se desactiva igual. Nunca en versus. En LAN cada jugador tiene el suyo.
+// Su menú se abre con la tecla K o desde la pausa. Mientras está activado no se consiguen logros ni doblones.
 // Siempre eres inmortal y no pasas hambre ni sed. Atajos: doble Espacio (volar), doble W (súper
 // velocidad mientras mantengas W) y Ctrl + F (fabricar gratis).
 (function () {
@@ -8,7 +9,27 @@
   const Ch = (G.Cheats = { on: { fly: false, free: false, fast: false } });
   const $ = (id) => document.getElementById(id);
 
-  Ch.enabled = () => !!(G.state && G.state.cfg && G.state.cfg.cheats && G.state.gm !== 'versus' && G.state.mode !== 'menu');
+  // G.state.creative (invitado de la LAN) manda sobre la configuración de la partida del anfitrión
+  Ch.enabled = () => !!(G.state && G.state.gm !== 'versus' && G.state.mode !== 'menu' && (G.state.creative ?? (G.state.cfg && G.state.cfg.cheats)));
+  Ch.available = () => !!(G.state && G.state.world && G.state.gm !== 'versus' && !(G.Modes && G.Modes.active));
+  // Activar o desactivar el modo creativo en la partida en curso
+  Ch.setCreative = function (on) {
+    if (!Ch.available()) return;
+    if (G.Net.active && !G.Net.isHost) G.state.creative = !!on;
+    else {
+      G.state.creative = undefined;
+      G.state.cfg = Object.assign({}, G.state.cfg, { cheats: !!on });
+      // La partida lo recuerda (y se ve la etiqueta 🪄 en la lista de partidas)
+      if (G.Save.world) { G.Save.world.cheats = !!on; G.Worlds.update(G.Save.world.id, { cheats: !!on }); }
+    }
+    if (!on) { Ch.reset(); G.Player.vel.y = 0; if (G.state.mode === 'cheats') Ch.close(); }
+    $('keyhintCheats').classList.toggle('hidden', !on);
+    G.Audio.play(on ? 'win' : 'select');
+    G.UI.banner(on ? '🪄 Modo creativo activado' : '🌿 Modo supervivencia',
+      on ? 'Inmortal y sin hambre ni sed · <kbd>K</kbd> abre el menú creativo (volar, fabricar gratis, objetos, hora, clima y viajes) · No se consiguen logros ni doblones'
+        : 'Modo creativo desactivado: vuelves a sobrevivir por tu cuenta');
+  };
+  Ch.toggleCreative = () => Ch.setCreative(!Ch.enabled());
   Ch.flag = (k) => Ch.enabled() && (k === 'god' || k === 'needs' || !!Ch.on[k]); // inmortal y sin hambre ni sed siempre
   Ch.reset = () => { for (const k in Ch.on) Ch.on[k] = false; };
 
@@ -52,6 +73,7 @@
 
   function bind() {
     $('cheatsClose').onclick = Ch.close;
+    $('chOff').onclick = () => Ch.setCreative(false);
     $('chToggles').onchange = (e) => {
       const k = e.target.dataset.k;
       if (!k) return;

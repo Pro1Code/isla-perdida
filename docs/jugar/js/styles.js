@@ -1,6 +1,6 @@
 // Estilos de combate que se aprenden con los maestros de la Isla Perdida:
 //   ⚔️ Espadachín (katana, sable) · 🔫 Tirador (pistola, mosquete + balas) · 👊 Luchador (manos vacías) · 🔮 Brujo (bastón + maná)
-// Cada estilo sube de nivel (1-10) usándolo y tiene dos técnicas: Q (nivel 1) y Z (nivel 3).
+// Cada estilo sube de nivel (1-10) usándolo y tiene dos técnicas: Z (nivel 1) y el definitivo R (nivel 3).
 // El progreso es personal y se guarda con la partida (G.state.styles).
 (function () {
   'use strict';
@@ -35,7 +35,7 @@
     if (S.learned(k)) return false;
     st()[k] = { lv: 1, xp: 0 };
     const D = S.DEF[k];
-    G.UI.banner(`${D.icon} ${D.name}`, `Nuevo estilo de combate · <kbd>Q</kbd> ${D.techs[0].name}`);
+    G.UI.banner(`${D.icon} ${D.name}`, `Nuevo estilo de combate · <kbd>Z</kbd> ${D.techs[0].name}`);
     G.Audio.play('win');
     if (G.Ach) G.Ach.add('style:' + k);
     return true;
@@ -47,7 +47,7 @@
     while (s.lv < MAX && s.xp >= need(s.lv)) {
       s.xp -= need(s.lv); s.lv++;
       const D = S.DEF[k], t = D.techs.find((x) => x.lv === s.lv);
-      G.UI.banner(`${D.icon} ${D.name} nivel ${s.lv}`, t ? `Nueva técnica: <kbd>${D.techs.indexOf(t) ? 'Z' : 'Q'}</kbd> ${t.name}` : 'Tus golpes son más fuertes');
+      G.UI.banner(`${D.icon} ${D.name} nivel ${s.lv}`, t ? `Nueva técnica: <kbd>${D.techs.indexOf(t) ? 'R' : 'Z'}</kbd> ${t.name}` : 'Tus golpes son más fuertes');
       G.Audio.play('day');
       if (G.Ach) { const prev = G.Profile.cnt('stylelv:' + k); if (s.lv > prev) G.Ach.add('stylelv:' + k, s.lv - prev); }
     }
@@ -69,13 +69,13 @@
     const d2 = c2 - t * t;
     return d2 > r * r ? -1 : t - Math.sqrt(r * r - d2);
   }
-  const hostile = (c) => !c.dead && !(c.d.friendly) && !(c.d.npc && !(G.Story && G.Story.tribeHostile()));
+  const hostile = (c) => !c.dead && !(c.d.friendly) && !(c.d.npc && !(G.Story && G.Story.tribeHostile())) && !G.Faction.friendly(c);
   // Primer objetivo en la línea de tiro: criaturas y (en versus) jugadores rivales
   function rayHit(o, d, range, pad = 0.3) {
     let best = null, bt = range;
     G.Creatures.forEachAlive((c) => { if (!hostile(c)) return; const t = G.Creatures.rayHit(c, o, d, pad); if (t >= 0 && t < bt) { bt = t; best = { c, t }; } });
     for (const p of G.Net.peers.values()) {
-      if (p.dead || !G.Modes.canHurtPlayer(p.team)) continue;
+      if (p.dead || !G.Modes.canHurtPeer(p)) continue;
       const t = raySphere(o, d, p.x, p.y + 1, p.z, 0.6 + pad);
       if (t >= 0 && t < bt) { bt = t; best = { p, t }; }
     }
@@ -84,7 +84,7 @@
     return best ? best : { t: range };
   }
   function near(x, z, r, fn) { G.Creatures.forEachAlive((c) => { if (hostile(c) && Math.hypot(c.x - x, c.z - z) < r + c.d.hitR) fn(c); }); }
-  function nearPeers(x, z, r, fn) { for (const p of G.Net.peers.values()) if (!p.dead && G.Modes.canHurtPlayer(p.team) && Math.hypot(p.x - x, p.z - z) < r) fn(p); }
+  function nearPeers(x, z, r, fn) { for (const p of G.Net.peers.values()) if (!p.dead && G.Modes.canHurtPeer(p) && Math.hypot(p.x - x, p.z - z) < r) fn(p); }
   // Daño con experiencia para el estilo (y un extra al acabar con algo)
   function hitC(c, dmg, k, extra) {
     const was = c.dead;
@@ -93,10 +93,23 @@
     S.addXp(k, 1);
     if (!was && c.dead) S.addXp(k, 4);
   }
-  function hitP(p, dmg, cause) {
-    G.Net.send({ t: 'dmgP', to: p.id, amt: dmg, cause, sx: G.Player.pos.x, sz: G.Player.pos.z, by: G.Net.myId });
+  function hitP(p, dmg, cause, melee, z) {
+    G.Net.send({ t: 'dmgP', to: p.id, amt: dmg, cause, sx: G.Player.pos.x, sz: G.Player.pos.z, by: G.Net.myId, mel: melee ? 1 : 0, zn: z ? z.zone : undefined, zs: z ? z.side : undefined });
     G.Audio.play('hit');
+    if (z && p.model && p.model.react) p.model.react(z.zone, z.side, 1);
+    G.Combat.hitNum(p.x, p.y + 2, p.z, dmg, z ? z.zone : 'torso');
   }
+  // Golpe cuerpo a cuerpo: el daño depende de la zona del cuerpo (combat.js); se puede parar (parry.js) salvo
+  // si es un contraataque, que hace el doble. Muestra el daño que hace de verdad (si lo para, no hay número).
+  function melee(c, dmg, k) {
+    const z = G.Combat.zoneFor({ kind: 'creature', c }), rip = G.Parry.riposteOn(c.id), d = dmg * z.mul * (rip ? 2 : 1);
+    const hp0 = c.hp;
+    hitC(c, d, k, { melee: true, riposte: rip, zone: z.zone, side: z.side });
+    const a = G.Creatures.aimPoint(c);
+    if (c.d.dummy || !G.Net.authority() || c.hp < hp0 || c.dead) { G.Combat.hitNum(a.x, a.y + 0.9, a.z, c.d.dummy || !G.Net.authority() ? d : hp0 - Math.max(0, c.hp), z.zone, rip ? 'crit' : null, c.d.dummy); G.Combat.impact(a.x, a.y, a.z, false); }
+    return rip;
+  }
+  const meleeP = (p, dmg, cause) => { const z = G.Combat.zoneFor({ kind: 'peer', p }); hitP(p, dmg * z.mul * (G.Parry.riposteOn('p' + p.id) ? 2 : 1), cause, true, z); G.Combat.impact(p.x, p.y + 1.1, p.z, false); };
 
   // ------------------------------------------------------------------ ataque normal (clic)
   // it: objeto en la mano (o null), tg: objetivo del rayo. Devuelve true si lo gestionó el estilo.
@@ -119,11 +132,14 @@
     if (!learned) return false;
     const mul = S.mul(k) * (G.Story ? G.Story.meleeMul() : 1);
     if (k === 'sword') {
-      P.cd = 0.34; P.swing = 1; P.swingCount++;
+      // Combo de 4: tajo, revés, de arriba y una estocada final más fuerte que empuja
+      const cm = G.Combat.comboStep();
+      P.cd = cm.fin ? 0.55 : 0.3; P.swing = 1; P.swingCount++;
       G.Audio.play('swing');
-      const base = (it && it.dmg) || 14;
-      if (tg && tg.kind === 'creature' && hostile(tg.c)) { hitC(tg.c, base * mul, 'sword'); G.Inv.wear(1); { const a = G.Creatures.aimPoint(tg.c); spark(a.x, a.y, a.z, 0xdff4ff); } }
-      else if (tg && tg.kind === 'peer' && G.Modes.canHurtPlayer(tg.p.team)) { hitP(tg.p, base * mul * 0.8, `${G.Net.name} te derrotó con su espada`); S.addXp('sword', 1); }
+      G.Combat.trail(cm.n);
+      const base = ((it && it.dmg) || 14) * cm.mul;
+      if (tg && tg.kind === 'creature' && hostile(tg.c)) { melee(tg.c, base * mul, 'sword'); if (cm.fin) G.Combat.knock(tg.c, 1.4); G.Inv.wear(1); }
+      else if (tg && tg.kind === 'peer' && G.Modes.canHurtPeer(tg.p)) { meleeP(tg.p, base * mul * 0.8, `${G.Net.name} te derrotó con su espada`); S.addXp('sword', 1); }
       else if (tg && tg.kind === 'res' && tg.r.k.tree) G.Res.hit(tg.r, { id: 'hacha', n: 1 }); // corta árboles (como un hacha de piedra)
       return true;
     }
@@ -131,13 +147,14 @@
       if (tg && !['creature', 'peer'].includes(tg.kind)) return false; // sin enemigo delante: golpe normal (recoger, romper…)
       S.combo = (S.combo + 1) % 3;
       P.cd = S.combo === 0 ? 0.5 : 0.28; P.swing = 1; P.swingCount++;
+      P.swingDir = S.combo === 0 ? 3 : S.combo === 1 ? 0 : 1;
+      G.Combat.trailAt(P.pos.x, P.pos.y + 1.25, P.pos.z, P.yaw, P.swingDir, false, 0xffc090);
       G.Audio.play('swing');
       const dmg = (S.combo === 0 ? 13 : 7) * mul;
       if (tg && tg.kind === 'creature' && hostile(tg.c)) {
-        hitC(tg.c, dmg, 'fist');
+        melee(tg.c, dmg, 'fist');
         if (S.combo === 0) knock(tg.c, 1.4);
-        { const a = G.Creatures.aimPoint(tg.c); spark(a.x, a.y, a.z, 0xffc090); }
-      } else if (tg && tg.kind === 'peer' && G.Modes.canHurtPlayer(tg.p.team)) { hitP(tg.p, dmg * 0.8, `${G.Net.name} te noqueó`); S.addXp('fist', 1); }
+      } else if (tg && tg.kind === 'peer' && G.Modes.canHurtPeer(tg.p)) { meleeP(tg.p, dmg * 0.8, `${G.Net.name} te noqueó`); S.addXp('fist', 1); }
       return true;
     }
     return false;
@@ -147,6 +164,7 @@
   S.tech = function (i) {
     const k = S.active();
     const P = G.Player;
+    if (G.Parry.stagger > 0) return; // aturdido: te pararon el golpe
     if (!k) {
       const k2 = S.styleOf(G.Inv.heldId());
       if (k2 && !S.learned(k2)) G.UI.msg(`Aún no conoces el estilo ${S.DEF[k2].name}. Busca a ${S.DEF[k2].master} en la Isla Perdida.`, 'info', 'tech');
@@ -240,8 +258,11 @@
     G.Ships.puff(muzzle.x, muzzle.y, muzzle.z, 0xd8d0c0, 0.6, 0.4, 2);
     G.Audio.play('cannon', 0.35);
     const mul = S.mul('gun') * mulDmg;
-    if (h.c) { hitC(h.c, g.dmg * mul, 'gun'); spark(end.x, end.y, end.z, 0xffd080); }
-    else if (h.p) hitP(h.p, g.dmg * mul * 0.8, `Un disparo de ${G.Net.name}`);
+    if (h.c) {
+      const z = G.Combat.zoneFor({ kind: 'creature', c: h.c }), d = g.dmg * mul * z.mul;
+      hitC(h.c, d, 'gun', { zone: z.zone, side: z.side }); spark(end.x, end.y, end.z, 0xffd080);
+      G.Combat.hitNum(end.x, end.y + 0.5, end.z, d, z.zone, null, h.c.d.dummy);
+    } else if (h.p) { const z = G.Combat.zoneFor({ kind: 'peer', p: h.p }); hitP(h.p, g.dmg * mul * 0.8 * z.mul, `Un disparo de ${G.Net.name}`, false, z); }
     else G.Ships.puff(end.x, end.y, end.z, 0xc8b898, 0.8, 0.3, 2);
     G.Inv.wear(1);
     return true;
@@ -285,7 +306,7 @@
         if (!hostile(c) || hit.has(c)) return;
         if (G.Creatures.near(c, p.pos.x, p.pos.y, p.pos.z, 1.3, 2.2)) { hit.add(c); hitC(c, dmg, 'sword'); spark(p.pos.x, p.pos.y, p.pos.z, 0xdff4ff); }
       });
-      for (const pr of G.Net.peers.values()) if (!hit.has(pr) && !pr.dead && G.Modes.canHurtPlayer(pr.team) && Math.hypot(pr.x - p.pos.x, pr.z - p.pos.z) < 1.4) { hit.add(pr); hitP(pr, dmg * 0.8, `El corte volador de ${G.Net.name}`); }
+      for (const pr of G.Net.peers.values()) if (!hit.has(pr) && !pr.dead && G.Modes.canHurtPeer(pr) && Math.hypot(pr.x - p.pos.x, pr.z - p.pos.z) < 1.4) { hit.add(pr); hitP(pr, dmg * 0.8, `El corte volador de ${G.Net.name}`); }
       if (p.pos.y < G.height(p.pos.x, p.pos.z) - 0.3) p.t = p.life;
     } });
     G.Audio.play('swing');
@@ -307,7 +328,7 @@
       let hitAny = null;
       G.Creatures.forEachAlive((c) => { if (!hitAny && hostile(c) && G.Creatures.near(c, p.pos.x, p.pos.y, p.pos.z, 0.4, c.d.hitR + 0.8)) hitAny = c; });
       if (hitAny) { hitC(hitAny, dmg, 'magic'); spark(p.pos.x, p.pos.y, p.pos.z, 0xb88aff); p.t = p.life; return; }
-      for (const pr of G.Net.peers.values()) if (!pr.dead && G.Modes.canHurtPlayer(pr.team) && Math.hypot(pr.x - p.pos.x, pr.z - p.pos.z) < 0.8 && Math.abs(pr.y + 1 - p.pos.y) < 1.2) { hitP(pr, dmg * 0.8, `La magia de ${G.Net.name}`); p.t = p.life; return; }
+      for (const pr of G.Net.peers.values()) if (!pr.dead && G.Modes.canHurtPeer(pr) && Math.hypot(pr.x - p.pos.x, pr.z - p.pos.z) < 0.8 && Math.abs(pr.y + 1 - p.pos.y) < 1.2) { hitP(pr, dmg * 0.8, `La magia de ${G.Net.name}`); p.t = p.life; return; }
       if (p.pos.y < G.height(p.pos.x, p.pos.z)) { spark(p.pos.x, p.pos.y + 0.2, p.pos.z, 0xb88aff); p.t = p.life; }
     } });
     G.Audio.play('plop');
@@ -386,7 +407,7 @@
     const D = S.DEF[k], s = st()[k];
     const techs = D.techs.map((t, i) => {
       const lock = s.lv < t.lv, cd = S.cd[k][i];
-      return `<span class="st-tech${lock ? ' lock' : cd > 0 ? ' cd' : ''}"><kbd>${i ? 'Z' : 'Q'}</kbd>${t.name}${lock ? ` <small>nv ${t.lv}</small>` : cd > 0 ? ` <small>${Math.ceil(cd)}s</small>` : ''}</span>`;
+      return `<span class="st-tech${lock ? ' lock' : cd > 0 ? ' cd' : ''}"><kbd>${i ? 'R' : 'Z'}</kbd>${t.name}${lock ? ` <small>nv ${t.lv}</small>` : cd > 0 ? ` <small>${Math.ceil(cd)}s</small>` : ''}</span>`;
     }).join('');
     const xp = s.lv >= MAX ? 1 : s.xp / need(s.lv);
     const ammo = k === 'gun' ? ` · <span title="Balas">⚫ ${G.Inv.count('bala')}</span>${G.Player.reload > 0 ? ' <small>recargando…</small>' : ''}` : '';

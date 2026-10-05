@@ -612,6 +612,7 @@
     s.hp = U.clamp(s.hp - dmg, 0, s.def.hp);
     send({ t: 'shHp', id: s.id, hp: Math.round(s.hp) });
     if (dmg <= 0) return;
+    if (s.navy) G.Navy.provoked(s, by); // atacar a un barco aliado lo vuelve enemigo (navy.js)
     hitFx(s);
     if (G.Player.ship === s && cause) G.UI.msg('💥 ' + cause + ` (${Math.round(s.hp)}/${s.def.hp})`, 'bad', 'shiphit');
     if (s.hp <= 0) { send({ t: 'shSink', id: s.id, by }); startSink(s, by); }
@@ -1113,7 +1114,7 @@
         for (const c of G.Creatures.list) if (!c.dead && G.Creatures.near(c, pos.x, pos.y, pos.z, 0.8, 2.5)) { hit = 'creature'; G.Creatures.hurt(c, 70); G.Ach.add('cannonHit'); break; }
         if (!hit) for (const pr of G.Net.peers.values()) {
           if (pr.dead || Math.hypot(pr.x - pos.x, pr.z - pos.z) > 1.3 || Math.abs(pos.y - pr.y - 1) > 1.4) continue;
-          if (G.Modes && !G.Modes.canHurtPlayer(pr.team)) continue;
+          if (G.Modes && !G.Modes.canHurtPeer(pr)) continue;
           hit = 'player'; send({ t: 'dmgP', to: pr.id, amt: 45, cause: `Una bala de cañón de ${G.Net.name}`, sx: pos.x, sz: pos.z, by: G.Net.myId }); break;
         }
       }

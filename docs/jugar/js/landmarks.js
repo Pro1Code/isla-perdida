@@ -289,8 +289,10 @@
     top.rotation.z = Math.PI / 2; top.position.set(0, 0, 0.3); top.castShadow = true; lid.add(top);
     box(0.1, 0.12, 0.05, metal, 0, 0.02, 0.62, lid);
     add(g, extra);
+    circle(x, z, 0.5, extra, y - 2, y + 0.72); // no se atraviesa (se puede subir encima)
     return { id, kind: 'chest', x, y, z, g, lid, opened: false, extra: !!extra, hitR: 0.65, name: 'Cofre' };
   }
+  L.makeChest = makeChest;
   L.setOpened = function (id, opened) {
     const c = L.loot.find((o) => o.id === id);
     if (!c) return;

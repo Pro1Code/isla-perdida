@@ -516,7 +516,7 @@
         model = G.Character.create(L.shirt, { skin: L.skin, pants: L.pants });
         G.Equip.apply(model, o.cos || []);
         holder.add(model.root);
-        model.update(0.016, { pos: new THREE.Vector3(0, 0, 0), yaw: 0, pitch: 0, speed: 0, onGround: true, swimming: false, swing: 0, holding: false });
+        model.update(0.016, { pos: new THREE.Vector3(0, 0, 0), yaw: 0, pitch: 0, speed: 0, onGround: true, swimming: false, swing: 0, holding: false, lodD: 0 });
         const pet = (o.cos || []).some((id) => /loro|mono|gaviota|caracol/.test(id)), face = (o.cos || []).some((id) => /parche|gafas|bigote|mascara/.test(id));
         cam.position.set(0, face ? 1.62 : pet ? 1.45 : 1.15, face ? 1.25 : pet ? 2.2 : 3.9);
         cam.lookAt(0, face ? 1.66 : pet ? 1.4 : 0.98, 0);
@@ -537,7 +537,7 @@
     if (c.width !== Math.round(w * devicePixelRatio) || c.height !== Math.round(h * devicePixelRatio)) { renderer.setPixelRatio(devicePixelRatio); renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
     if (autoRot) rotY += dt * 0.5;
     holder.rotation.y = rotY;
-    if (model) model.update(dt, { pos: new THREE.Vector3(0, 0, 0), yaw: 0, pitch: 0, speed: 0, onGround: true, swimming: false, swing: 0, holding: false });
+    if (model) model.update(dt, { pos: new THREE.Vector3(0, 0, 0), yaw: 0, pitch: 0, speed: 0, onGround: true, swimming: false, swing: 0, holding: false, lodD: 0 });
     renderer.render(scene, cam);
   }
 })();

@@ -31,7 +31,10 @@
     if (added > 0) G.UI.msg(`+${added} ${G.icon(id, 'xs')} ${G.ITEMS[id].n}`, 'item');
     if (added > 0 && G.Ach) G.Ach.add('get:' + id, added, true);
     if (added > 0 && id.startsWith('pista_') && G.Prologue) G.Prologue.onItem(id);
-    if (added < n) G.UI.msg('¡Inventario lleno!', 'bad', 'full');
+    if (added < n) {
+      if (G.Drops && G.Drops.spill) { G.Drops.spill(id, n - added); G.UI.msg(`🎒 ¡Inventario lleno! ${n - added} ${G.icon(id, 'xs')} ${G.ITEMS[id].n} quedan en el suelo.`, 'warn', 'full'); }
+      else G.UI.msg('¡Inventario lleno!', 'bad', 'full');
+    }
     return added;
   };
 
@@ -65,9 +68,24 @@
       const t = G.Creatures.rayHit(c, o, d);
       if (t >= 0 && t < bt && t < wreach + 0.4) { bt = t; best = { kind: 'creature', c, t }; }
     });
+    // En 3ª persona (por detrás o frontal), si no apuntas a nada que pelee, el golpe va al enemigo que tienes
+    // delante (±40°) y a tu alcance, si está peleando contigo
+    if (P.cam !== 'fp' && !P.ship && !(best && best.kind === 'creature')) {
+      let ab = null, ad = wreach + 0.5;
+      G.Creatures.forEachAlive((c) => {
+        if (!(c.aggro > 0) || !c.d.dmg || c.d.friendly || c.d.dummy || G.Faction.friendly(c) || (c.d.npc && !G.Story.tribeHostile())) return;
+        const dx = c.x - P.pos.x, dz = c.z - P.pos.z, dd = Math.hypot(dx, dz) - c.d.hitR * 0.6;
+        if (dd > ad || Math.abs(c.y - P.pos.y) > 2.2) return;
+        if (Math.abs(U.angDiff(Math.atan2(-dx, -dz), P.yaw)) > 0.7) return;
+        ad = dd; ab = c;
+      });
+      if (ab && (!best || best.kind === 'res' || best.kind === 'water' || best.t > ad)) { bt = Math.max(0, ad); best = { kind: 'creature', c: ab, t: bt }; }
+    }
     for (const p of G.Net.peers.values()) {
       if (p.dead) continue;
-      const t = raySphere(o, d, p.x, p.y + (p.swim ? 0.3 : 1.0), p.z, 0.6);
+      // Cuerpo y cabeza (para poder acertar a la cabeza)
+      const tb = raySphere(o, d, p.x, p.y + (p.swim ? 0.3 : 1.0), p.z, 0.6), th = p.swim ? -1 : raySphere(o, d, p.x, p.y + 1.68, p.z, 0.22);
+      const t = tb < 0 ? th : th < 0 ? tb : Math.min(tb, th);
       if (t >= 0 && t < bt && t < wreach + 0.4) { bt = t; best = { kind: 'peer', p, t }; }
     }
     for (const c of G.Landmarks.loot) {
@@ -127,7 +145,8 @@
       const p = tg.p;
       let t = `<b style="color:${G.Net.esc(p.color)}">${G.Net.esc(p.name)}</b>`;
       if (p.sinking) t += ' · 🛟 <kbd>E</kbd> ¡Rescatar!';
-      if (G.Modes.active && p.team !== G.Net.team) t += ` · equipo ${G.Modes.teamName(p.team)}` + (G.Modes.canHurtPlayer(p.team) ? ' · <kbd>Clic</kbd> Atacar' : '');
+      else if (G.Duel.available()) t += ' · ' + G.Duel.promptFor(p);
+      if (G.Modes.active && p.team !== G.Net.team) t += ` · equipo ${G.Modes.teamName(p.team)}` + (G.Modes.canHurtPeer(p) ? ' · <kbd>Clic</kbd> Atacar' : '');
       return t;
     }
     if (tg.kind === 'struct') {
@@ -194,7 +213,7 @@
     if (tg.kind === 'loot') { Game.openLoot(tg.c); return; }
     if (tg.kind === 'res') { if (!tg.r.k.tool) G.Res.interact(tg.r); return; }
     if (tg.kind === 'creature') { if (tg.c.d.npc) G.Story.talk(tg.c); return; }
-    if (tg.kind === 'peer') { if (tg.p.sinking) G.Story.rescue(tg.p); return; }
+    if (tg.kind === 'peer') { if (tg.p.sinking) G.Story.rescue(tg.p); else if (G.Duel.available()) G.Duel.interact(tg.p); return; }
     if (['station', 'piece', 'ship'].includes(tg.kind)) { G.Ships.interact(tg); return; }
     if (tg.kind.startsWith('vs')) { G.Modes.interact(tg); return; }
     if (tg.kind === 'water') {
@@ -249,7 +268,7 @@
 
   Game.attack = function () {
     const P = G.Player;
-    if (P.cd > 0 || P.dead) return;
+    if (P.cd > 0 || P.dead || G.Parry.guard || G.Parry.stagger > 0 || G.Combat.heavyT > 0) return;
     if (G.Story.dialog) return;
     if (G.Grave.aimed()) return; // mirando a la ✖ de un cofre: el clic mantenido cava (grave.js)
     // Clic en una hoja del tablón de encargos: aceptar o entregar
@@ -274,22 +293,37 @@
     if (it && it.fishing) { P.cd = 0.35; G.Fishing.click(); return; }
     if (it && it.blowgun) { P.cd = 0.9; shootDart(); return; }
     if (it && it.spyglass) return;
+    if (tg && tg.kind === 'creature' && G.Faction.friendly(tg.c)) { P.cd = 0.4; G.UI.msg(G.Faction.isMarine() ? '⚓ Son tus compañeros de la Marina Blanca.' : '🤝 Es la tripulación de un barco aliado.', 'warn', 'npcatk'); return; }
     if (G.Styles.attack(it, tg)) return;
     P.cd = 0.5;
     P.swing = 1;
     P.swingCount++;
+    P.swingDir = 2; // talar, picar…: de arriba abajo
     G.Audio.play('swing');
     const mul = G.Story.meleeMul();
     if (tg && tg.kind === 'creature' && tg.c.d.friendly) { G.UI.msg(tg.c.type === 'aldeano' ? 'Los aldeanos son gente de paz: no les hagas daño.' : 'No vas a atacar a tu propia gente.', 'warn', 'npcatk'); return; }
     if (tg && tg.kind === 'creature') {
       if (tg.c.d.npc && !G.Story.tribeHostile() && !G.Input.keys.ShiftLeft) { G.UI.msg('Mantén <kbd>Shift</kbd> para atacar a un aldeano (¡la tribu se enfadará!).', 'warn', 'npcatk'); return; }
-      G.Creatures.hurt(tg.c, (it && it.dmg ? it.dmg : 5) * mul);
+      const c = tg.c, cm = G.Combat.comboStep(), z = G.Combat.zoneFor(tg), rip = G.Parry.riposteOn(c.id);
+      P.cd = cm.fin ? 0.6 : 0.42;
+      G.Combat.trail(cm.n);
+      const dmg = (it && it.dmg ? it.dmg : 5) * mul * z.mul * cm.mul * (rip ? 2 : 1), hp0 = c.hp;
+      G.Creatures.hurt(c, dmg, undefined, { melee: true, riposte: rip, zone: z.zone, side: z.side });
+      const a = G.Creatures.aimPoint(c);
+      if (c.d.dummy || !G.Net.authority() || c.hp < hp0 || c.dead) { G.Combat.hitNum(a.x, a.y + 0.9, a.z, c.d.dummy || !G.Net.authority() ? dmg : hp0 - Math.max(0, c.hp), z.zone, rip ? 'crit' : null, c.d.dummy); G.Combat.impact(a.x, a.y, a.z, false); }
+      if (cm.fin) G.Combat.knock(c, 1.3);
       if (it && it.tool && !it.torch) G.Inv.wear(1);
     } else if (tg && tg.kind === 'peer') {
       const p = tg.p;
-      if (G.Modes.canHurtPlayer(p.team)) {
-        G.Net.send({ t: 'dmgP', to: p.id, amt: (it && it.dmg ? it.dmg : 5) * mul * 0.8, cause: `${G.Net.name} te derrotó`, sx: P.pos.x, sz: P.pos.z, by: G.Net.myId });
+      if (G.Modes.canHurtPeer(p)) {
+        const cm = G.Combat.comboStep(), z = G.Combat.zoneFor(tg);
+        P.cd = cm.fin ? 0.6 : 0.42;
+        G.Combat.trail(cm.n);
+        const dmg = (it && it.dmg ? it.dmg : 5) * mul * 0.8 * z.mul * cm.mul * (G.Parry.riposteOn('p' + p.id) ? 2 : 1);
+        G.Net.send({ t: 'dmgP', to: p.id, amt: dmg, cause: `${G.Net.name} te derrotó`, sx: P.pos.x, sz: P.pos.z, by: G.Net.myId, mel: 1, zn: z.zone, zs: z.side });
         G.Audio.play('hit');
+        if (p.model && p.model.react) p.model.react(z.zone, z.side, 1);
+        G.Combat.hitNum(p.x, p.y + 2, p.z, dmg, z.zone); G.Combat.impact(p.x, p.y + 1.1, p.z, false);
         if (it && it.tool && !it.torch) G.Inv.wear(1);
       }
     } else if (tg && tg.kind === 'res' && tg.r.k.tool) G.Res.hit(tg.r, held);
@@ -305,7 +339,7 @@
     G.Creatures.forEachAlive((c) => { const t = G.Creatures.rayHit(c, o, d, 0.2); if (t >= 0 && t < bt) { bt = t; best = c; } });
     if (best) { G.Creatures.hurt(best, 8, undefined, { poison: 12 }); G.UI.msg(`🎯 Dardo en el blanco: ${best.d.name} envenenado`, 'good', 'dart'); G.Ach.add('dart'); }
     for (const p of G.Net.peers.values()) {
-      if (p.dead || !G.Modes.canHurtPlayer(p.team)) continue;
+      if (p.dead || !G.Modes.canHurtPeer(p)) continue;
       const t = raySphere(o, d, p.x, p.y + 1, p.z, 0.6);
       if (t >= 0 && t < bt) G.Net.send({ t: 'dmgP', to: p.id, amt: 6, cause: 'Un dardo venenoso', sx: P.pos.x, sz: P.pos.z, poison: 10, by: G.Net.myId });
     }
@@ -532,6 +566,18 @@
     if (!w.loot[id]) fillStore(id, from);
     else G.Net.send({ t: 'lstore', id, items: storeOf(id), opener: from, again: 1 });
   };
+  // Cofres enterrados (el de Rogan y los de los mapas del tesoro): el botín se queda dentro del cofre y quien
+  // lo desentierra lo ve abierto; saca lo que quiera y lo demás sigue ahí (con la mochila llena no se pierde nada)
+  Game.buryStore = function (id, items, who) {
+    const w = G.state.world;
+    w.store = w.store || {};
+    if (!w.store[id]) w.store[id] = pad16(items);
+    w.loot[id] = 1;
+    G.Net.send({ t: 'lstore', id, items: w.store[id], opener: who });
+    if (!G.Net.active || who === G.Net.myId) { const c = G.Landmarks.byId(id); showStore(c || { id, name: 'Cofre' }); }
+  };
+  // Quien pide cavar desde otro equipo abrirá el cofre al recibir su contenido
+  Game.expectStore = (id) => { pendingStore = id; };
   // Contenido de un cofre de isla recibido por la red (lo llenó el anfitrión o alguien lo cambió)
   Game.onStore = function (m) {
     const w = G.state.world;
@@ -719,6 +765,10 @@
     G.SeaWx.update(dt);
     G.Crew.update(dt);
     G.Navy.update(dt);
+    G.Faction.update(dt);
+    G.Parry.update(dt);
+    G.Combat.update(dt);
+    G.Duel.update(dt);
     G.Bosses.update(dt);
     G.Grave.update(dt);
     P.cd = Math.max(0, P.cd - dt);
@@ -765,6 +815,7 @@
     if (st.spectate) prompt = '👁️ Estás eliminado: observando la partida';
     G.UI.setPrompt(st.mode === 'playing' && !G.Story.dialog ? prompt : '');
     G.UI.el.crosshair.classList.toggle('active', !!Game.target);
+    G.UI.el.crosshair.classList.toggle('hidden', G.Player.cam === 'front' && !G.Player.station);
     if (inputOn && G.Input.mouseL && !G.Grave.dig(dt)) Game.attack();
     G.Creatures.update(dt);
     G.Build.update(dt);
@@ -833,6 +884,9 @@
     G.Modes.stop();
     G.Story.close();
     G.Styles.clear();
+    G.Parry.clear();
+    G.Combat.clear();
+    G.Duel.clear();
     G.UI.waypoint = null;
   };
   // Genera el archipiélago (con pantalla de carga porque tarda un momento)
@@ -918,6 +972,7 @@
       flags: (pdata && pdata.flags) || {}, stats: fixStats(pdata && pdata.stats), obj: (pdata && pdata.obj) || 0,
       world: st.world || Game.newWorldState(), seed: st.seed, gm: st.gm || 'coop', cfg: st.cfg, fruit: (pdata && pdata.fruit) || null, bounty: (pdata && pdata.seed === st.seed && pdata.bounty) || 0, quests: (pdata && pdata.seed === st.seed && pdata.quests) || null,
       styles: (pdata && pdata.seed === st.seed && pdata.styles) || {}, train: (pdata && pdata.seed === st.seed && pdata.train) || {},
+      fac: (pdata && pdata.seed === st.seed && pdata.fac) || null, creative: pdata && pdata.seed === st.seed ? pdata.creative : undefined,
     };
     if (Array.isArray(G.state.world.loot)) G.state.world.loot = Object.assign({}, G.state.world.loot);
     G.Clock.init(st.seed, st.t);
@@ -957,7 +1012,7 @@
     await buildWorld(seed, 'coop', 0);
     G.state = {
       mode: 'playing', day: st.day, t: st.t, diff: st.diff, dayLen: 600, spawn: st.spawn, flags: st.flags || {}, stats: fixStats(st.stats), obj: st.obj || 0,
-      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null, styles: st.styles || {}, train: st.train || {}, bounty: st.bounty || 0, quests: st.quests || null,
+      world: st.world || Game.newWorldState(), seed, gm: 'coop', cfg: Object.assign({}, G.Modes.DEFAULT_COOP, st.cfg, opts && opts.cfg), fruit: st.fruit || null, styles: st.styles || {}, train: st.train || {}, bounty: st.bounty || 0, quests: st.quests || null, fac: st.fac || null,
     };
     // Partidas antiguas: el botín era una lista y la balsa era una construcción
     if (Array.isArray(G.state.world.loot)) { const o = {}; G.state.world.loot.forEach((v, i) => { if (v) o[i] = 1; }); G.state.world.loot = o; }

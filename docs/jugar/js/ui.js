@@ -22,13 +22,17 @@
     ['<kbd>X</kbd>', 'Desmontar construcción (recupera la mitad)'],
     ['<kbd>B</kbd> / <kbd>Mayús</kbd>+<kbd>B</kbd>', 'Soltar el objeto de la mano (uno / todo el montón). Se recoge pasando por encima; desaparece a los 5 minutos'],
     ['<kbd>G</kbd>', 'Poder de la Fruta del Abismo'],
-    ['<kbd>V</kbd>', 'Cambiar cámara 1ª / 3ª persona'],
+    ['<kbd>V</kbd>', 'Cambiar cámara: 1ª persona, 3ª persona (por detrás) o frontal'],
+    ['<kbd>Clic</kbd> / <kbd>Clic derecho</kbd>', 'Combate (con un arma o las manos vacías): combo de golpes ligeros / golpe pesado (rompe el bloqueo)'],
+    ['<kbd>F</kbd>', 'Parar justo antes del golpe · mantener: bloquear · durante un golpe pesado: finta. Con otros objetos: usarlos'],
+    ['<kbd>Q</kbd>', 'Esquivar hacia donde te mueves (un instante invulnerable)'],
+    ['<kbd>T</kbd> / rueda', 'Fijar la mirada en el enemigo más cercano (otra vez para soltarlo)'],
     ['<kbd>M</kbd>', 'Mapa del archipiélago (clic: marcar destino)'],
     ['<kbd>J</kbd>', 'Bitácora (historia, islas, curiosidades)'],
     ['Al timón', '<kbd>W</kbd>/<kbd>S</kbd> velas o motor · <kbd>A</kbd>/<kbd>D</kbd> girar · <kbd>Espacio</kbd> ancla · <kbd>Q</kbd> piloto automático'],
-    ['<kbd>T</kbd> / <kbd>Enter</kbd>', 'Chat (multijugador LAN)'],
-    ['<kbd>Q</kbd> / <kbd>Z</kbd>', 'Técnicas de tu estilo de combate (espadachín, tirador, luchador o brujo)'],
-    ['<kbd>K</kbd>', 'Menú de trucos (solo en partidas con trucos)'],
+    ['<kbd>Enter</kbd>', 'Chat (multijugador LAN) · <kbd>E</kbd> sobre otro jugador: retarle a un duelo'],
+    ['<kbd>Z</kbd> / <kbd>R</kbd>', 'Técnica y definitivo de tu estilo de combate (espadachín, tirador, luchador o brujo)'],
+    ['<kbd>K</kbd>', 'Menú del modo creativo (con el modo creativo activado desde la pausa)'],
     ['<kbd>Esc</kbd>', 'Pausa'],
   ];
 
@@ -90,6 +94,7 @@
       if (c) { G.Book.cat = c.dataset.bcat; G.Book.focus = null; UI.bookShown = false; UI.renderRecipes(); return; }
       // Soltar el objeto seleccionado (botones de su ficha)
       const a = e.target.closest('[data-act]');
+      if (a && a.dataset.act === 'use') { UI.picked = null; G.Game.consume(+a.dataset.slot); UI.showInfo(+a.dataset.slot); return; }
       if (a) { UI.picked = null; G.Drops.dropSlot(+a.dataset.slot, a.dataset.act === 'drop1' ? 1 : 0); G.Inv.changed(); return; }
       const k = e.target.closest('[data-book]');
       if (k) { G.Book.open(k.dataset.book); G.Audio.play('select'); }
@@ -292,7 +297,8 @@
     if (it.eq) h += `<br>${eqDesc(it.eq)}<br><i>Clic derecho en la casilla: ponértelo (${G.Inv.SLOT_NAMES[it.eq.slot].toLowerCase()})</i>`;
     if (it.read) h += '<br><i>Clic derecho en la casilla: leer</i>';
     if (s.d !== undefined && it.dur < 9999) h += `<br>🔧 Durabilidad: <b>${Math.ceil(s.d)} / ${it.dur}</b>`;
-    h += `<br><button class="btn small" data-act="drop" data-slot="${i}">Soltar al suelo</button>${s.n > 1 ? `<button class="btn small" data-act="drop1" data-slot="${i}">Soltar 1</button>` : ''}<span class="muted small-text">(<kbd>B</kbd> sobre la casilla: 1 · <kbd>Mayús</kbd>+<kbd>B</kbd>: todo)</span>`;
+    const useTxt = it.fruit ? '🍇 Comer' : it.use ? '🍴 Usar' : it.eq ? '🧥 Ponérmelo' : it.read ? '📜 Leer' : null;
+    h += `<br>${useTxt ? `<button class="btn small primary" data-act="use" data-slot="${i}">${useTxt}</button>` : ''}<button class="btn small" data-act="drop" data-slot="${i}">Soltar al suelo</button>${s.n > 1 ? `<button class="btn small" data-act="drop1" data-slot="${i}">Soltar 1</button>` : ''}<span class="muted small-text">(<kbd>B</kbd> sobre la casilla: 1 · <kbd>Mayús</kbd>+<kbd>B</kbd>: todo)</span>`;
     return h;
   };
   const attr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -434,7 +440,8 @@
       <h3>🏝️ Islas descubiertas</h3><ul>${isl || '<li class="muted">Ninguna todavía.</li>'}</ul>
       <h3>🗿 Monoglifos leídos</h3><ul>${monos || '<li class="muted">Aún no sabes leer la escritura antigua.</li>'}</ul>
       <h3>🍇 Frutas del Abismo</h3><ul>${fr}</ul>
-      <h3>📜 Tu recompensa</h3><p><b>${G.Bounty.fmt(G.Bounty.value())} doblones</b> · «${G.Bounty.title()}» <button id="jBounty" class="btn small">Ver mi cartel</button></p>
+      ${G.Faction.isMarine() ? `<h3>⚓ Tu hoja de servicio</h3><p><b>${G.Bounty.title()}</b> de la Marina Blanca · ${G.Bounty.fmt(G.Bounty.value())} méritos <button id="jBounty" class="btn small">Ver mi hoja</button></p>`
+        : `<h3>📜 Tu recompensa</h3><p><b>${G.Bounty.fmt(G.Bounty.value())} doblones</b> · «${G.Bounty.title()}» <button id="jBounty" class="btn small">Ver mi cartel</button></p>`}
       <h3>🪶 Tribu Shandara</h3><p>${rep < -20 ? '⚔️ En guerra contigo' : rep > 10 ? '🤝 Aliados' : '😐 Neutrales'}</p>
       <h3>📖 Curiosidades de One Piece</h3><ul>${facts || '<li class="muted">Explora y lee Monoglifos para descubrirlas.</li>'}</ul>`;
     el.journal.classList.remove('hidden');
@@ -470,14 +477,14 @@
     el.dayLabel.textContent = `Día ${G.state.day}`;
     el.timeLabel.textContent = U.fmtClock(G.state.t);
     const z = G.Clock.zone >= 0 ? G.Arch.byId(G.Clock.zone) : null;
-    const zl = z ? z.name : '🌊 Alta mar';
+    const zl = (G.Faction.badge() ? G.Faction.badge() + ' ' : '') + (z ? z.name : G.Faction.seaLabel(P.pos.x, P.pos.z));
     if (el.islandLabel.textContent !== zl) el.islandLabel.textContent = zl;
     const night = G.Game.isNight();
     const wx = G.Weather.type, fk = G.Weather.fallKind;
     el.dayIcon.textContent = fk === 'snow' ? '❄️' : wx === 'storm' ? '⛈️' : wx === 'rain' ? (fk === 'ash' ? '🌋' : '🌧️') : night ? '🌙' : G.Game.hour() > 17.5 || G.Game.hour() < 7 ? '🌅' : '☀️';
     const boss = G.Creatures.nearBoss();
     el.bossBar.classList.toggle('hidden', !boss);
-    if (boss) { el.bossFill.style.width = U.clamp(boss.hp / boss.d.hp, 0, 1) * 100 + '%'; el.bossName.textContent = ({ serpent: '🐉 ', pirate_boss: '🏴‍☠️ ', marine_boss: '⚓ ', ghost_captain: '👻 ', yeti: '❄️ ', lavadragon: '🐲 ' }[boss.type] || '🐗 ') + boss.d.name; }
+    if (boss) { el.bossFill.style.width = U.clamp(boss.hp / boss.d.hp, 0, 1) * 100 + '%'; el.bossName.textContent = ({ serpent: '🐉 ', pirate_boss: '🏴‍☠️ ', corsair_captain: '🏴‍☠️ ', marine_boss: '⚓ ', ghost_captain: '👻 ', yeti: '❄️ ', lavadragon: '🐲 ' }[boss.type] || '🐗 ') + (boss.type === 'corsair_captain' && boss.name ? boss.name : boss.d.name); }
 
     const uw = G.World.underwater && !G.state.spectate;
     if (uw !== UI._uw) { UI._uw = uw; document.getElementById('underwater').classList.toggle('hidden', !uw); }

@@ -1,4 +1,5 @@
-// Relojes del archipiélago: cada isla principal tiene su propio día y hora.
+// Relojes del archipiélago: cada isla principal tiene su propia hora (que sigue corriendo aunque no estés allí),
+// pero el día es el mismo en todo el mundo: los días que llevas en la partida (los marca el reloj de la Isla Perdida).
 // En el mar cada jugador lleva su "reloj personal"; al acercarse a una isla con otra hora,
 // una niebla marina espesa oculta el cielo mientras el reloj se ajusta al de la isla.
 (function () {
@@ -20,10 +21,16 @@
     if (!st.clocks) Clock.init(G.Arch.seed, st.t || 0.3);
     for (const s of G.Arch.islands) if (s.main && !st.clocks[s.id]) st.clocks[s.id] = { t: st.clocks[0] ? st.clocks[0].t : 0.3, day: st.day || 1 };
     if (st.pt === undefined) { st.pt = st.t || 0.3; st.pday = st.day || 1; }
+    // Partidas de antes, con un día distinto en cada isla: se queda el más alto para todas
+    const top = Math.max(1, ...Object.values(st.clocks).map((c) => c.day || 1));
+    for (const id in st.clocks) st.clocks[id].day = top;
+    st.pday = top;
   };
   const clk = (id) => (G.state.clocks ? G.state.clocks[id] : null);
   Clock.of = clk;
-  Clock.dayOf = (id) => { const c = clk(id); return c ? c.day : G.state.day; };
+  // Día del mundo (igual en todas las islas y en el mar)
+  Clock.worldDay = () => { const c = clk(0); return c ? c.day : G.state.day || 1; };
+  Clock.dayOf = () => Clock.worldDay();
   Clock.hourOf = (id) => { const c = clk(id); return (c ? c.t : G.state.t) * 24; };
   Clock.nightAt = (id) => { const h = Clock.hourOf(id); return h >= 20 || h < 5.5; };
   Clock.islandOf = (x, z) => { const s = G.Arch.zoneOf(x, z); return s ? s.id : -1; };
@@ -40,10 +47,13 @@
       c.t += dt * Clock.rate(c.t);
       if (c.t >= 1) {
         c.t -= 1;
-        if (G.Net.authority()) { c.day++; G.Game.onNewDay(+id); }
+        // La medianoche de cada isla renueva sus recursos; el día del mundo avanza con la de la Isla Perdida
+        if (G.Net.authority()) { if (+id === 0) c.day++; G.Game.onNewDay(+id); }
         else c.t = 0.9999; // espera a que el anfitrión anuncie el día nuevo
       }
     }
+    const wd = Clock.worldDay();
+    for (const id in st.clocks) st.clocks[id].day = wd;
   };
 
   // Hora que ve el jugador local: la de su isla, la de su reloj personal en el mar o una mezcla oculta por la niebla
@@ -51,18 +61,19 @@
     const st = G.state, P = G.Player.pos;
     const prevDay = st.day;
     st.pt += dt * Clock.rate(st.pt);
-    if (st.pt >= 1) { st.pt -= 1; st.pday++; }
+    if (st.pt >= 1) st.pt -= 1;
     const z = G.Arch.zoneOf(P.x, P.z);
-    let t = st.pt, day = st.pday, mist = 0;
+    const day = Clock.worldDay();
+    let t = st.pt, mist = 0;
+    st.pday = day;
     if (z && clk(z.id)) {
       const c = clk(z.id), d = Math.hypot(P.x - z.x, P.z - z.z);
       const inner = z.r * 1.12, k = U.smooth(z.zoneR, inner, d);
-      if (k >= 0.999) { st.pt = c.t; st.pday = c.day; t = c.t; day = c.day; }
+      if (k >= 0.999) { st.pt = c.t; t = c.t; }
       else {
         const diff = circ(st.pt, c.t), need = U.smooth(0.012, 0.04, Math.abs(diff));
         const s = U.smooth(0.42, 0.58, k);
         t = (st.pt + diff * s + 1) % 1;
-        day = s > 0.5 ? c.day : st.pday;
         mist = need * U.smooth(0.12, 0.32, k) * U.smooth(0.9, 0.68, k);
       }
       Clock.zone = z.id;
@@ -79,14 +90,14 @@
     if (!c) return false;
     const newDay = c.t * 24 >= 19;
     c.t = 6.5 / 24;
-    if (newDay) c.day++;
+    // Dormir en la Isla Perdida pasa la noche del mundo; en otra isla solo adelanta su hora
+    if (newDay && +islId === 0) { c.day++; for (const id in G.state.clocks) G.state.clocks[id].day = c.day; }
     return newDay;
   };
   Clock.skipPersonal = function () {
     const st = G.state;
     const newDay = st.pt * 24 >= 19;
     st.pt = 6.5 / 24;
-    if (newDay) st.pday++;
     return newDay;
   };
 

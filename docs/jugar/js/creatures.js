@@ -5,7 +5,7 @@
   'use strict';
   const G = window.G, U = G.U;
   const C = (G.Creatures = { list: [], timer: 0, nextId: 0 });
-  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss', 'ghost_pirate', 'ghost_gun', 'ghost_captain', 'yeti', 'lavadragon', 'aldeano', 'bigcaiman'];
+  const TYPES = ['crab', 'boar', 'wolf', 'snake', 'jaguar', 'shark', 'boss', 'bear', 'snowwolf', 'seal', 'monkey', 'caiman', 'frog', 'salamander', 'lavacrab', 'whale', 'dolphin', 'jelly', 'serpent', 'villager', 'npc', 'dummy', 'pirate', 'pirate_gun', 'pirate_boss', 'marine', 'marine_gun', 'marine_boss', 'ghost_pirate', 'ghost_gun', 'ghost_captain', 'yeti', 'lavadragon', 'aldeano', 'bigcaiman', 'corsair', 'corsair_gun', 'corsair_captain'];
   const BOSS_MAX = 6.6; // velocidad máxima de cualquier jefe (el jugador esprinta a 7,2)
   const DEF = (C.DEF = {
     crab: { name: 'Cangrejo', hp: 12, speed: 0.8, run: 2.6, bodyY: 0.2, hitR: 0.5, drops: [['carne_cruda', 1]] },
@@ -46,6 +46,10 @@
     ghost_captain: { name: 'Capitán Van Bruma', hp: 380, speed: 1.1, run: 4.5, bodyY: 1.0, hitR: 0.6, dmg: 18, human: true, drops: [['doblon', 20], ['perla', 3], ['mapa_tesoro', 1]] },
     marine_boss: { name: 'Comodoro de la Marina Blanca', hp: 320, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.6, dmg: 16, human: true, drops: [['doblon', 10], ['katana', 1], ['mapa_tesoro', 1]] },
     pirate_boss: { name: 'Capitana Hiena', hp: 300, speed: 1.2, run: 4.6, bodyY: 1.0, hitR: 0.6, dmg: 15, human: true, drops: [['pista_3', 1], ['sable', 1], ['doblon', 6]] },
+    // Piratas de las hermandades del mar (faction.js): van en la cubierta de sus barcos (navy.js)
+    corsair: { name: 'Pirata', hp: 65, speed: 1.1, run: 4.3, bodyY: 1.0, hitR: 0.55, dmg: 11, human: true, drops: [['doblon', 2], ['bala', 3]] },
+    corsair_gun: { name: 'Pirata tirador', hp: 50, speed: 1.0, run: 3.8, bodyY: 1.0, hitR: 0.55, dmg: 12, human: true, drops: [['polvora', 1], ['bala', 5]] },
+    corsair_captain: { name: 'Capitán pirata', hp: 300, speed: 1.1, run: 4.4, bodyY: 1.0, hitR: 0.6, dmg: 16, human: true, drops: [['doblon', 12], ['sable', 1], ['mapa_tesoro', 1]] },
   });
 
   // Fauna de cada isla: [tipo, máximo, zona, probabilidad de aparición por intento]
@@ -62,23 +66,23 @@
   C.VILLAGERS = [
     { name: 'Anciano Kalgor', role: 'chief', shirt: 0xb08a4a, pants: 0x6a4a2a },
     { name: 'Wypar', role: 'guard', shirt: 0x8a2a2a, pants: 0x3a2a1a },
-    { name: 'Aisha', role: 'villager', shirt: 0x2a7a6a, pants: 0x5a4028 },
+    { name: 'Aisha', role: 'villager', shirt: 0x2a7a6a, pants: 0x5a4028, female: true },
     { name: 'Kamakiro', role: 'guard', shirt: 0x5a3a7a, pants: 0x3a2a1a },
     { name: 'Genbu', role: 'trader', shirt: 0xc8962a, pants: 0x4a3620 },
-    { name: 'Laka', role: 'villager', shirt: 0x3a6aa0, pants: 0x5a4028 },
+    { name: 'Laka', role: 'villager', shirt: 0x3a6aa0, pants: 0x5a4028, female: true },
     { name: 'Brahan', role: 'villager', shirt: 0x6a8a2a, pants: 0x3a2a1a },
   ];
 
   // Aldeanos de las otras aldeas (extra = posición en esta lista)
   C.ALDEANOS = [
-    { tribe: 'escarcha', name: 'Anciana Hild', role: 'elder', shirt: 0x6a7a8a, pants: 0x4a4a52, skin: 0xe6c2a0 },
-    { tribe: 'escarcha', name: 'Sigrun', role: 'villager', shirt: 0x8a3a3a, pants: 0x4a4038, skin: 0xf0d0b0 },
+    { tribe: 'escarcha', name: 'Anciana Hild', role: 'elder', shirt: 0x6a7a8a, pants: 0x4a4a52, skin: 0xe6c2a0, female: true, hair: 0xd8d4cc },
+    { tribe: 'escarcha', name: 'Sigrun', role: 'villager', shirt: 0x8a3a3a, pants: 0x4a4038, skin: 0xf0d0b0, female: true, hair: 0xc89a4a },
     { tribe: 'escarcha', name: 'Toke', role: 'villager', shirt: 0x3a5a7a, pants: 0x3a3430, skin: 0xe8c4a0 },
     { tribe: 'escarcha', name: 'Bram', role: 'villager', shirt: 0x5a6a3a, pants: 0x3a3430, skin: 0xdcb48e },
     { tribe: 'brasa', name: 'Maestro Hollín', role: 'elder', shirt: 0x3a3230, pants: 0x2a2220, skin: 0xa8704a },
     { tribe: 'brasa', name: 'Tizón', role: 'villager', shirt: 0x8a2a1a, pants: 0x2a2220, skin: 0xb07a50 },
     { tribe: 'brasa', name: 'Ascua', role: 'villager', shirt: 0xc86a2a, pants: 0x3a2a20, skin: 0x9a6440 },
-    { tribe: 'brasa', name: 'Chispa', role: 'villager', shirt: 0xd8a030, pants: 0x3a2a20, skin: 0xb88660 },
+    { tribe: 'brasa', name: 'Chispa', role: 'villager', shirt: 0xd8a030, pants: 0x3a2a20, skin: 0xb88660, female: true },
   ];
 
   // ------------------------------------------------------------------ modelos (ver animals.js)
@@ -92,7 +96,7 @@
   // Aldeano: personaje humano con tocado de plumas
   function villager(extra) {
     const v = C.VILLAGERS[extra % C.VILLAGERS.length] || C.VILLAGERS[0];
-    const model = G.Character.create(v.shirt, { skin: 0x9a6440, pants: v.pants });
+    const model = G.Character.create(v.shirt, { skin: 0x9a6440, pants: v.pants, female: !!v.female, hair: 0x1a1210 });
     const fm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
     const parts = [P(new THREE.TorusGeometry(0.1, 0.018, 6, 16), 0xc0302a, 0, 0.1, 0, [Math.PI / 2, 0, 0])];
     const n = v.role === 'chief' ? 9 : 4;
@@ -116,7 +120,7 @@
   // Aldeano Kyrr (gorro de piel) o de Ceniza (pañuelo rojo tiznado); los ancianos llevan bastón
   function aldeano(extra) {
     const v = C.ALDEANOS[extra % C.ALDEANOS.length] || C.ALDEANOS[0];
-    const model = G.Character.create(v.shirt, { skin: v.skin, pants: v.pants });
+    const model = G.Character.create(v.shirt, { skin: v.skin, pants: v.pants, female: !!v.female, hair: v.hair });
     const fm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
     const parts = v.tribe === 'escarcha'
       ? [P(new THREE.SphereGeometry(0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), 0xd8d0c0, 0, 0.1, 0), P(new THREE.TorusGeometry(0.13, 0.035, 6, 14), 0xf0ece4, 0, 0.1, 0, [Math.PI / 2, 0, 0])]
@@ -180,15 +184,15 @@
   C.spawn = function (type, x, z, id, extra) {
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: type === 'shark' || type === 'dolphin' || type === 'whale' ? 0.5 : 0.9 });
     const A = G.Animals;
+    // Animales: fauna.js (esqueleto y piel); aquí solo la medusa, las personas y los muñecos
     const build = {
-      boar: () => A.boar(mat), boss: () => A.boar(mat, true), wolf: () => A.wolf(mat), jaguar: () => A.jaguar(mat), snake: () => A.snake(mat), shark: () => A.shark(mat), crab: () => A.crab(mat),
-      bear: () => A.bear(mat), snowwolf: () => A.wolf(mat, 0xdfe4ea, 0xf6f8fb, 0xc4ccd6), seal: () => A.seal(mat), monkey: () => A.monkey(mat), caiman: () => A.caiman(mat), frog: () => A.frog(mat),
-      salamander: () => A.salamander(mat), lavacrab: () => A.crab(mat, 0x3a2a24, 0x241814, true), whale: () => A.whale(mat), dolphin: () => A.dolphin(mat),
-      jelly: () => A.jelly(), serpent: () => A.serpent(mat), yeti: () => G.Bosses.yeti(mat), lavadragon: () => G.Bosses.dragon(mat), bigcaiman: () => G.Bosses.caiman(mat), villager: () => villager(extra || 0), aldeano: () => aldeano(extra || 0),
+      jelly: () => A.jelly(), villager: () => villager(extra || 0), aldeano: () => aldeano(extra || 0),
       npc: () => G.Prologue.human('npc', extra || 0), pirate: () => G.Prologue.human('pirate', extra || 0), pirate_gun: () => G.Prologue.human('pirate_gun', extra || 0),
       pirate_boss: () => G.Prologue.human('pirate_boss', extra || 0), marine: () => G.Prologue.human('marine', extra || 0), marine_gun: () => G.Prologue.human('marine_gun', extra || 0), marine_boss: () => G.Prologue.human('marine_boss', extra || 0), ghost_pirate: () => G.Prologue.human('ghost_pirate', extra || 0), ghost_gun: () => G.Prologue.human('ghost_gun', extra || 0), ghost_captain: () => G.Prologue.human('ghost_captain', extra || 0), dummy: () => G.Prologue.dummy(extra || 0),
+      corsair: () => G.Prologue.human('corsair', extra || 0), corsair_gun: () => G.Prologue.human('corsair_gun', extra || 0), corsair_captain: () => G.Prologue.human('corsair_captain', extra || 0),
     };
-    const m = build[type]();
+    // Especies ya rehechas con esqueleto y piel realista (fauna.js); el resto, con los modelos de siempre
+    const m = G.Fauna && G.Fauna.has(type) ? G.Fauna.build(type) : build[type]();
     const d = DEF[type];
     const s = G.Arch.landOf(x, z);
     const c = Object.assign(m, {
@@ -198,6 +202,7 @@
     });
     if (m.vinfo) { c.name = m.vinfo.name; c.role = m.vinfo.role; }
     if (m.ghostMats) c.ghostMats = m.ghostMats;
+    if (m.joints) c.joints = m.joints;
     if (id !== undefined) C.nextId = Math.max(C.nextId, id);
     m.g.position.set(x, c.y, z);
     G.scene.add(m.g);
@@ -217,7 +222,7 @@
     const c = C.list[i];
     G.scene.remove(c.g);
     if (c.model) { c.model.dispose(); c.feathers.dispose(); }
-    else c.g.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+    else c.g.traverse((o) => { if (o.isMesh) { if (!o.geometry.userData.shared) o.geometry.dispose(); o.material.dispose(); if (o.skeleton) o.skeleton.dispose(); } });
     C.list.splice(i, 1);
   }
   C.byId = (id) => C.list.find((c) => c.id === id);
@@ -361,6 +366,9 @@
     salamander: 'Una salamandra de fuego te quemó', lavacrab: 'Un cangrejo de lava te atrapó', jelly: 'Las medusas te picaron', serpent: 'La serpiente marina te devoró', villager: 'Los guerreros shandara te derrotaron',
     pirate: 'Los piratas de la Hiena te derrotaron', pirate_gun: 'Un pirata te disparó', pirate_boss: 'La capitana Hiena te derrotó',
     yeti: 'El Rey de la Escarcha te aplastó', lavadragon: 'El Dragón de Brasa te calcinó', bigcaiman: 'El Gran Caimán del río te hizo pedazos',
+    marine: 'Un marine de la Marina Blanca te derrotó', marine_gun: 'Un tirador de la Marina te disparó', marine_boss: 'El comodoro de la Marina Blanca te derrotó',
+    ghost_pirate: 'Un pirata fantasma te derrotó', ghost_gun: 'Un tirador fantasma te disparó', ghost_captain: 'El capitán Van Bruma te derrotó',
+    corsair: 'Un pirata te derrotó al abordaje', corsair_gun: 'Un pirata te disparó', corsair_captain: 'Un capitán pirata te derrotó',
   };
   const SOUND = { pirate: 'hit', pirate_boss: 'hit', wolf: 'bite', snowwolf: 'bite', boar: 'grunt', snake: 'hiss', jaguar: 'roar', shark: 'bite', boss: 'roar', bear: 'roar', caiman: 'bite', salamander: 'hiss', lavacrab: 'bite', jelly: 'hiss', serpent: 'roar', villager: 'hit', yeti: 'roar', lavadragon: 'roar', bigcaiman: 'bite' };
   const CD = { pirate: 1.3, pirate_boss: 1.05, wolf: 1.2, snowwolf: 1.2, snake: 2.2, jaguar: 1.4, shark: 1.8, boss: 1.6, bear: 1.8, caiman: 2.0, salamander: 1.4, lavacrab: 1.6, jelly: 1.5, serpent: 2.5, villager: 1.3, yeti: 1.7, lavadragon: 1.9 };
@@ -368,13 +376,23 @@
     c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
     if (c.cd > 0 || Math.hypot(t.x - c.x, t.z - c.z) > reach) return false;
     if (!c.d.sea && Math.abs(t.y - c.y) > (c.d.bigBoss ? 3 : 1.6)) return false;
+    if (G.Parry.fights(c)) return G.Parry.windup(c, t, reach);
     c.cd = CD[c.type] || 1.6;
     c.lunge = 0.3;
-    const amt = c.d.dmg * G.Game.diff().dmg, cause = CAUSE[c.type];
-    if (t.local) { G.Player.damage(amt, c, cause); if (c.d.poison) poisonLocal(c.d.poison); }
-    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause, sx: c.x, sz: c.z, poison: c.d.poison || 0 });
+    const amt = c.d.dmg * G.Game.diff().dmg, cause = CAUSE[c.type], beast = !c.d.sea;
+    if (t.local) { const got = G.Player.damage(amt, c, cause, beast ? { melee: true, cid: c.id, beast: true } : null); if (c.d.poison && got > 0) poisonLocal(c.d.poison); }
+    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause, sx: c.x, sz: c.z, poison: c.d.poison || 0, mel: beast ? 1 : 0, cid: c.id, bs: 1 });
     G.Audio.playAt(SOUND[c.type] || 'grunt', c.x, c.z);
     return true;
+  }
+  // Los tiradores apuntan un momento (brilla el arma) antes de disparar: da tiempo a esquivar o desviar la bala
+  function aimShot(c, t) {
+    if (c.windup > 0 || c.stun > 0) return;
+    c.wShot = true; c.heavy = false; c.wT = t.id;
+    c.windup = 0.65 * ([1.25, 1, 0.85][G.state.diff] ?? 1);
+    c.cd = c.windup + 0.2;
+    c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
+    G.Parry.glint(c, false);
   }
   function shootAt(c, t) {
     c.cd = 2.6; c.lunge = 0.3;
@@ -387,8 +405,8 @@
     G.Audio.playAt('cannon', c.x, c.z, 60);
     if (!hit) return;
     const amt = c.d.dmg * G.Game.diff().dmg;
-    if (t.local) G.Player.damage(amt, c, CAUSE[c.type]);
-    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause: CAUSE[c.type], sx: c.x, sz: c.z });
+    if (t.local) G.Player.damage(amt, c, CAUSE[c.type], { shot: true, cid: c.id });
+    else G.Net.send({ t: 'dmgP', to: t.id, amt, cause: CAUSE[c.type], sx: c.x, sz: c.z, shot: 1, cid: c.id });
   }
   // Un jefe bloqueado prueba a avanzar en diagonal (bordea el obstáculo)
   function sidestep(c, step, speed) {
@@ -420,11 +438,30 @@
     if (c.dead || c.d.friendly) return;
     c.flash = 0.15;
     G.Audio.playAt('hit', c.x, c.z);
-    if (!G.Net.authority()) { G.Net.send({ t: 'hurtC', id: c.id, dmg, poison: extra && extra.poison }); return; }
+    // La parte golpeada reacciona (cabeza, torso, brazo o pierna); el muñeco de paja se balancea en sus articulaciones
+    const react = (k = 1) => {
+      const z = extra && extra.zone;
+      if (c.model && c.model.react) c.model.react(z || 'torso', extra && extra.side, z ? k : 0.6 * k);
+      if (c.joints) G.Combat.reactDummy(c, z || 'torso', extra && extra.side, extra && extra.heavy ? 1.6 : 1);
+    };
+    if (!G.Net.authority()) { react(); G.Net.send({ t: 'hurtC', id: c.id, dmg, poison: extra && extra.poison, mel: extra && extra.melee ? 1 : 0, rip: extra && extra.riposte ? 1 : 0, hv: extra && extra.heavy ? 1 : 0, zn: extra && extra.zone, zs: extra && extra.side }); return; }
     const fromPeer = attackerId !== undefined && attackerId !== G.Net.myId;
     const src = fromPeer ? G.Net.peers.get(attackerId) : G.Player.pos;
+    // Piratas, marines y guerreros se cubren o paran los golpes cuerpo a cuerpo (parry.js)
+    const def = G.Parry.npcDefend(c, attackerId, extra);
+    if (def <= 0) { c.flash = 0; c.aggroId = fromPeer ? attackerId : G.Net.myId; c.aggro = Math.max(c.aggro, 25); return; }
+    dmg *= def;
+    react();
+    // Efectos de la zona en las personas y animales: cabeza aturde un instante, un brazo puede cortar el golpe
+    // que preparaba, una pierna le frena
+    const zn = extra && extra.zone, tough = c.d.bigBoss || /_boss$|_captain$/.test(c.type) || c.type === 'boss';
+    if (zn === 'cabeza' && !tough && !c.d.dummy) { c.stun = Math.max(c.stun || 0, 0.3); c.windup = 0; }
+    else if (zn === 'brazo' && c.windup > 0 && Math.random() < 0.35) { c.windup = 0; c.cd = 0.8; }
+    else if (zn === 'pierna') c.slowT = 1.6;
+    // Tripulación de un barco aliado atacada a propósito: ese barco te trata ya como enemigo
+    if (c.deck && extra && extra.melee && G.Navy.provoked) { const s = G.Ships.byId(c.deck.ship); if (s) G.Navy.provoked(s, fromPeer ? attackerId : G.Net.myId); }
     c.hp -= dmg;
-    if (c.d.dummy) { c.hp = c.d.hp; c.wobble = 0.5; return; }
+    if (c.d.dummy) { c.hp = c.d.hp; if (!c.joints) c.wobble = 0.5; return; }
     if (extra && extra.poison) c.poisoned = Math.max(c.poisoned || 0, extra.poison);
     if (src && c.type !== 'boss' && c.type !== 'whale' && c.type !== 'serpent' && c.type !== 'pirate_boss' && !c.d.bigBoss) {
       const dx = c.x - src.x, dz = c.z - src.z, d = Math.hypot(dx, dz) || 1;
@@ -459,7 +496,7 @@
     if (!drops.length) return;
     if (peerId !== null && peerId !== undefined) G.Net.send({ t: 'give', to: peerId, items: drops, kill: c.d.name.toLowerCase(), kt: c.type, boss: c.type === 'boss' });
     else {
-      for (const [id, n] of drops) G.Game.give(id, n);
+      for (const [id, n] of drops) G.Game.give(id, G.Faction.bonusLoot(id, n));
       G.state.stats.kills++;
       G.Ach.onKill(c.type);
       G.Bounty.onKill(c.type);
@@ -469,8 +506,79 @@
     }
   }
 
+  // ------------------------------------------------------------------ animación de los animales con esqueleto (fauna.js / rig.js)
+  function animateRig(c, dt, night) {
+    const T = c.type, rig = c.rig, s = c.g.scale.x;
+    const cam = G.camera.position, far = c.type === 'boss' || c.d.sea || c.d.bigBoss ? 260 : 140;
+    const dc = Math.hypot(cam.x - c.x, cam.z - c.z);
+    c.g.visible = Math.abs(cam.x - c.x) < far && Math.abs(cam.z - c.z) < far;
+    G.Rig.lod(rig, dc / s);
+    c.lunge = Math.max(0, c.lunge - dt);
+    // Giro (rad/s): la columna se dobla hacia donde gira
+    const dy = c.lastYaw === undefined ? 0 : U.angDiff(c.lastYaw, c.yaw);
+    c.lastYaw = c.yaw;
+    c.turnRate = U.lerp(c.turnRate || 0, dt > 0 ? U.clamp(dy / dt, -4, 4) : 0, Math.min(1, dt * 6));
+    let y = c.y, pOver = null;
+    const now = performance.now();
+    if (c.d.bigBoss) y += G.Bosses.animate(c, dt, now);
+    else if (T === 'shark') y = G.World.waveHeight(c.x, c.z) - 0.45;
+    else if (T === 'serpent') y = G.World.waveHeight(c.x, c.z) - 1.1 + (c.aggro > 0 ? 0.6 : 0);
+    else if (T === 'whale' || T === 'dolphin') {
+      // Salen a respirar: arcos (delfines) o subidas lentas (ballena)
+      const per = T === 'dolphin' ? 1.6 : 12, ph = ((now / 1000 + c.id * 0.7) % per) / per;
+      const arc = T === 'dolphin' ? Math.max(0, Math.sin(ph * Math.PI * 2)) * 1.4 - 0.6 : Math.sin(ph * Math.PI * 2) * 1.2 - 1.6;
+      y = G.World.waveHeight(c.x, c.z) + arc;
+      pOver = T === 'dolphin' ? -Math.cos(ph * Math.PI * 2) * 0.5 : 0;
+    } else if (T === 'snake' && c.lunge > 0) y += Math.sin((c.lunge / 0.3) * Math.PI) * 0.2;
+    c.vy = y;
+    // En cuesta: el cuerpo se inclina y cada pie busca el suelo (solo cerca de la cámara)
+    const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), half = (rig.tpl.o.half || 0.45) * s;
+    const near = c.g.visible && dc < 45 && !c.d.sea;
+    let pitch = pOver ?? 0;
+    if (near) {
+      const hF = G.height(c.x + fx * half, c.z + fz * half), hB = G.height(c.x - fx * half, c.z - fz * half);
+      pitch = U.clamp(-Math.atan2(hF - hB, half * 2), -0.45, 0.45);
+    }
+    if (c.pitchOver !== null && c.pitchOver !== undefined) pOver = c.pitchOver;
+    c.pitch = pOver !== null ? pOver : U.lerp(c.pitch || 0, pitch, Math.min(1, dt * 5));
+    c.g.position.set(c.x, y, c.z);
+    c.g.rotation.order = 'YXZ';
+    c.g.rotation.set(c.pitch, c.yaw + (T === 'crab' || T === 'lavacrab' ? Math.PI / 2 : 0), 0);
+    if (c.wobble > 0) { c.wobble = Math.max(0, c.wobble - dt); c.g.rotation.z = Math.sin(c.wobble * 30) * c.wobble * 0.25; }
+    const cp = Math.cos(c.pitch), sp = Math.sin(c.pitch), lim = (rig.tpl.o.footReach || 0.25);
+    const ground = near ? (lx, lz) => {
+      const wx = c.x + (lx * fz + lz * fx) * s, wz = c.z + (-lx * fx + lz * fz) * s;
+      return U.clamp((G.height(wx, wz) - y + lz * s * sp) / (s * cp), -lim, lim);
+    } : null;
+    if (c.g.visible) {
+      const lunge = c.lunge > 0 ? Math.sin((c.lunge / 0.3) * Math.PI) : 0;
+      const crouch = T === 'jaguar' && c.pounce <= 0 && c.aggro > 0 && c.speedNow < 4 ? 1 : 0;
+      c.crouchK = U.lerp(c.crouchK || 0, crouch, Math.min(1, dt * 5));
+      // Animación por niveles de distancia: cerca, cada fotograma; lejos, cada 2 o 3 fotogramas con el tiempo
+      // acumulado (a esa distancia se ve igual de fluido y el juego va más suelto)
+      c.animAcc = (c.animAcc || 0) + dt;
+      // Velocidad para la animación, suavizada: al pararse o arrancar las patas no saltan de golpe
+      c.animSpeed = U.lerp(c.animSpeed || 0, c.speedNow, Math.min(1, dt * 7));
+      const every = dc < 28 ? 1 : dc < 70 ? 2 : 3;
+      if (every === 1 || (c.animN = (c.animN || 0) + 1) % every === 0) {
+        G.Rig.animate(rig, c.animAcc, { speed: c.animSpeed / s, turn: c.turnRate, lunge, jaw: c.jawK !== undefined ? c.jawK : Math.max(lunge, c.special ? 1 : 0), crouch: c.crouchK, fear: c.fear, ground, noLegs: c.fly > 0.4, c });
+        c.animAcc = 0;
+      }
+      rig.mat.userData.u.uTime.value += dt;
+    }
+    if (c.flash > 0) c.flash -= dt;
+    if (c.mat.emissive) {
+      if (c.flash > 0) c.mat.emissive.setRGB(0.6, 0, 0);
+      else if (T === 'lavacrab') c.mat.emissive.setRGB(0.25, 0.06, 0);
+      else if (T === 'salamander') c.mat.emissive.setRGB(0.23, 0.05, 0);
+      else c.mat.emissive.setRGB(0, 0, 0);
+    }
+    if (c.eyeMat) c.eyeMat.emissive.setRGB(night ? 1.6 : 0, night ? 1.1 : 0, 0);
+  }
+
   // ------------------------------------------------------------------ animación común
   function animate(c, dt, night) {
+    if (c.rig) { animateRig(c, dt, night); return; }
     const T = c.type;
     c.phase += c.speedNow * dt * (T === 'crab' || T === 'lavacrab' ? 9 : T === 'jaguar' ? 2.6 : T === 'monkey' || T === 'salamander' ? 5 : T === 'yeti' ? 1.8 : T === 'lavadragon' ? 1.5 : T === 'bigcaiman' ? 2.4 : 3.2);
     const amp = Math.min(1, c.speedNow / 2) * 0.6;
@@ -514,12 +622,23 @@
     c.vy = y;
     if (c.model) {
       c.swing = Math.max(0, (c.swing || 0) - dt / 0.32);
-      if (c.lunge > 0.29) c.swing = 1;
-      c.model.update(dt, { pos: _vp.set(c.x, y, c.z), yaw: c.yaw + Math.PI, pitch: 0, speed: c.speedNow, onGround: true, swimming: false, swing: c.swing, holding: c.role === 'guard' || !!c.hold });
+      if (c.lunge > 0.29) {
+        if (c.swing < 0.9 && c.hold && !/_gun$/.test(c.type)) G.Combat.trailAt(c.x, y + 1.25, c.z, c.yaw + Math.PI, c.sd ?? 2, c.sd === 4);
+        c.swing = 1;
+      }
+      c.guardNet = Math.max(0, (c.guardNet || 0) - dt);
+      c.dodgeT = Math.max(0, (c.dodgeT || 0) - dt);
+      const auth = G.Net.authority(), wind = auth ? c.windup > 0 : c.windNet, stg = auth ? c.stun > 0 : c.stunNet, hv = wind && (auth ? c.heavy : c.heavyNet);
+      const grd = (c.guardT || 0) > 0 || c.guardNet > 0;
+      c.wK = U.lerp(c.wK || 0, wind && !hv ? 1 : 0, Math.min(1, dt * 12)); c.hK = U.lerp(c.hK || 0, hv ? 1 : 0, Math.min(1, dt * 12));
+      const ma = c.speedNow > 0.3 && c.mvYaw !== undefined ? U.angDiff(c.yaw, c.mvYaw) : 0;
+      c.model.update(dt, { pos: _vp.set(c.x, y, c.z), yaw: c.yaw + Math.PI, pitch: 0, speed: c.speedNow, onGround: true, swimming: false, swing: c.swing, holding: c.role === 'guard' || !!c.hold, windup: c.wK, heavyWind: c.hK, guard: grd ? 1 : 0, stagger: stg ? 1 : 0,
+        swingDir: c.sd ?? 2, dodge: c.dodgeT > 0 ? 1 : 0, dodgeSide: -2, moveAng: ma });
     } else {
       c.g.position.set(c.x, y, c.z);
       c.g.rotation.y = c.yaw + (T === 'crab' || T === 'lavacrab' ? Math.PI / 2 : 0);
       if (c.wobble > 0) { c.wobble = Math.max(0, c.wobble - dt); c.g.rotation.z = Math.sin(c.wobble * 30) * c.wobble * 0.25; }
+      if (c.joints) G.Combat.springs(c, dt);
       if (c.flash > 0) c.flash -= dt;
       if (c.mat.emissive) {
         if (c.flash > 0) c.mat.emissive.setRGB(0.6, 0, 0);
@@ -537,6 +656,7 @@
   const _vp = new THREE.Vector3(), _deck = new THREE.Vector3(), _deckW = new THREE.Vector3();
   function animateDeath(c, dt) {
     c.deadT += dt;
+    if (c.rig && !c.deadPose) { c.deadPose = true; G.Rig.animate(c.rig, 0, { dead: true }); }
     if (c.d.bigBoss) G.Bosses.death(c, dt);
     if (c.model) { c.g.rotation.x = -Math.min(Math.PI / 2, c.deadT * 3); if (c.deadT > 4) c.g.position.y -= dt * 0.8; return; }
     if (c.d.sea) { c.g.position.y -= dt * 0.8; c.g.rotation.z = Math.min(Math.PI, c.deadT * 2); return; }
@@ -566,6 +686,23 @@
         continue;
       }
       if (c.poisoned > 0) { c.poisoned -= dt; c.hp -= 3 * dt; if (c.hp <= 0) { killCreature(c, c.aggroId !== G.Net.myId ? c.aggroId : null); continue; } }
+      // Combate cuerpo a cuerpo de las personas (parry.js): aturdidas por una parada, o preparando un golpe
+      if (c.stun > 0 || c.windup > 0) {
+        if (c.deck && !G.Navy.placeOnDeck(c)) { removeAt(i); continue; }
+        c.speedNow = 0; c.guardT = 0;
+        if (c.stun > 0) { c.stun -= dt; c.windup = 0; }
+        else {
+          const wt = tg.find((t) => t.id === c.wT && !t.dead);
+          if (wt) c.yaw += U.angDiff(c.yaw, Math.atan2(wt.x - c.x, wt.z - c.z)) * Math.min(1, dt * 7);
+          if ((c.windup -= dt) <= 0) {
+            if (c.wShot) { c.wShot = false; c.windup = 0; if (wt) shootAt(c, wt); }
+            else G.Parry.strike(c, wt, CD[c.type], CAUSE[c.type]);
+          }
+        }
+        if (!c.deck) c.y = U.lerp(c.y, G.height(c.x, c.z), Math.min(1, dt * 10));
+        animate(c, dt, night); continue;
+      }
+      if (c.guardT > 0) c.guardT -= dt;
       let tx = c.tx, tz = c.tz, speed = c.d.speed, moving = true;
       const nr = nearest(c, tg);
       const tgt = nr ? nr.t : null, dist = nr ? nr.d : 1e9;
@@ -591,19 +728,26 @@
         if (!at) return false;
         const d = Math.hypot(at.x - c.x, at.z - c.z);
         tx = at.x; tz = at.z; speed = c.d.run; faceT = at;
-        if (d < reach) { moving = false; attack(c, at, reach + 0.1); }
+        if (G.Parry.fights(c) && c.cd > 0.35 && d < 4.2 && !c.deck) {
+          c.orbit = c.orbit || (Math.random() < 0.5 ? 1 : -1);
+          if (Math.random() < dt * 0.35) c.orbit = -c.orbit;
+          const a = Math.atan2(c.x - at.x, c.z - at.z) + c.orbit * 0.75;
+          tx = at.x + Math.sin(a) * 2.7; tz = at.z + Math.cos(a) * 2.7; speed = c.d.speed * 1.7; strafe = true;
+        } else if (d < reach) { moving = false; attack(c, at, reach + 0.1); }
         if (d > keep) c.aggro = 0;
         return true;
       };
-      let faceT = null;
+      let faceT = null, strafe = false;
       // Marines en la cubierta de un barco de la Marina Blanca (navy.js): en su puesto, pelean desde allí
       if (c.deck) {
         if (!G.Navy.placeOnDeck(c)) { removeAt(i); continue; }
-        if (tgt && !tgt.dead && dist < 60) {
-          c.yaw = Math.atan2(tgt.x - c.x, tgt.z - c.z);
-          c.aggro = Math.max(c.aggro, 2); c.aggroId = tgt.id;
-          if (/_gun$/.test(c.type)) { if (dist < 32 && c.cd <= 0) shootAt(c, tgt); }
-          else if (dist < 2.6) attack(c, tgt, 2.7);
+        const ship = G.Ships.byId(c.deck.ship), foe = nearest(c, tg, (t) => G.Faction.shipHostile(ship, t));
+        if (foe && foe.d < 60) {
+          const t = foe.t;
+          c.yaw = Math.atan2(t.x - c.x, t.z - c.z);
+          c.aggro = Math.max(c.aggro, 2); c.aggroId = t.id;
+          if (/_gun$/.test(c.type)) { if (foe.d < 32 && c.cd <= 0) aimShot(c, t); }
+          else if (foe.d < 2.6) attack(c, t, 2.7);
         }
         c.speedNow = 0; animate(c, dt, night); continue;
       }
@@ -690,7 +834,7 @@
             faceT = at;
             if (d < 6) fleeFrom(at, d, c.d.run * 0.8);
             else if (d > 17) { tx = at.x; tz = at.z; speed = c.d.run; }
-            else { moving = false; if (c.cd <= 0) shootAt(c, at); }
+            else { moving = false; if (c.cd <= 0) aimShot(c, at); }
             if (d > 36) c.aggro = 0;
           } else wander(c.homeR || 10);
           break;
@@ -819,11 +963,14 @@
       if (c.aboard && c.follow) { c.speedNow = 0; animate(c, dt, night); continue; }
       const mx = tx - c.x, mz = tz - c.z, md = Math.hypot(mx, mz);
       if (moving && md > 0.3) {
-        c.yaw += U.angDiff(c.yaw, Math.atan2(mx, mz)) * Math.min(1, dt * (c.d.sea ? 2.5 : 6));
+        const hd = Math.atan2(mx, mz);
+        if (strafe && faceT) { c.mvYaw = hd; c.yaw += U.angDiff(c.yaw, Math.atan2(faceT.x - c.x, faceT.z - c.z)) * Math.min(1, dt * 8); }
+        else { c.yaw += U.angDiff(c.yaw, hd) * Math.min(1, dt * (c.d.sea ? 2.5 : 6)); c.mvYaw = c.yaw; }
+        if (c.slowT > 0) { c.slowT -= dt; speed *= 0.6; } // le dieron en una pierna
         // Ningún jefe corre más que tú (7,2 m/s esprintando): siempre puedes escapar
         if (c.d.bigBoss || c.d.boss || c.type === 'serpent' || /_boss$|_captain$/.test(c.type)) speed = Math.min(speed, BOSS_MAX);
         const step = speed * dt;
-        const nx = c.x + Math.sin(c.yaw) * step, nz = c.z + Math.cos(c.yaw) * step;
+        const nx = c.x + Math.sin(c.mvYaw) * step, nz = c.z + Math.cos(c.mvYaw) * step;
         const flying = c.fly > 0.3; // el dragón en vuelo pasa por encima de todo
         if ((flying || validPos(c.type, nx, nz)) && (c.d.sea || flying || (!G.Build.blocked(nx, nz, c.type === 'boss' || c.type === 'bear' ? 0.9 : c.d.bigBoss ? 1.3 : 0.4) && !(c.d.bigBoss && intoRock(c, nx, nz))))) { c.x = nx; c.z = nz; c.speedNow = speed; c.stuck = 0; }
         else if (c.d.bigBoss && sidestep(c, step, speed)) { /* los jefes rodean rocas y paredes en vez de quedarse parados */ }
@@ -850,7 +997,8 @@
   // ------------------------------------------------------------------ red
   C.snapshot = () => C.list.map((c) => {
     const a = [c.id, TYPES.indexOf(c.type), Math.round(c.x * 10) / 10, Math.round(c.z * 10) / 10,
-      Math.round(c.yaw * 100) / 100, Math.ceil(c.hp), (c.dead ? 1 : 0) | (c.lunge > 0.25 ? 2 : 0) | (c.fear ? 4 : 0) | (c.aggro > 0 ? 8 : 0) | (c.pounce > 0 ? 16 : 0) | (c.fly > 0.5 || (c.type === 'bigcaiman' && c.flyTarget) ? 32 : 0) | (c.special ? 64 : 0)];
+      Math.round(c.yaw * 100) / 100, Math.ceil(c.hp), (c.dead ? 1 : 0) | (c.lunge > 0.25 ? 2 : 0) | (c.fear ? 4 : 0) | (c.aggro > 0 ? 8 : 0) | (c.pounce > 0 ? 16 : 0) | (c.fly > 0.5 || (c.type === 'bigcaiman' && c.flyTarget) ? 32 : 0) | (c.special ? 64 : 0)
+        | (c.windup > 0 ? 128 : 0) | (c.heavy ? 256 : 0) | (c.stun > 0 ? 512 : 0) | ((c.guardT || 0) > 0 ? 1024 : 0)];
     if (c.type === 'villager' || c.type === 'npc' || c.type === 'dummy' || c.d.human) a.push(c.extra);
     return a;
   });
@@ -868,6 +1016,11 @@
       c.aggro = fl & 8 ? 1 : 0;
       c.pounce = fl & 16 ? 1 : 0;
       c.flyNet = !!(fl & 32); c.special = !!(fl & 64);
+      const w = !!(fl & 128);
+      if (w && !c.windNet) G.Parry.glint(c, !!(fl & 256));
+      c.heavyNet = !!(fl & 256);
+      c.windNet = w; c.stunNet = !!(fl & 512);
+      if (fl & 1024) c.guardNet = Math.max(c.guardNet || 0, 0.15);
     }
     for (let i = C.list.length - 1; i >= 0; i--) if (!seen.has(C.list[i].id)) removeAt(i);
   };
@@ -880,6 +1033,7 @@
       c.x += (c.nx - c.x) * k; c.z += (c.nz - c.z) * k;
       c.yaw += U.angDiff(c.yaw, c.nyaw) * k;
       c.speedNow = U.lerp(c.speedNow, Math.hypot(c.x - ox, c.z - oz) / Math.max(dt, 1e-3), 0.3);
+      if (Math.hypot(c.x - ox, c.z - oz) > 1e-3) c.mvYaw = Math.atan2(c.x - ox, c.z - oz);
       let gy = G.height(c.x, c.z);
       if (c.model && gy < -0.3) for (const s of G.Ships.list) if (!s.sinking && Math.hypot(s.x - c.x, s.z - c.z) < (s.def.L || 5) / 2 + 1) { gy = G.Ships.toWorld(s, _deck.set(0, s.def.deckY + 0.02, 0), _deckW).y; break; }
       c.y = U.lerp(c.y, gy, Math.min(1, dt * 10));
@@ -907,6 +1061,8 @@
       const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
       return SERP_BODY.map(([k, dy, r]) => ({ x: c.x + fx * k, y: vy + dy, z: c.z + fz * k, r }));
     }
+    // Personas y muñecos de paja: además del cuerpo, la cabeza y las piernas (para acertar en cada zona)
+    if (c.model || (c.joints && c.d.dummy)) return [{ x: c.x, y: c.y + c.d.bodyY, z: c.z, r: c.d.hitR }, { x: c.x, y: c.y + 1.68, z: c.z, r: 0.2 }, { x: c.x, y: c.y + 0.38, z: c.z, r: 0.28 }];
     return [{ x: c.x, y: c.d.sea ? vy + (c.type === 'whale' ? 0.9 : 0.1) : c.y + c.d.bodyY, z: c.z, r: c.d.hitR }];
   };
   // Distancia del rayo (o -1) a la criatura

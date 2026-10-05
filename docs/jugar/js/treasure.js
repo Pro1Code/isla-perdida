@@ -66,25 +66,37 @@
     if (r() < 0.2) out.push(['mapa_tesoro', 1]);
     return out.filter(([id]) => G.ITEMS[id]);
   }
+  // El botín se queda en el cofre desenterrado (se abre al momento; con la mochila llena no se pierde nada)
   function reward(t, who) {
     const items = lootOf(t), coins = 30 + Math.floor(U.rng((t.seed || 7) + 1)() * 50);
+    chestOf(t);
     if (!G.Net.active || who === G.Net.myId) {
       G.UI.fade(() => {
-        for (const [id, n] of items) G.Game.give(id, n);
-        G.Profile.addCoins(coins, 'Tesoro enterrado');
+        G.Profile.addCoins(Math.round(coins * G.Faction.coinMul()), G.Faction.coinMul() > 1 ? 'Tesoro enterrado (botín pirata)' : 'Tesoro enterrado');
         G.UI.banner('💰 ¡Un tesoro enterrado!', items.map(([id, n]) => `${n} ${G.icon(id, 'xs')}`).join('  '));
         G.Audio.play('win');
         G.Ach.add('treasureMap');
         G.Quests.onEvent('treasure');
+        G.Game.buryStore(t.id, items, who);
       });
-    } else G.Net.send({ t: 'give', to: who, items, loot: true });
+    } else G.Game.buryStore(t.id, items, who);
+  }
+  // Cofre abierto donde estaba la ✖ (se puede volver a abrir y guardar cosas)
+  const chests = new Set();
+  function chestOf(t) {
+    if (chests.has(t.id) || G.Landmarks.byId(t.id)) return;
+    chests.add(t.id);
+    const y = G.height(t.x, t.z), c = G.Landmarks.makeChest(t.id, t.x, y, t.z, (t.seed || 0) % 6, true, true);
+    c.name = 'Cofre del tesoro';
+    G.Landmarks.loot.push(c);
+    G.Landmarks.setOpened(t.id, true);
   }
   T.dig = function () {
     const t = T.near();
     if (!t) return false;
     G.Audio.play('chop');
     G.Player.swing = 1;
-    if (G.Net.active && !G.Net.isHost) { G.Net.send({ t: 'trDig', id: t.id }); G.UI.msg('⛏️ Cavando…', 'info', 'dig'); return true; }
+    if (G.Net.active && !G.Net.isHost) { G.Game.expectStore(t.id); G.Net.send({ t: 'trDig', id: t.id }); G.UI.msg('⛏️ Cavando…', 'info', 'dig'); return true; }
     finish(t, G.Net.myId);
     return true;
   };
@@ -99,7 +111,7 @@
   T.onNet = function (m, from) {
     if (m.t === 'trNew') { if (!list().some((t) => t.id === m.tr.id)) list().push(m.tr); }
     else if (m.t === 'trDig' && G.Net.isHost) { const t = list().find((q) => q.id === m.id); if (t) finish(t, from); }
-    else if (m.t === 'trDone') { const t = list().find((q) => q.id === m.id); if (t) { t.dug = 1; removeMark(t); } }
+    else if (m.t === 'trDone') { const t = list().find((q) => q.id === m.id); if (t) { t.dug = 1; removeMark(t); chestOf(t); } }
   };
 
   // ------------------------------------------------------------------ de dónde salen los mapas
@@ -111,7 +123,7 @@
   };
   // La Hiena siempre lleva uno; los piratas, a veces
   T.onKill = function (type) {
-    const p = type === 'pirate_boss' || type === 'marine_boss' ? 1 : type === 'pirate' || type === 'pirate_gun' ? 0.12 : 0;
+    const p = type === 'pirate_boss' || type === 'marine_boss' || type === 'corsair_captain' ? 1 : type === 'pirate' || type === 'pirate_gun' || type === 'corsair' || type === 'corsair_gun' ? 0.12 : 0;
     if (p && Math.random() < p) { G.Game.give('mapa_tesoro', 1); G.UI.msg('🗺️ ¡Llevaba encima un mapa del tesoro! (clic derecho para leerlo)', 'good', 'mapa'); }
   };
 
@@ -145,10 +157,14 @@
   }
   let checkT = 0, lastWorld = null;
   T.update = function (dt) {
-    if (G.state.world !== lastWorld) { lastWorld = G.state.world; marks.clear(); }
+    if (G.state.world !== lastWorld) { lastWorld = G.state.world; marks.clear(); chests.clear(); }
     if (!G.state.world || (checkT -= dt) > 0) return;
     checkT = 1;
     const P = G.Player.pos;
-    for (const t of list()) if (!t.dug && !marks.has(t.id) && Math.hypot(t.x - P.x, t.z - P.z) < 120) makeMark(t);
+    for (const t of list()) {
+      if (Math.hypot(t.x - P.x, t.z - P.z) > 120) continue;
+      if (!t.dug && !marks.has(t.id)) makeMark(t);
+      else if (t.dug && !chests.has(t.id)) chestOf(t);
+    }
   };
 })();

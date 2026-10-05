@@ -30,7 +30,7 @@
     if (c.type === 'ghost_captain') return 'holandes';
     if (c.type === 'ghost_pirate' || c.type === 'ghost_gun') return 'fantasma';
     if (c.type === 'marine' || c.type === 'marine_gun') return 'marino';
-    if (c.type === 'pirate' || c.type === 'pirate_gun') return 'pirata' + (1 + (Math.abs(c.extra | 0) % 3));
+    if (c.type === 'pirate' || c.type === 'pirate_gun' || /^corsair/.test(c.type)) return 'pirata' + (1 + (Math.abs(c.extra | 0) % 3));
     return null;
   };
 

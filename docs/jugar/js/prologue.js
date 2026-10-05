@@ -19,10 +19,10 @@
   // Náufragos (tipo 'npc'): extra = índice
   Pr.NPCS = [
     { key: 'silvano', name: 'Silvano, el ermitaño', role: 'hermit', style: 'magic', shirt: '#4a3a6a', skin: '#c68d67', pants: '#3a2e4a', cos: ['npc_capucha', 'npc_barba', 'npc_tunica'], hold: 'baston' },
-    { key: 'mara', name: 'Capitana Mara', role: 'captain', shirt: '#a01e1e', skin: '#e6b48e', pants: '#2a2a2e', cos: ['cos_tricornio', 'cos_capa'] },
-    { key: 'kaito', name: 'Kaito, el espadachín', role: 'trainer', style: 'sword', shirt: '#e6dfcc', skin: '#c68d67', pants: '#2e4a3a', cos: ['cos_bandana'], hold: 'katana' },
-    { key: 'crane', name: 'Crane, el artillero', role: 'trainer', style: 'gun', shirt: '#5a4632', skin: '#a8704a', pants: '#3b5270', cos: ['cos_ala_ancha', 'cos_parche'], hold: 'mosquete' },
-    { key: 'bastian', name: 'Bastián, el cocinero', role: 'trainer', style: 'fist', shirt: '#f4f4f0', skin: '#f3d2b4', pants: '#2a2a2e', cos: ['cos_gorro_chef', 'cos_bigote'] },
+    { key: 'mara', name: 'Capitana Mara', role: 'captain', shirt: '#a01e1e', skin: '#e6b48e', pants: '#2a2a2e', cos: ['cos_tricornio', 'cos_capa', 'charreteras', 'mara_fajin', 'hiena_cinto'], female: true, hair: '#6a3a1a' },
+    { key: 'kaito', name: 'Kaito, el espadachín', role: 'trainer', style: 'sword', shirt: '#e6dfcc', skin: '#c68d67', pants: '#2e4a3a', cos: ['cos_bandana', 'kaito_haori', 'kaito_vaina', 'munequeras'], hold: 'katana' },
+    { key: 'crane', name: 'Crane, el artillero', role: 'trainer', style: 'gun', shirt: '#5a4632', skin: '#a8704a', pants: '#3b5270', cos: ['cos_ala_ancha', 'cos_parche', 'crane_bandolera', 'fajin_ocre'], hold: 'mosquete' },
+    { key: 'bastian', name: 'Bastián, el cocinero', role: 'trainer', style: 'fist', shirt: '#f4f4f0', skin: '#f3d2b4', pants: '#2a2a2e', cos: ['cos_gorro_chef', 'cos_bigote', 'bastian_delantal', 'bastian_panuelo', 'munequeras'] },
   ];
   const HOME = [() => Pr.HUT, () => Pr.CREW, () => Pr.CREW, () => Pr.CREW, () => Pr.CREW];
   const HOME_OFF = [[3.5, 2], [-2.5, 2.5], [5.5, -2], [-5, -3.5], [1, 5.5]];
@@ -52,7 +52,14 @@
     // Marines de la Marina Blanca (uniforme blanco y azul)
     if (type === 'marine_boss') return { name: 'Comodoro de la Marina Blanca', role: 'boss', shirt: '#f4f4f0', skin: pick(['#e6b48e', '#c68d67']), pants: '#1e2a4a', cos: ['cos_gorra_marina', 'cos_abrigo_alm', 'cos_bigote'], hold: 'katana' };
     if (type === 'marine' || type === 'marine_gun') return { name: type === 'marine_gun' ? 'Tirador de la Marina' : 'Marine de la Marina Blanca', role: 'marine', shirt: '#f2f2ee', skin: pick(['#f3d2b4', '#e6b48e', '#c68d67', '#a8704a']), pants: '#1e2a4a', cos: ['cos_gorra_marina'], hold: type === 'marine_gun' ? 'mosquete' : 'sable' };
-    if (type === 'pirate_boss') return { name: 'Capitana Hiena', role: 'boss', shirt: '#2a2a2e', skin: '#e6b48e', pants: '#5a1a1a', cos: ['cos_tricornio', 'cos_capa', 'cos_parche'], hold: 'sable' };
+    // Piratas de las hermandades del mar (faction.js): camisas del color de su hermandad
+    if (/^corsair/.test(type)) {
+      const C = G.Faction.CREWS[Math.floor(extra / 1000)] || G.Faction.CREWS[4];
+      if (type === 'corsair_captain') return { name: `Capitán ${C.of}`, role: 'boss', shirt: C.shirts[0], skin: pick(['#e6b48e', '#c68d67', '#a8704a', '#7e4d30']), pants: '#2a2a2e', cos: ['cos_tricornio', 'cos_capa', pick(['cos_parche', 'cos_bigote'])], hold: 'sable' };
+      return { name: type === 'corsair_gun' ? `Tirador ${C.of}` : `Pirata ${C.of}`, role: 'pirate', shirt: pick(C.shirts), skin: pick(['#e6b48e', '#c68d67', '#a8704a', '#7e4d30']), pants: pick(['#2a2a2e', '#4a3a2a', '#3a2a1a']),
+        cos: type === 'corsair_gun' ? pick([['cos_ala_ancha'], ['cos_bandana', 'cos_parche'], ['cos_tricornio']]) : pick([['cos_bandana'], ['cos_bandana', 'cos_parche'], ['cos_tricornio'], ['cos_bandana', 'cos_bigote']]), hold: type === 'corsair_gun' ? 'mosquete' : 'sable' };
+    }
+    if (type === 'pirate_boss') return { name: 'Capitana Hiena', role: 'boss', shirt: '#2a2a2e', skin: '#e6b48e', pants: '#5a1a1a', cos: ['cos_tricornio', 'cos_capa', 'cos_parche'], hold: 'sable', female: true, hair: '#1a1210' };
     return {
       name: type === 'pirate_gun' ? 'Pirata tirador' : 'Pirata de la Hiena', role: 'pirate',
       shirt: pick(['#7a2a2a', '#2a2a2e', '#5a4632', '#3a4a6a', '#6a5a3a', '#e6dfcc']), skin: pick(['#e6b48e', '#c68d67', '#a8704a', '#7e4d30']), pants: pick(['#2a2a2e', '#4a3a2a', '#3a2a1a', '#3b5270']),
@@ -60,10 +67,20 @@
       hold: type === 'pirate_gun' ? 'mosquete' : 'sable',
     };
   }
+  // Accesorios de luchadores y jefes (equipment.js): fajines, muñequeras, hombreras, charreteras, medallas y pistolas
+  function outfitExtras(type, extra) {
+    const r = U.rng(extra * 104729 + 7), pick = (a) => a[Math.floor(r() * a.length)];
+    if (type === 'pirate_boss') return ['hiena_cinto', 'hombrera', 'fajin_rojo'];
+    if (type === 'marine_boss') return ['charreteras', 'medallas', 'cinto_blanco'];
+    if (type === 'ghost_captain' || type === 'corsair_captain') return ['charreteras', 'hiena_cinto', pick(['fajin_rojo', 'fajin_negro', 'fajin_ocre'])];
+    if (type === 'marine' || type === 'marine_gun') return ['cinto_blanco'].concat(r() < 0.4 ? ['munequeras'] : []);
+    if (/pirate|corsair|ghost/.test(type)) return [pick(['fajin_rojo', 'fajin_azul', 'fajin_ocre', 'fajin_negro', null]), r() < 0.45 ? 'munequeras' : null, r() < 0.35 ? 'hombrera' : null, /_gun$/.test(type) && r() < 0.5 ? 'crane_bandolera' : null].filter(Boolean);
+    return [];
+  }
   Pr.human = function (type, extra) {
     const d = type === 'npc' ? Pr.NPCS[(extra || 0) % Pr.NPCS.length] : pirateLook(type, extra || 0);
-    const model = G.Character.create(hx(d.shirt), { skin: hx(d.skin), pants: hx(d.pants) });
-    G.Equip.apply(model, d.cos || []);
+    const model = G.Character.create(hx(d.shirt), { skin: hx(d.skin), pants: hx(d.pants), female: !!d.female, hair: d.hair ? hx(d.hair) : undefined });
+    G.Equip.apply(model, (d.cos || []).concat(type === 'npc' ? [] : outfitExtras(type, extra || 0)));
     if (d.hold) { const t = G.makeItemMesh(d.hold); if (t) { t.rotation.set(Math.PI / 2, 2.12, 0); model.hand.add(t); } }
     const out = { g: model.root, legs: [], head: null, model, vinfo: { name: d.name, role: d.role }, feathers: { dispose() {} }, hold: !!d.hold };
     if (/^ghost_/.test(type)) out.ghostMats = ghostly(model);
@@ -82,14 +99,34 @@
     return mats;
   };
   // Muñecos de entrenamiento
+  // Muñeco de paja articulado: el cuerpo gira sobre el poste y la cabeza y los brazos cuelgan de muelles
+  // (combat.js los balancea según dónde le golpees: sirve para practicar las zonas del cuerpo)
+  function strawDummy(D) {
+    const Md = M(), mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
+    const mesh = (parts) => { const m = new THREE.Mesh(U.merge(parts), mat); m.castShadow = true; return m; };
+    const straw = (x, y) => (Math.abs(Math.sin(y * 25)) > 0.93 ? 0x7a5a2a : 0xd8bc6a);
+    const g = new THREE.Group();
+    g.add(mesh([Md.xf(Md.paint(new THREE.CylinderGeometry(0.07, 0.09, 1.0, 7), 0x5a4028), 0, 0.5, 0)]));
+    const torso = new THREE.Group(); torso.position.set(0, 0.95, 0); g.add(torso);
+    torso.add(mesh([Md.xf(Md.paint(new THREE.CylinderGeometry(0.07, 0.07, 0.95, 7), 0x5a4028), 0, 0.45, 0), Md.xf(Md.paint(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 6), 0x5a4028), 0, 0.4, 0, 0, 0, Math.PI / 2),
+      Md.xf(Md.paint(new THREE.CylinderGeometry(0.22, 0.2, 0.7, 10), straw), 0, 0.2, 0), Md.xf(Md.paint(new THREE.TorusGeometry(0.2, 0.025, 5, 14), 0x7a5a2a), 0, 0.34, 0, Math.PI / 2, 0, 0)]));
+    const head = new THREE.Group(); head.position.set(0, 0.58, 0); torso.add(head);
+    head.add(mesh([Md.xf(Md.paint(new THREE.CylinderGeometry(0.04, 0.05, 0.12, 6), 0x7a5a2a), 0, 0.03, 0), Md.ball(0.17, 0xc8b080, 0, 0.15, 0), Md.ball(0.03, 0x2a2a2a, 0.06, 0.19, 0.15), Md.ball(0.03, 0x2a2a2a, -0.06, 0.19, 0.15),
+      Md.xf(Md.paint(new THREE.BoxGeometry(0.1, 0.018, 0.02), 0x5a2a1a), 0, 0.09, 0.16)]));
+    const arm = (s) => {
+      const a = new THREE.Group(); a.position.set(s * 0.22, 0.4, 0); torso.add(a);
+      a.add(mesh([Md.xf(Md.paint(new THREE.CylinderGeometry(0.08, 0.07, 0.5, 8), straw), s * 0.27, 0, 0, 0, 0, Math.PI / 2), Md.ball(0.075, 0xc8b080, s * 0.55, 0, 0)]));
+      return a;
+    };
+    const armL = arm(1), armR = arm(-1);
+    const J = (o, axis, k, damp, max) => ({ o, axis, k, damp, max, ang: 0, vel: 0 });
+    const joints = { torso: J(torso, 'x', 55, 4.5, 0.55), torsoZ: J(torso, 'z', 55, 4.5, 0.4), head: J(head, 'x', 90, 5, 0.8), armL: J(armL, 'z', 70, 3.5, 1.1), armR: J(armR, 'z', 70, 3.5, 1.1) };
+    return { g, legs: [], head: null, mat, joints, vinfo: { name: D.name, role: 'dummy' } };
+  }
   Pr.dummy = function (extra) {
     const Md = M(), D = Pr.DUMMIES[extra % Pr.DUMMIES.length], p = [];
-    if (extra === 0) {
-      p.push(Md.xf(Md.paint(new THREE.CylinderGeometry(0.07, 0.09, 1.9, 7), 0x5a4028), 0, 0.95, 0), Md.xf(Md.paint(new THREE.CylinderGeometry(0.05, 0.05, 1.3, 6), 0x5a4028), 0, 1.35, 0, 0, 0, Math.PI / 2));
-      p.push(Md.xf(Md.paint(new THREE.CylinderGeometry(0.22, 0.2, 0.7, 10), (x, y) => (Math.abs(Math.sin(y * 25)) > 0.93 ? 0x7a5a2a : 0xd8bc6a)), 0, 1.15, 0));
-      p.push(Md.ball(0.17, 0xc8b080, 0, 1.68, 0), Md.ball(0.03, 0x2a2a2a, 0.06, 1.72, 0.15), Md.ball(0.03, 0x2a2a2a, -0.06, 1.72, 0.15));
-      for (const s of [-1, 1]) p.push(Md.xf(Md.paint(new THREE.CylinderGeometry(0.08, 0.07, 0.5, 8), 0xd8bc6a), s * 0.5, 1.35, 0, 0, 0, Math.PI / 2));
-    } else if (extra === 1) {
+    if (extra === 0) return strawDummy(D);
+    if (extra === 1) {
       for (const [x, z, rz] of [[-0.4, -0.2, 0.2], [0.4, -0.2, -0.2], [0, 0.35, 0]]) p.push(Md.xf(Md.paint(new THREE.CylinderGeometry(0.04, 0.05, 1.7, 5), 0x5a4028), x * 0.8, 0.8, z, z > 0 ? -0.3 : 0.1, 0, rz));
       p.push(Md.xf(Md.paint(new THREE.CylinderGeometry(0.55, 0.55, 0.08, 28), (x, y, z) => { const r = Math.hypot(x, z); return y < 0 ? 0xb8a070 : r < 0.1 ? 0xd02020 : r < 0.2 ? 0xf2ece0 : r < 0.3 ? 0xd02020 : r < 0.42 ? 0xf2ece0 : 0x2a2a2a; }), 0, 1.35, -0.1, Math.PI / 2 + 0.15, Math.PI, 0));
     } else if (extra === 2) {
@@ -226,8 +263,8 @@
     xm.visible = false; tg.add(xm); Pr.xMark = xm;
     const chest = vmesh([Md.xf(Md.paint(new THREE.BoxGeometry(0.9, 0.5, 0.6), (x, y) => (Math.abs(y) > 0.2 ? 0xc8a040 : 0x6a4428)), 0, 0.25, 0), Md.xf(Md.paint(new THREE.CylinderGeometry(0.3, 0.3, 0.9, 12, 1, false, 0, Math.PI), 0x7a5230), 0, 0.5, 0, 0, 0, Math.PI / 2)]);
     chest.visible = false; tg.add(chest); Pr.chestMesh = chest;
-    loot('p:treasure', T.x, T.z, tg, 'Cofre de Rogan', () => (F().treasure ? '🗝️ Aquí estaba el <b>cofre de Rogan</b>' : Pr.clues() >= 3 ? '✖ <b>Aquí marca el mapa de Rogan</b> · <kbd>E</kbd> Cavar' : ''));
-    G.Landmarks.kit().circle(T.x + 0, T.z, 0.2);
+    loot('p:treasure', T.x, T.z, tg, 'Cofre de Rogan', () => (F().treasure ? '🗝️ <b>Cofre de Rogan</b> · <kbd>E</kbd> Abrir <span class="muted">(puedes guardar objetos)</span>' : Pr.clues() >= 3 ? '✖ <b>Aquí marca el mapa de Rogan</b> · <kbd>E</kbd> Cavar' : ''));
+    G.Landmarks.kit().circle(T.x + 0, T.z, 0.5);
   };
   // Solo se puede interactuar con la ✖ al tener las tres pistas
   Pr.visible = (c) => c.id !== 'p:treasure' || Pr.clues() >= 3 || F().treasure;
@@ -397,9 +434,9 @@
       return;
     }
     if (c.id === 'p:treasure') {
-      if (f.treasure) { G.UI.msg('Aquí ya no queda nada.', 'info', 'clue'); return; }
+      if (f.treasure) { G.Game.openStore(c); return; }
       if (Pr.clues() < 3) return;
-      if (G.Net.active && !G.Net.isHost) { G.Net.send({ t: 'prDig' }); G.UI.msg('⛏️ Cavando…', 'info'); return; }
+      if (G.Net.active && !G.Net.isHost) { G.Game.expectStore('p:treasure'); G.Net.send({ t: 'prDig' }); G.UI.msg('⛏️ Cavando…', 'info'); return; }
       dig(G.Net.myId);
     }
   };
@@ -417,11 +454,11 @@
     const give = () => {
       if (Pr.chestMesh) Pr.chestMesh.visible = true;
       if (!G.Net.active || who === G.Net.myId) {
-        for (const [id, n] of items) G.Game.give(id, n);
         G.Ach.add('rogan');
         G.UI.banner('¡El tesoro de Rogan!', k ? `Una Fruta del Abismo: ${G.Story.FRUITS[k].icon} ${G.Story.FRUITS[k].name}` : 'Oro y perlas del Rey de las Mareas');
         G.Audio.play('win');
-      } else G.Net.send({ t: 'give', to: who, items, loot: true });
+      }
+      G.Game.buryStore('p:treasure', items, who);
       G.Net.send({ t: 'prTreasure' });
     };
     if (!G.Net.active || who === G.Net.myId) G.UI.fade(give); else give();
